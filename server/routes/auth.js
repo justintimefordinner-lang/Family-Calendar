@@ -34,6 +34,7 @@ router.post('/setup', wrap(async (req, res) => {
       if (!m.name || !String(m.name).trim()) return;
       ins.run(String(m.name).trim(), m.role === 'parent' ? 'parent' : 'kid', m.color || '#4f86f7', m.emoji || '🙂', i);
     });
+    require('../prizes').seedDefaults(); // starter coin prizes
   })();
   auth.issueSession(res);
   res.json({ ok: true });

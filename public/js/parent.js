@@ -366,11 +366,11 @@
 
   // ---- Prizes (coin rewards) ---------------------------------------------------
   const PRIZE_IDEAS = [
-    ['🍦', 'Date with Mom', 50], ['🎣', 'Date with Dad', 55], ['🌙', 'Stay up 30 min later', 15], ['🍕', 'Pick dinner', 20],
-    ['🎬', 'Pick the family movie', 25], ['📱', 'Extra 30 min screen time', 10], ['🎟️', 'Skip one chore', 20], ['🍨', 'Ice cream run', 25],
-    ['🛏️', 'Friend sleepover', 60], ['🛝', 'Trip to the park', 15], ['🍰', 'Dessert first', 12], ['🎲', 'Pick game night', 20],
-    ['💵', '$5 cash', 50], ['📚', 'New book', 40], ['⛺', 'Camp in the living room', 35], ['🥞', 'Breakfast in bed', 30],
-    ['👑', 'Boss for a day', 45], ['🎨', 'Craft afternoon', 20], ['🚗', 'Front seat for a week', 25], ['🧁', 'Bake something together', 30],
+    ['🌙', 'Stay up 30 minutes later', 15], ['🍨', 'Ice cream run', 25], ['🛝', 'Trip to the park', 15], ['🎨', 'Crafternoon', 20],
+    ['🧁', 'Bake something together', 30], ['📚', 'New book', 40], ['🎬', 'Pick the family movie', 25], ['🎲', 'Pick game night', 20],
+    ['🍰', 'Dessert first', 12], ['🍦', 'Date with Mom', 50], ['🎣', 'Date with Dad', 55], ['🍕', 'Pick dinner', 20],
+    ['📱', 'Extra 30 min screen time', 10], ['🎟️', 'Skip one chore', 20], ['🛏️', 'Friend sleepover', 60], ['💵', '$5 cash', 50],
+    ['⛺', 'Camp in the living room', 35], ['🥞', 'Breakfast in bed', 30], ['👑', 'Boss for a day', 45], ['🚗', 'Front seat for a week', 25],
   ];
 
   function prizesHtml(rewards, redemptions) {
