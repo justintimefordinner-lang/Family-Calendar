@@ -264,7 +264,16 @@ h1, h2, h3 { margin: 0; font-weight: 700; }
 .dpad-btn.up { grid-column: 2; grid-row: 1; } .dpad-btn.left { grid-column: 1; grid-row: 2; }
 .dpad-btn.right { grid-column: 3; grid-row: 2; } .dpad-btn.down { grid-column: 2; grid-row: 3; }
 .dpad-btn.fire { grid-column: 3; grid-row: 3; background: #7f1d1d; border-radius: 50%; display: none; }
-.game.uses-fire .dpad-btn.fire { display: block; }
+/* Asteroids: steer on the left, thrust / brake / fire on the right */
+.pad-left { display: none; gap: 16px; }
+.pad-left .dpad-btn { width: 150px; height: 150px; font-size: 3rem; }
+.game.uses-fire .pad-left { display: flex; }
+.game.uses-fire .dpad-btn.left, .game.uses-fire .dpad-btn.right { display: none; }
+.game.uses-fire .dpad-btn.fire { display: block; grid-column: 2; grid-row: 2; width: 120px; height: 120px; font-size: 2.2rem; }
+.game.uses-fire .dpad { grid-template-columns: 120px; }
+.game.uses-fire .dpad-btn.up { grid-column: 1; grid-row: 1; }
+.game.uses-fire .dpad-btn.down { grid-column: 1; grid-row: 3; }
+.game.uses-fire .game-stage { gap: 40px; }
 .game-coins { font-size: 1.2rem; font-weight: 700; color: #ffd23f; }
 .game-card .icon.snake { background: #0e2a12; } .game-card .icon.frogger { background: #1d4ed8; } .game-card .icon.asteroids { background: #111; }
 

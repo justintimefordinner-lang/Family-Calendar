@@ -420,7 +420,7 @@
     { key: 'pacman', name: 'Pac-Man', icon: '🟡', sub: 'Swipe or use the arrows', fire: false },
     { key: 'snake', name: 'Snake', icon: '🐍', sub: 'Eat apples, don’t hit the walls', fire: false },
     { key: 'frogger', name: 'Frogger', icon: '🐸', sub: 'Hop across the road and river', fire: false },
-    { key: 'asteroids', name: 'Asteroids', icon: '🚀', sub: 'Rotate, thrust and ● to shoot', fire: true },
+    { key: 'asteroids', name: 'Asteroids', icon: '🚀', sub: '◀ ▶ steer · ▲ thrust · ▼ brake · ● shoot', fire: true },
   ];
   const gameRate = () => Number(state.settings.game_coins_per_minute) || 0;
   const coinName = () => state.settings.coin_name || 'Mom Coins';

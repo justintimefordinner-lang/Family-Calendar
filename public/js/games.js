@@ -205,6 +205,7 @@
         if (held.has('left')) s.a -= 3.6 * dt;
         if (held.has('right')) s.a += 3.6 * dt;
         if (held.has('up')) { s.vx += Math.cos(s.a) * 260 * dt; s.vy += Math.sin(s.a) * 260 * dt; s.thrust = true; } else s.thrust = false;
+        if (held.has('down')) { s.vx *= 1 - 3 * dt; s.vy *= 1 - 3 * dt; } // brake
         if (held.has('fire')) { g.cool -= dt; if (g.cool <= 0) { fire(g); } } else g.cool = 0;
         s.vx *= 1 - 0.6 * dt; s.vy *= 1 - 0.6 * dt;
         s.x = wrap(s.x + s.vx * dt, g.W); s.y = wrap(s.y + s.vy * dt, g.H);
