@@ -349,7 +349,7 @@
             <label class="field"><span>Coins (negative to spend)</span><input type="number" name="amount" step="1" inputmode="numeric" required placeholder="-10"></label>
             <label class="field"><span>Note</span><input type="text" name="note" maxlength="200" placeholder="Movie pick"></label>
           </div>
-          <button class="btn primary block" type="submit">Save</button></form>
+          <div class="actions"><button class="btn primary grow" type="submit">Save</button><button class="btn danger" type="button" data-action="coins-zero" data-id="${m.id}" data-coins="${f.coins || 0}">Reset to 0</button></div></form>
         ${(f.coin_transactions || []).slice(0, 40).map((t) => `<div class="list-item tx">
           <div class="grow"><div class="title">${esc(t.note || 'Coins')}</div><div class="sub">${fmtWhen(t.created_at)}</div></div>
           <div class="a ${t.amount < 0 ? 'neg' : 'pos'}">${t.amount < 0 ? '−' : '+'}${Math.abs(t.amount)}</div>
@@ -771,6 +771,12 @@
           toast(p && p.paid ? 'Paid!' : 'Approved'); render(); break;
         }
         case 'reject': await api(`/api/chores/completions/${id}/reject`, { method: 'POST' }); toast('Rejected'); render(); break;
+        case 'coins-zero': {
+          const bal = Number(act.dataset.coins) || 0;
+          if (!bal) return toast('Already at 0');
+          await api(`/api/coins/${id}`, { method: 'POST', body: { amount: -bal, note: 'Reset to 0' } });
+          toast('Coins reset to 0'); render(); break;
+        }
         case 'delete-coins':
           await api(`/api/coins/transactions/${id}`, { method: 'DELETE' }); toast('Removed'); render(); break;
         case 'delete-tx':
