@@ -179,6 +179,9 @@ h1, h2, h3 { margin: 0; font-weight: 700; }
 .badge { font-size: 0.75rem; padding: 3px 8px; border-radius: 999px; background: #eee; color: var(--muted); font-weight: 600; }
 .badge.pending { background: #fff4e0; color: var(--warn); }
 .badge.approved { background: #e7f8ec; color: var(--good); }
+.badge.rejected { background: #fde8e8; color: #dc2626; }
+.chore.rejected .check { border-color: #dc2626; color: #dc2626; background: #fde8e8; }
+.chore.rejected .text { color: #b91c1c; }
 
 .money { text-align: center; padding: 8px 0 4px; }
 .money2 { display: flex; gap: 12px; text-align: center; padding: 4px 0; }
