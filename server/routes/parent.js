@@ -135,6 +135,7 @@ router.post('/chores/:id/restore', (req, res) => {
 
 router.get('/chores/pending', (req, res) => res.json(chores.pending()));
 router.post('/chores/approve-all', (req, res) => res.json({ approved: chores.approveAll(toInt(req.body.member_id, null)) }));
+router.post('/chores/reject-all', (req, res) => res.json({ rejected: chores.rejectAll(toInt(req.body.member_id, null)) }));
 
 // ---- Reward coins ----------------------------------------------------------
 router.post('/coins/:memberId', (req, res) => {

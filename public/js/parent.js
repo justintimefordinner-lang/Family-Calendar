@@ -206,7 +206,8 @@
         ${byKid.map((g) => `
           <div class="list-item" style="padding-bottom:4px"><div class="avatar" style="--c:${esc(g.color)}">${esc(g.emoji)}</div>
             <div class="grow title">${esc(g.name)} <span class="muted small">· ${g.items.length}</span></div>
-            <button class="btn small good" data-action="approve-all" data-member="${g.member_id}">Approve all</button></div>
+            <button class="btn small good" data-action="approve-all" data-member="${g.member_id}">Approve all</button>
+            <button class="btn small danger" data-action="reject-all" data-member="${g.member_id}">Reject all</button></div>
           ${g.items.map((p) => `<div class="list-item" style="padding-left:50px">
             <div class="grow"><div class="title">${esc(p.title)}</div><div class="sub">${fmtWhen(p.completed_at)}</div></div>
             <div class="amt">${p.paid ? money(p.amount_cents) : (p.coins ? `🪙 +${p.coins}` : '')}</div>
@@ -693,6 +694,11 @@
           const body = act.dataset.member ? { member_id: Number(act.dataset.member) } : {};
           const r = await api('/api/chores/approve-all', { method: 'POST', body });
           toast(`Approved ${r.approved}`); render(); break;
+        }
+        case 'reject-all': {
+          const body = act.dataset.member ? { member_id: Number(act.dataset.member) } : {};
+          const r = await api('/api/chores/reject-all', { method: 'POST', body });
+          toast(`Rejected ${r.rejected}`); render(); break;
         }
         case 'approve': {
           const p = (S.pending || []).find((x) => x.id === Number(id));

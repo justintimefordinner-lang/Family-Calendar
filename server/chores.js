@@ -162,6 +162,12 @@ const approveAll = db.transaction((memberId = null) => {
   return rows.length;
 });
 
+const rejectAll = db.transaction((memberId = null) => {
+  const rows = pendingList.all().filter((p) => memberId == null || p.member_id === memberId);
+  for (const p of rows) reject(p.id);
+  return rows.length;
+});
+
 const coinBalanceStmt = db.prepare('SELECT COALESCE(SUM(amount), 0) AS n FROM coin_transactions WHERE member_id = ?');
 const coinBalance = (memberId) => coinBalanceStmt.get(memberId).n;
 
@@ -172,4 +178,4 @@ function reject(completionId) {
   db.prepare(`UPDATE chore_completions SET status = 'rejected', reviewed_at = datetime('now') WHERE id = ?`).run(completionId);
 }
 
-module.exports = { choresForDay, complete, uncomplete, pending, approve, approveAll, reject, isDue, coinBalance };
+module.exports = { choresForDay, complete, uncomplete, pending, approve, approveAll, reject, rejectAll, isDue, coinBalance };
