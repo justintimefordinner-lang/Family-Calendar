@@ -234,6 +234,23 @@ h1, h2, h3 { margin: 0; font-weight: 700; }
 .setup-notice h2 { font-size: 2.4rem; margin-bottom: 16px; }
 .setup-notice p { font-size: 1.4rem; color: var(--muted); }
 
+/* ---- On-screen keyboard (touch displays have no OS keyboard in kiosk mode) ---- */
+.osk { position: fixed; left: 0; right: 0; bottom: 0; z-index: 80; background: #e9e6df; border-top: 1px solid #cfcabf; box-shadow: 0 -12px 40px rgba(0,0,0,0.18); padding: 10px 16px calc(14px + env(safe-area-inset-bottom)); animation: oskUp 0.18s ease; }
+.osk[hidden] { display: none; }
+@keyframes oskUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+.osk-preview { background: #fff; border-radius: 12px; padding: 12px 16px; font-size: 1.5rem; min-height: 60px; margin: 0 auto 10px; max-width: 1100px; display: flex; align-items: center; }
+.osk-preview:empty::before { content: " "; }
+.osk-caret { display: inline-block; width: 2px; height: 1.4em; background: var(--accent); margin-left: 2px; animation: blink 1s steps(2) infinite; }
+@keyframes blink { to { visibility: hidden; } }
+.osk-keys { display: flex; flex-direction: column; gap: 8px; align-items: center; }
+.osk-row { display: flex; gap: 8px; justify-content: center; }
+.osk-key { min-width: 72px; height: 62px; border: 0; border-radius: 12px; background: #fff; font-size: 1.5rem; font-weight: 600; box-shadow: 0 2px 0 #c9c4b8; color: var(--ink); padding: 0 10px; }
+.osk-key:active { background: #d6e4ff; transform: translateY(2px); box-shadow: none; }
+.osk-key.wide { min-width: 120px; font-size: 1.1rem; background: #f3f1ea; }
+.osk-key.space { min-width: 420px; }
+.osk-key.primary { background: var(--accent); color: #fff; }
+.osk-key.on { background: #d6e4ff; }
+
 /* ---- "Great Job!" celebration ---- */
 .celebrate { position: fixed; inset: 0; z-index: 90; display: grid; place-items: center; background: rgba(20, 16, 40, 0.55); animation: fadeIn 0.2s ease; }
 .celebrate[hidden] { display: none; }

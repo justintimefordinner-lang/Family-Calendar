@@ -168,12 +168,15 @@ const rejectAll = db.transaction((memberId = null) => {
   return rows.length;
 });
 
-// Wipe one member's completions for a day, refunding any coins or cash they produced.
+// Wipe one member's regular-chore completions for a day, refunding the coins they produced.
+// Earn Money chores (and their cash) are left untouched.
 const resetDay = db.transaction((memberId, date) => {
-  const rows = db.prepare('SELECT id FROM chore_completions WHERE member_id = ? AND date = ?').all(memberId, date);
+  const rows = db.prepare(`
+    SELECT cc.id FROM chore_completions cc JOIN chores c ON c.id = cc.chore_id
+    WHERE cc.member_id = ? AND cc.date = ? AND c.paid = 0
+  `).all(memberId, date);
   for (const r of rows) {
     db.prepare('DELETE FROM coin_transactions WHERE completion_id = ?').run(r.id);
-    db.prepare('DELETE FROM transactions WHERE completion_id = ?').run(r.id);
     db.prepare('DELETE FROM chore_completions WHERE id = ?').run(r.id);
   }
   return rows.length;

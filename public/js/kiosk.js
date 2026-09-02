@@ -707,6 +707,77 @@
     } catch (err) { alert(err.message); }
   });
 
+  // ---- On-screen keyboard -----------------------------------------------------
+  const osk = { target: null, shift: true, numbers: false };
+  const OSK_ROWS = [['q', 'w', 'e', 'r', 't', 'y', 'u', 'i', 'o', 'p'], ['a', 's', 'd', 'f', 'g', 'h', 'j', 'k', 'l'], ['z', 'x', 'c', 'v', 'b', 'n', 'm']];
+  const OSK_NUM = [['1', '2', '3', '4', '5', '6', '7', '8', '9', '0'], ['-', '/', ':', ';', '(', ')', '$', '&', '@'], ['.', ',', '?', '!', "'", '"', '%']];
+
+  function oskRender() {
+    const rows = osk.numbers ? OSK_NUM : OSK_ROWS;
+    const key = (k, cls = '', label = k) => `<button class="osk-key ${cls}" data-key="${esc(k)}">${esc(label)}</button>`;
+    const html = rows.map((r, i) => {
+      const keys = r.map((k) => key(k, '', osk.shift && !osk.numbers ? k.toUpperCase() : k)).join('');
+      if (i === 2) return `<div class="osk-row">${key('shift', `wide ${osk.shift ? 'on' : ''}`, '⇧')}${keys}${key('backspace', 'wide', '⌫')}</div>`;
+      return `<div class="osk-row">${keys}</div>`;
+    }).join('');
+    $('#oskKeys').innerHTML = `${html}<div class="osk-row">${key('numbers', 'wide', osk.numbers ? 'ABC' : '123')}${key(' ', 'space', 'space')}${key('done', 'wide', 'Hide')}${key('enter', 'wide primary', osk.target && osk.target.form ? 'Add' : 'Done')}</div>`;
+  }
+
+  function oskShow(input) {
+    osk.target = input;
+    osk.shift = !input.value;
+    osk.numbers = false;
+    $('#oskText').textContent = input.value;
+    $('#osk').hidden = false;
+    oskRender();
+  }
+
+  function oskHide() {
+    $('#osk').hidden = true;
+    if (osk.target) osk.target.blur();
+    osk.target = null;
+  }
+
+  function oskPress(k) {
+    const t = osk.target;
+    if (!t) return;
+    if (k === 'shift') { osk.shift = !osk.shift; oskRender(); return; }
+    if (k === 'numbers') { osk.numbers = !osk.numbers; oskRender(); return; }
+    if (k === 'done') { oskHide(); return; }
+    if (k === 'enter') {
+      if (t.form) t.form.requestSubmit(); else oskHide();
+      return;
+    }
+    if (k === 'backspace') t.value = t.value.slice(0, -1);
+    else {
+      t.value += osk.shift && !osk.numbers ? k.toUpperCase() : k;
+      if (osk.shift && k !== ' ') { osk.shift = false; oskRender(); }
+    }
+    if (k === ' ' || k === 'backspace') { /* keep shift state */ }
+    $('#oskText').textContent = t.value;
+    t.dispatchEvent(new Event('input', { bubbles: true }));
+  }
+
+  const isTextInput = (t) => t && t.matches && t.matches('input[type="text"], input:not([type])');
+  document.addEventListener('focusin', (e) => { if (isTextInput(e.target)) oskShow(e.target); });
+  document.addEventListener('click', (e) => { if (isTextInput(e.target) && $('#osk').hidden) oskShow(e.target); });
+  $('#osk').addEventListener('pointerdown', (e) => e.preventDefault()); // keep the input focused
+  $('#osk').addEventListener('click', (e) => {
+    const b = e.target.closest('[data-key]');
+    if (b) oskPress(b.dataset.key);
+  });
+  document.addEventListener('pointerdown', (e) => {
+    if ($('#osk').hidden) return;
+    if (e.target.closest('#osk') || e.target === osk.target) return;
+    oskHide();
+  }, true);
+  // After a shopping item is added the list re-renders; keep the keyboard open on the fresh input.
+  document.addEventListener('submit', (e) => {
+    if (e.target.id === 'shopForm' && !$('#osk').hidden) {
+      setTimeout(() => { const i = $('#shopInput'); if (i) { i.focus(); oskShow(i); } }, 400);
+    }
+  });
+
   // ---- Screensaver ----------------------------------------------------------
   let lastActivity = Date.now();
   let ssTimer = null;

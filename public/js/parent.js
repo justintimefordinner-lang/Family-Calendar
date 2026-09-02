@@ -224,7 +224,7 @@
     html += `<div class="card"><h2>Today <span class="meta">${parseYmd(today.date).toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' })}</span></h2>
       ${groups.length ? groups.map((g) => `
         <div class="list-item" style="border-top:0;padding-bottom:0"><div class="avatar" style="--c:${esc(g.m.color)}">${esc(g.m.emoji)}</div><div class="grow title">${esc(g.m.name)}</div>
-          <button class="btn small" data-action="reset-day" data-member="${g.m.id}" data-name="${esc(g.m.name)}" title="Clear today's chores and refund today's coins">↺ Reset</button></div>
+          <button class="btn small" data-action="reset-day" data-member="${g.m.id}" data-name="${esc(g.m.name)}" title="Clear today's regular chores and refund today's coins">↺ Reset</button></div>
         ${g.items.map((c) => {
           const done = c.status === 'done' || c.status === 'approved';
           return `<div class="list-item tappable" data-toggle="${c.id}" data-member="${g.m.id}" data-completion="${c.completion_id || ''}" data-status="${c.status || ''}">
@@ -697,7 +697,7 @@
           toast(`Approved ${r.approved}`); render(); break;
         }
         case 'reset-day': {
-          if (!confirm(`Reset ${act.dataset.name}'s chores for today? Every tick comes off and any coins or cash earned today are refunded.`)) return;
+          if (!confirm(`Reset ${act.dataset.name}'s regular chores for today? Ticks come off and today's coins are refunded. Earn Money chores are not affected.`)) return;
           const r = await api('/api/chores/reset-day', { method: 'POST', body: { member_id: Number(act.dataset.member) } });
           toast(`Reset ${r.reset} chore${r.reset === 1 ? '' : 's'}`); render(); break;
         }
