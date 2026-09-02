@@ -255,13 +255,13 @@
   // ---- Rendering: side panel -------------------------------------------------
   function choreRow(c, showWho) {
     const cls = ['chore', c.status === 'done' || c.status === 'approved' ? 'done' : '', c.status === 'pending' ? 'pending' : '', c.status === 'rejected' ? 'rejected' : ''].join(' ');
-    const mark = c.status === 'pending' ? '⏳' : (c.status === 'done' || c.status === 'approved' ? '✓' : (c.status === 'rejected' ? '✕' : ''));
+    const mark = c.status === 'pending' ? '⏳' : (c.status === 'done' || c.status === 'approved' ? '✓' : '');
     let sub = '';
     if (c.paid) {
       let badge;
       if (c.status === 'pending') badge = '<span class="badge pending">Waiting for a parent to approve</span>';
       else if (c.status === 'approved') badge = '<span class="badge approved">Paid!</span>';
-      else if (c.status === 'rejected') badge = '<span class="badge rejected">Rejected — tap to try again</span>';
+      else if (c.status === 'rejected') badge = '<span class="badge rejected">Rejected</span>';
       else if (c.member_id == null) badge = '<span class="badge">Anyone can claim this</span>';
       else badge = '<span class="badge">Tap when finished</span>';
       sub = `<span class="sub">${badge}</span>`;
@@ -270,7 +270,7 @@
       const coins = c.coins != null ? Number(c.coins) : (Number(state.settings.coins_per_chore) || 0);
       if (c.status === 'pending') sub = `<span class="sub"><span class="badge pending">Waiting for approval${coins ? ` · 🪙 +${coins}` : ''}</span></span>`;
       else if (c.status === 'approved' && coins) sub = `<span class="sub"><span class="badge approved">🪙 +${coins} ${esc(coinName)}</span></span>`;
-      else if (c.status === 'rejected') sub = '<span class="sub"><span class="badge rejected">Rejected — tap to try again</span></span>';
+      else if (c.status === 'rejected') sub = '<span class="sub"><span class="badge rejected">Rejected</span></span>';
       else if (showWho && c.member_name) sub = `<span class="sub">${esc(c.member_name)}</span>`;
     }
     if (c.notes) sub += `<span class="sub">${esc(c.notes)}</span>`;
@@ -359,11 +359,11 @@
   function earnRow(c) {
     const who = c.completed_by != null ? memberById(c.completed_by) : (c.member_id != null ? memberById(c.member_id) : null);
     const cls = ['chore', 'earn-row', c.status === 'approved' ? 'done' : '', c.status === 'pending' ? 'pending' : '', c.status === 'rejected' ? 'rejected' : ''].join(' ');
-    const mark = c.status === 'pending' ? '⏳' : (c.status === 'approved' ? '✓' : (c.status === 'rejected' ? '✕' : ''));
+    const mark = c.status === 'pending' ? '⏳' : (c.status === 'approved' ? '✓' : '');
     let badge = '';
     if (c.status === 'pending') badge = `<span class="badge pending">${esc(who ? who.name : '')} · waiting for approval</span>`;
     else if (c.status === 'approved') badge = `<span class="badge approved">Paid to ${esc(who ? who.name : '')}</span>`;
-    else if (c.status === 'rejected') badge = '<span class="badge rejected">Rejected — tap to try again</span>';
+    else if (c.status === 'rejected') badge = '<span class="badge rejected">Rejected</span>';
     else if (who) badge = `<span class="badge">For ${esc(who.name)}</span>`;
     else badge = '<span class="badge">Anyone can claim</span>';
     return `<div class="${cls}" data-earn="${c.id}" data-completion="${c.completion_id || ''}" data-status="${c.status || ''}">
