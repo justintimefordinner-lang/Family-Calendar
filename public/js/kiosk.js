@@ -280,7 +280,7 @@
   function renderSideMember(m) {
     const regular = state.chores.filter((c) => !c.paid);
     const paid = state.chores.filter((c) => c.paid);
-    const done = regular.filter((c) => c.status).length;
+    const done = regular.filter((c) => c.status && c.status !== 'rejected').length;
     const fin = state.finance.find((f) => f.member_id === m.id);
     const apr = Number(state.settings.interest_apr) || 0;
     // Group by time of day like a paper chore chart; headers only when periods are in use.
@@ -329,7 +329,7 @@
     const rows = state.members.map((m) => {
       const mine = state.chores.filter((c) => c.member_id === m.id || (c.member_id == null && c.completed_by === m.id));
       const regular = mine.filter((c) => !c.paid);
-      const done = regular.filter((c) => c.status).length;
+      const done = regular.filter((c) => c.status && c.status !== 'rejected').length;
       const fin = state.finance.find((f) => f.member_id === m.id);
       const pct = regular.length ? Math.round((done / regular.length) * 100) : 0;
       const pending = fin && fin.pending_cents ? `<small>${money(fin.pending_cents)} waiting for approval</small>` : '';
