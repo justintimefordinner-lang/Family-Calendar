@@ -73,7 +73,17 @@
   }
 
   function shell(title, content, actions = '') {
-    $('#app').innerHTML = `<div class="screen"><div class="topbar"><h1>${title}</h1><div>${actions}</div></div>${content}</div>${tabbar()}`;
+    const reload = '<button class="btn small icon" data-action="reload" title="Refresh the app" aria-label="Refresh">↻</button>';
+    $('#app').innerHTML = `<div class="screen"><div class="topbar"><h1>${title}</h1><div class="actions" style="margin:0">${actions}${reload}</div></div>${content}</div>${tabbar()}`;
+  }
+
+  // Hard refresh: drop the cached shell and reload from the Pi.
+  async function hardReload() {
+    try {
+      if (window.caches) for (const k of await caches.keys()) await caches.delete(k);
+      if (navigator.serviceWorker) for (const r of await navigator.serviceWorker.getRegistrations()) await r.update();
+    } catch { /* ignore */ }
+    location.reload();
   }
 
   const memberById = (id) => S.members.find((m) => m.id === id);
@@ -139,6 +149,7 @@
         <button data-key="back">⌫</button><button data-key="0">0</button><button data-key="go" class="btn primary">Go</button>
       </div>
       <p class="muted small mt">This is the parent app for the family display. Kids use the touchscreen.</p>
+      <button class="btn small" data-action="reload">↻ Refresh app</button>
     </div>`;
   }
 
@@ -724,6 +735,7 @@
           if (!confirm('Delete this photo?')) return;
           await api(`/api/photos/${encodeURIComponent(act.dataset.name)}`, { method: 'DELETE' }); render(); break;
         case 'logout': await api('/api/auth/logout', { method: 'POST' }); S.me.parent = false; render(); break;
+        case 'reload': toast('Refreshing…'); await hardReload(); break;
         default: break;
       }
     } catch (err) { fail(err); }
