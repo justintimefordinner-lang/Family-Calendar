@@ -276,7 +276,7 @@
     if (c.notes) sub += `<span class="sub">${esc(c.notes)}</span>`;
     const amt = c.paid ? `<span class="amt">${money(c.amount_cents)}</span>` : '';
     return `<div class="${cls}" data-chore="${c.id}" data-completion="${c.completion_id || ''}" data-status="${c.status || ''}" data-owner="${c.member_id ?? ''}">
-      <div class="check">${mark}</div><div class="text">${esc(c.title)}${sub}</div>${amt}</div>`;
+      <div class="check">${mark}</div><div class="text"><span class="t">${esc(c.title)}</span>${sub}</div>${amt}</div>`;
   }
 
   function renderSideMember(m) {
@@ -368,7 +368,7 @@
     else badge = '<span class="badge">Anyone can claim</span>';
     return `<div class="${cls}" data-earn="${c.id}" data-completion="${c.completion_id || ''}" data-status="${c.status || ''}">
       <div class="check" ${who ? `style="border-color:${esc(who.color)}"` : ''}>${mark || (who ? esc(who.emoji) : '💵')}</div>
-      <div class="text">${esc(c.title)}<span class="sub">${badge}</span>${c.notes ? `<span class="sub">${esc(c.notes)}</span>` : ''}</div>
+      <div class="text"><span class="t">${esc(c.title)}</span><span class="sub">${badge}</span>${c.notes ? `<span class="sub">${esc(c.notes)}</span>` : ''}</div>
       <span class="amt">${money(c.amount_cents)}</span></div>`;
   }
 

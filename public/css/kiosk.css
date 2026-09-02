@@ -173,7 +173,8 @@ h1, h2, h3 { margin: 0; font-weight: 700; }
 .chore.done .check { background: var(--good); border-color: var(--good); }
 .chore.pending .check { background: var(--warn); border-color: var(--warn); }
 .chore .text { flex: 1; font-size: 1.1rem; font-weight: 600; }
-.chore.done .text { text-decoration: line-through; color: var(--muted); }
+.chore.done .text { color: var(--muted); }
+.chore.done .text .t { text-decoration: line-through; }
 .chore .sub { display: block; font-size: 0.85rem; color: var(--muted); font-weight: 500; }
 .chore .amt { font-weight: 700; color: var(--good); font-size: 1.1rem; }
 .badge { font-size: 0.75rem; padding: 3px 8px; border-radius: 999px; background: #eee; color: var(--muted); font-weight: 600; }
