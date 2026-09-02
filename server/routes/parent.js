@@ -13,7 +13,7 @@ const interest = require('../interest');
 const notify = require('../notify');
 const localEvents = require('../localEvents');
 const { PHOTO_DIR, THEME_DIR } = require('../config');
-const { HttpError, wrap, isDateStr, toInt, requireFields } = require('../util');
+const { HttpError, wrap, isDateStr, toInt, requireFields, localDate } = require('../util');
 const { validPin } = require('./auth');
 const { listPhotos, listThemeArt, PHOTO_EXT } = require('./public');
 
@@ -136,6 +136,13 @@ router.post('/chores/:id/restore', (req, res) => {
 router.get('/chores/pending', (req, res) => res.json(chores.pending()));
 router.post('/chores/approve-all', (req, res) => res.json({ approved: chores.approveAll(toInt(req.body.member_id, null)) }));
 router.post('/chores/reject-all', (req, res) => res.json({ rejected: chores.rejectAll(toInt(req.body.member_id, null)) }));
+
+router.post('/chores/reset-day', (req, res) => {
+  const memberId = toInt(req.body.member_id);
+  if (!memberId || !memberById.get(memberId)) throw new HttpError(404, 'Member not found');
+  const date = isDateStr(req.body.date) ? req.body.date : localDate();
+  res.json({ reset: chores.resetDay(memberId, date) });
+});
 
 // ---- Reward coins ----------------------------------------------------------
 router.post('/coins/:memberId', (req, res) => {

@@ -168,6 +168,17 @@ const rejectAll = db.transaction((memberId = null) => {
   return rows.length;
 });
 
+// Wipe one member's completions for a day, refunding any coins or cash they produced.
+const resetDay = db.transaction((memberId, date) => {
+  const rows = db.prepare('SELECT id FROM chore_completions WHERE member_id = ? AND date = ?').all(memberId, date);
+  for (const r of rows) {
+    db.prepare('DELETE FROM coin_transactions WHERE completion_id = ?').run(r.id);
+    db.prepare('DELETE FROM transactions WHERE completion_id = ?').run(r.id);
+    db.prepare('DELETE FROM chore_completions WHERE id = ?').run(r.id);
+  }
+  return rows.length;
+});
+
 const coinBalanceStmt = db.prepare('SELECT COALESCE(SUM(amount), 0) AS n FROM coin_transactions WHERE member_id = ?');
 const coinBalance = (memberId) => coinBalanceStmt.get(memberId).n;
 
@@ -178,4 +189,4 @@ function reject(completionId) {
   db.prepare(`UPDATE chore_completions SET status = 'rejected', reviewed_at = datetime('now') WHERE id = ?`).run(completionId);
 }
 
-module.exports = { choresForDay, complete, uncomplete, pending, approve, approveAll, reject, rejectAll, isDue, coinBalance };
+module.exports = { choresForDay, complete, uncomplete, pending, approve, approveAll, reject, rejectAll, resetDay, isDue, coinBalance };
