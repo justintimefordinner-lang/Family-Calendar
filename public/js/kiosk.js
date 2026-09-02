@@ -347,10 +347,10 @@
       ${open.length ? `<p class="muted" style="margin:10px 0 0" data-member-row="earn">💵 ${open.length} Earn Money chore${open.length > 1 ? 's' : ''} up for grabs — tap here to see them</p>` : ''}</div>`;
 
     const items = state.shopping.map((s) => `<div class="shop-item ${s.checked ? 'checked' : ''}" data-shop="${s.id}" data-checked="${s.checked}">
-        <div class="box">${s.checked ? '✓' : ''}</div><span>${esc(s.text)}</span></div>`).join('');
+        <div class="box">${s.checked ? '✓' : ''}</div>${s.qty ? `<span class="qty">${s.qty}</span>` : ''}<span>${esc(s.text)}</span></div>`).join('');
     html += `<div class="card"><h3>🛒 Shopping List <span class="meta">${state.shopping.filter((s) => !s.checked).length} to get</span></h3>
       ${items || '<p class="muted center">Nothing on the list</p>'}
-      <form class="shop-add" id="shopForm"><input id="shopInput" placeholder="Add an item…" maxlength="200" autocomplete="off"><button class="btn" type="submit">Add</button></form>
+      <form class="shop-add" id="shopForm"><input type="hidden" id="shopQty"><input id="shopInput" data-qty placeholder="Add an item…" maxlength="200" autocomplete="off"><button class="btn" type="submit">Add</button></form>
     </div>`;
     $('#side').innerHTML = html;
   }
@@ -700,15 +700,17 @@
     const input = $('#shopInput');
     const text = input.value.trim();
     if (!text) return;
+    const qty = Number($('#shopQty')?.value) || null;
     try {
-      await api('/api/shopping', { method: 'POST', body: { text } });
+      await api('/api/shopping', { method: 'POST', body: { text, qty } });
+      osk.qty = '';
       await loadSide();
       $('#shopInput')?.focus();
     } catch (err) { alert(err.message); }
   });
 
   // ---- On-screen keyboard -----------------------------------------------------
-  const osk = { target: null, shift: true, numbers: false };
+  const osk = { target: null, shift: true, numbers: false, qty: '', qtyMode: false };
   const OSK_ROWS = [['q', 'w', 'e', 'r', 't', 'y', 'u', 'i', 'o', 'p'], ['a', 's', 'd', 'f', 'g', 'h', 'j', 'k', 'l'], ['z', 'x', 'c', 'v', 'b', 'n', 'm']];
   const OSK_NUM = [['1', '2', '3', '4', '5', '6', '7', '8', '9', '0'], ['-', '/', ':', ';', '(', ')', '$', '&', '@'], ['.', ',', '?', '!', "'", '"', '%']];
 
@@ -720,16 +722,38 @@
       if (i === 2) return `<div class="osk-row">${key('shift', `wide ${osk.shift ? 'on' : ''}`, '⇧')}${keys}${key('backspace', 'wide', '⌫')}</div>`;
       return `<div class="osk-row">${keys}</div>`;
     }).join('');
-    $('#oskKeys').innerHTML = `${html}<div class="osk-row">${key('numbers', 'wide', osk.numbers ? 'ABC' : '123')}${key(' ', 'space', 'space')}${key('done', 'wide', 'Hide')}${key('enter', 'wide primary', osk.target && osk.target.form ? 'Add' : 'Done')}</div>`;
+    const main = `<div class="osk-main">${html}<div class="osk-row">${key('numbers', 'wide', osk.numbers ? 'ABC' : '123')}${key(' ', 'space', 'space')}${key('done', 'wide', 'Hide')}${key('enter', 'wide primary', osk.target && osk.target.form ? 'Add' : 'Done')}</div></div>`;
+    // Quantity pad (shopping list only): digits go to the qty, not the item name.
+    const qkey = (k, label = k, cls = '') => `<button class="osk-key ${cls}" data-qkey="${k}">${label}</button>`;
+    const qtyPad = osk.qtyMode ? `<div class="osk-qty"><div class="osk-qty-label">Qty <span class="muted">(optional)</span></div><div class="osk-qty-val">${osk.qty || '—'}</div>
+      <div class="osk-qty-grid">${['1', '2', '3', '4', '5', '6', '7', '8', '9'].map((d) => qkey(d)).join('')}${qkey('clear', 'C', 'wide')}${qkey('0')}${qkey('back', '⌫', 'wide')}</div></div>` : '';
+    $('#oskKeys').innerHTML = qtyPad + main;
+  }
+
+  function oskPreview() {
+    const t = osk.target;
+    $('#oskText').textContent = t ? `${osk.qtyMode && osk.qty ? `${osk.qty} × ` : ''}${t.value}` : '';
   }
 
   function oskShow(input) {
     osk.target = input;
     osk.shift = !input.value;
     osk.numbers = false;
-    $('#oskText').textContent = input.value;
+    osk.qtyMode = input.hasAttribute('data-qty');
+    osk.qty = osk.qtyMode ? String($('#shopQty')?.value || '') : '';
     $('#osk').hidden = false;
     oskRender();
+    oskPreview();
+  }
+
+  function oskQty(k) {
+    if (k === 'clear') osk.qty = '';
+    else if (k === 'back') osk.qty = osk.qty.slice(0, -1);
+    else if (osk.qty.length < 2 && !(osk.qty === '' && k === '0')) osk.qty += k;
+    const hidden = $('#shopQty');
+    if (hidden) hidden.value = osk.qty;
+    $('.osk-qty-val').textContent = osk.qty || '—';
+    oskPreview();
   }
 
   function oskHide() {
@@ -753,8 +777,7 @@
       t.value += osk.shift && !osk.numbers ? k.toUpperCase() : k;
       if (osk.shift && k !== ' ') { osk.shift = false; oskRender(); }
     }
-    if (k === ' ' || k === 'backspace') { /* keep shift state */ }
-    $('#oskText').textContent = t.value;
+    oskPreview();
     t.dispatchEvent(new Event('input', { bubbles: true }));
   }
 
@@ -763,6 +786,8 @@
   document.addEventListener('click', (e) => { if (isTextInput(e.target) && $('#osk').hidden) oskShow(e.target); });
   $('#osk').addEventListener('pointerdown', (e) => e.preventDefault()); // keep the input focused
   $('#osk').addEventListener('click', (e) => {
+    const q = e.target.closest('[data-qkey]');
+    if (q) { oskQty(q.dataset.qkey); return; }
     const b = e.target.closest('[data-key]');
     if (b) oskPress(b.dataset.key);
   });

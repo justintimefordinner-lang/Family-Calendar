@@ -463,10 +463,10 @@
     const items = await api('/api/shopping');
     const checked = items.filter((i) => i.checked).length;
     shell('Shopping List', `<div class="card">
-      <form data-form="shop" class="actions" style="margin:0 0 8px"><input type="text" name="text" class="input grow" placeholder="Add an item…" maxlength="200" autocomplete="off" required><button class="btn primary" type="submit">Add</button></form>
+      <form data-form="shop" class="actions" style="margin:0 0 8px"><input type="number" name="qty" class="input" min="1" max="99" inputmode="numeric" placeholder="Qty" style="width:74px;flex:none"><input type="text" name="text" class="input grow" placeholder="Add an item…" maxlength="200" autocomplete="off" required><button class="btn primary" type="submit">Add</button></form>
       ${items.map((i) => `<div class="list-item">
         <div class="check box ${i.checked ? 'done' : ''}" data-shop-toggle="${i.id}" data-checked="${i.checked}">${i.checked ? '✓' : ''}</div>
-        <div class="grow ${i.checked ? 'strike' : ''}">${esc(i.text)}</div>
+        <div class="grow ${i.checked ? 'strike' : ''}">${i.qty ? `<b>${i.qty} ×</b> ` : ''}${esc(i.text)}</div>
         <button class="btn small icon" data-action="shop-delete" data-id="${i.id}">✕</button></div>`).join('') || '<p class="muted">The list is empty.</p>'}
       ${checked ? `<div class="actions"><button class="btn" data-action="shop-clear">Clear ${checked} checked</button></div>` : ''}
     </div>`);
@@ -855,7 +855,7 @@
           await api(`/api/finance/${form.dataset.member}/transactions`, { method: 'POST', body: { type: 'set_balance', account: 'cash', balance_cents: toCents(fd.get('balance')) } });
           toast('Cash balance updated'); render(); break;
         }
-        case 'shop': await api('/api/shopping', { method: 'POST', body: { text: fd.get('text') } }); render(); break;
+        case 'shop': await api('/api/shopping', { method: 'POST', body: { text: fd.get('text'), qty: fd.get('qty') || null } }); render(); break;
         case 'levent': {
           const body = {
             kind: fd.get('kind'), title: fd.get('title'), date: fd.get('date'),

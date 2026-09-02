@@ -186,21 +186,36 @@ const listShopping = db.prepare('SELECT * FROM shopping_items ORDER BY checked, 
 
 router.get('/shopping', (req, res) => res.json(listShopping.all()));
 
+const clampQty = (v) => {
+  const n = toInt(v, null);
+  return n == null || n <= 0 ? null : Math.min(99, n);
+};
+const shopById = db.prepare('SELECT * FROM shopping_items WHERE id = ?');
+
+// Adding an item that is already on the list (any case) re-uses it instead of duplicating:
+// it comes back unchecked, and a new quantity replaces the old one.
 router.post('/shopping', (req, res) => {
-  const text = String(req.body.text || '').trim();
+  const text = String(req.body.text || '').trim().slice(0, 200);
   if (!text) throw new HttpError(400, 'Item text required');
-  const info = db.prepare('INSERT INTO shopping_items(text) VALUES(?)').run(text.slice(0, 200));
-  res.json(db.prepare('SELECT * FROM shopping_items WHERE id = ?').get(info.lastInsertRowid));
+  const qty = clampQty(req.body.qty);
+  const existing = db.prepare('SELECT * FROM shopping_items WHERE lower(text) = lower(?) ORDER BY checked, id LIMIT 1').get(text);
+  if (existing) {
+    db.prepare('UPDATE shopping_items SET checked = 0, qty = COALESCE(?, qty) WHERE id = ?').run(qty, existing.id);
+    return res.json({ ...shopById.get(existing.id), merged: true });
+  }
+  const info = db.prepare('INSERT INTO shopping_items(text, qty) VALUES(?, ?)').run(text, qty);
+  res.json(shopById.get(info.lastInsertRowid));
 });
 
 router.patch('/shopping/:id', (req, res) => {
   const id = toInt(req.params.id);
-  const item = db.prepare('SELECT * FROM shopping_items WHERE id = ?').get(id);
+  const item = shopById.get(id);
   if (!item) throw new HttpError(404, 'Not found');
   const checked = req.body.checked === undefined ? item.checked : (req.body.checked ? 1 : 0);
   const text = req.body.text === undefined ? item.text : String(req.body.text).trim().slice(0, 200);
-  db.prepare('UPDATE shopping_items SET checked = ?, text = ? WHERE id = ?').run(checked, text, id);
-  res.json({ ...item, checked, text });
+  const qty = req.body.qty === undefined ? item.qty : clampQty(req.body.qty);
+  db.prepare('UPDATE shopping_items SET checked = ?, text = ?, qty = ? WHERE id = ?').run(checked, text, qty, id);
+  res.json({ ...item, checked, text, qty });
 });
 
 router.delete('/shopping/checked', (req, res) => {

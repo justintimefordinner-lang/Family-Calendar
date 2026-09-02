@@ -243,7 +243,15 @@ h1, h2, h3 { margin: 0; font-weight: 700; }
 .osk-preview:empty::before { content: " "; }
 .osk-caret { display: inline-block; width: 2px; height: 1.4em; background: var(--accent); margin-left: 2px; animation: blink 1s steps(2) infinite; }
 @keyframes blink { to { visibility: hidden; } }
-.osk-keys { display: flex; flex-direction: column; gap: 8px; align-items: center; }
+.osk-keys { display: flex; flex-direction: row; justify-content: center; align-items: flex-start; gap: 28px; }
+.osk-main { display: flex; flex-direction: column; gap: 8px; align-items: center; }
+.osk-qty { background: #fff; border-radius: 14px; padding: 10px 12px; text-align: center; }
+.osk-qty-label { font-size: 0.9rem; font-weight: 700; color: var(--muted); }
+.osk-qty-val { font-size: 1.8rem; font-weight: 800; min-height: 2.2rem; color: var(--accent); }
+.osk-qty-grid { display: grid; grid-template-columns: repeat(3, 62px); gap: 8px; margin-top: 6px; }
+.osk-qty-grid .osk-key { min-width: 0; height: 56px; background: #f3f1ea; font-size: 1.3rem; }
+.osk-qty-grid .osk-key.wide { font-size: 1rem; }
+.shop-item .qty { min-width: 34px; height: 30px; padding: 0 8px; border-radius: 8px; background: #eef2ff; color: var(--accent); font-weight: 800; display: grid; place-items: center; flex: none; }
 .osk-row { display: flex; gap: 8px; justify-content: center; }
 .osk-key { min-width: 72px; height: 62px; border: 0; border-radius: 12px; background: #fff; font-size: 1.5rem; font-weight: 600; box-shadow: 0 2px 0 #c9c4b8; color: var(--ink); padding: 0 10px; }
 .osk-key:active { background: #d6e4ff; transform: translateY(2px); box-shadow: none; }

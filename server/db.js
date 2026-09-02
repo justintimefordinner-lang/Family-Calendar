@@ -137,6 +137,7 @@ CREATE TABLE IF NOT EXISTS local_events (
 CREATE TABLE IF NOT EXISTS shopping_items (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   text TEXT NOT NULL,
+  qty INTEGER,                              -- optional quantity (1-99)
   checked INTEGER NOT NULL DEFAULT 0,
   created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
@@ -148,6 +149,8 @@ if (!memberCols.includes('aliases')) db.exec(`ALTER TABLE members ADD COLUMN ali
 const choreCols = db.prepare('PRAGMA table_info(chores)').all().map((c) => c.name);
 if (!choreCols.includes('period')) db.exec(`ALTER TABLE chores ADD COLUMN period TEXT NOT NULL DEFAULT 'any'`);
 if (!choreCols.includes('coins')) db.exec('ALTER TABLE chores ADD COLUMN coins INTEGER');
+const shopCols = db.prepare('PRAGMA table_info(shopping_items)').all().map((c) => c.name);
+if (!shopCols.includes('qty')) db.exec('ALTER TABLE shopping_items ADD COLUMN qty INTEGER');
 const txCols = db.prepare('PRAGMA table_info(transactions)').all().map((c) => c.name);
 if (!txCols.includes('account')) db.exec(`ALTER TABLE transactions ADD COLUMN account TEXT NOT NULL DEFAULT 'invested'`);
 
