@@ -20,6 +20,7 @@ CREATE TABLE IF NOT EXISTS members (
   role TEXT NOT NULL DEFAULT 'kid',          -- 'kid' | 'parent'
   color TEXT NOT NULL DEFAULT '#4f86f7',
   emoji TEXT NOT NULL DEFAULT '🙂',
+  aliases TEXT NOT NULL DEFAULT '',            -- comma-separated nicknames/abbreviations for event matching
   sort_order INTEGER NOT NULL DEFAULT 0,
   active INTEGER NOT NULL DEFAULT 1
 );
@@ -111,5 +112,9 @@ CREATE TABLE IF NOT EXISTS shopping_items (
   created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 `);
+
+// Migrations for databases created by earlier versions.
+const memberCols = db.prepare('PRAGMA table_info(members)').all().map((c) => c.name);
+if (!memberCols.includes('aliases')) db.exec(`ALTER TABLE members ADD COLUMN aliases TEXT NOT NULL DEFAULT ''`);
 
 module.exports = db;

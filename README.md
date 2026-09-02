@@ -41,6 +41,12 @@ and just put the kid's name in the event title ("Owen soccer practice", "Piper's
 shows the event in that kid's view with their color; an event naming two kids shows for both, and
 a title with no names is treated as a family event for everyone. Both approaches can be mixed.
 
+Shorthand works too: a title that *starts* with an initial or abbreviation followed by a space or
+punctuation is matched ("O soccer", "P - dentist", "O/P carpool", "J: piano"). Add nicknames or
+abbreviations per member in Settings › Family (e.g. "Pip") and they match anywhere in a title.
+A lone leading "A" or "I" only counts when followed by punctuation ("A - dentist"), so
+"A day at the zoo" stays a family event.
+
 ---
 
 ## Install on a Raspberry Pi

@@ -43,13 +43,42 @@ const eventsInRange = db.prepare(`
   ORDER BY e.all_day DESC, e.start_ts
 `);
 
-// Match family-member names in event titles ("Owen soccer", "Piper's dentist") so a
-// single shared calendar can still be sorted per kid. Whole words only, case-insensitive.
+// Match family members in event titles so a single shared calendar can be sorted per kid:
+//  - full name or any alias as a whole word anywhere ("Owen soccer", "Piper's dentist", "Pip swim")
+//  - a leading initial/abbreviation followed by a separator ("O soccer", "P - dentist", "O/P carpool")
+// Case-insensitive. A lone leading "A" or "I" needs punctuation after it so ordinary
+// sentences ("A day at the zoo") are not misfiled.
 const escapeRe = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+const membersForMatching = db.prepare('SELECT id, name, aliases FROM members WHERE active = 1');
+const LEADING = /^\s*([\p{L}]{1,4}(?:\s*[&/+,]\s*[\p{L}]{1,4})*)(\s*[-:.–—|]\s*|\s+)/u;
+
 function nameMatchers() {
-  return activeMembers.all()
-    .filter((m) => m.name.trim().length >= 2)
-    .map((m) => ({ id: m.id, re: new RegExp(`(?<![\\p{L}\\p{N}])${escapeRe(m.name.trim())}(?![\\p{L}\\p{N}])`, 'iu') }));
+  return membersForMatching.all().map((m) => {
+    const name = m.name.trim();
+    const words = [name, ...String(m.aliases || '').split(',').map((s) => s.trim())].filter((w) => w.length >= 2);
+    const shorts = new Set([name.charAt(0), ...words].map((w) => w.toLowerCase()).filter(Boolean));
+    return {
+      id: m.id,
+      wordRe: words.length ? new RegExp(`(?<![\\p{L}\\p{N}])(?:${words.map(escapeRe).join('|')})(?![\\p{L}\\p{N}])`, 'iu') : null,
+      shorts,
+    };
+  });
+}
+
+function membersForTitle(title, matchers) {
+  const ids = new Set();
+  for (const m of matchers) if (m.wordRe && m.wordRe.test(title)) ids.add(m.id);
+  const lead = LEADING.exec(title);
+  if (lead) {
+    const punctuated = /[-:.–—|]/.test(lead[2]);
+    const tokens = lead[1].split(/[\s&/+,]+/).filter(Boolean).map((t) => t.toLowerCase());
+    const found = tokens.map((t) => {
+      if (t.length === 1 && (t === 'a' || t === 'i') && !punctuated) return null;
+      return matchers.find((m) => m.shorts.has(t)) || null;
+    });
+    if (tokens.length && found.every(Boolean)) found.forEach((m) => ids.add(m.id));
+  }
+  return [...ids];
 }
 
 router.get('/events', (req, res) => {
@@ -58,10 +87,7 @@ router.get('/events', (req, res) => {
   const fromTs = new Date(`${from}T00:00:00`).getTime();
   const toTs = new Date(`${to}T00:00:00`).getTime() + 86_400_000;
   const matchers = nameMatchers();
-  res.json(eventsInRange.all(fromTs, toTs).map((e) => ({
-    ...e,
-    member_ids: matchers.filter((m) => m.re.test(e.title)).map((m) => m.id),
-  })));
+  res.json(eventsInRange.all(fromTs, toTs).map((e) => ({ ...e, member_ids: membersForTitle(e.title, matchers) })));
 });
 
 // ---- Chores ----------------------------------------------------------------

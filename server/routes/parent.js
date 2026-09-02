@@ -19,6 +19,7 @@ const router = express.Router();
 
 // ---- Members ---------------------------------------------------------------
 const memberById = db.prepare('SELECT * FROM members WHERE id = ?');
+const cleanAliases = (s) => String(s || '').split(',').map((x) => x.trim()).filter(Boolean).slice(0, 20).join(', ');
 
 router.get('/members/all', (req, res) => {
   res.json(db.prepare('SELECT * FROM members ORDER BY active DESC, sort_order, id').all());
@@ -26,10 +27,10 @@ router.get('/members/all', (req, res) => {
 
 router.post('/members', (req, res) => {
   requireFields(req.body, ['name']);
-  const { name, role = 'kid', color = '#4f86f7', emoji = '🙂' } = req.body;
+  const { name, role = 'kid', color = '#4f86f7', emoji = '🙂', aliases = '' } = req.body;
   const next = db.prepare('SELECT COALESCE(MAX(sort_order), -1) + 1 AS n FROM members').get().n;
-  const info = db.prepare('INSERT INTO members(name, role, color, emoji, sort_order) VALUES(?, ?, ?, ?, ?)')
-    .run(String(name).trim(), role === 'parent' ? 'parent' : 'kid', color, emoji, next);
+  const info = db.prepare('INSERT INTO members(name, role, color, emoji, aliases, sort_order) VALUES(?, ?, ?, ?, ?, ?)')
+    .run(String(name).trim(), role === 'parent' ? 'parent' : 'kid', color, emoji, cleanAliases(aliases), next);
   res.json(memberById.get(info.lastInsertRowid));
 });
 
@@ -37,11 +38,12 @@ router.patch('/members/:id', (req, res) => {
   const m = memberById.get(toInt(req.params.id));
   if (!m) throw new HttpError(404, 'Member not found');
   const b = req.body;
-  db.prepare('UPDATE members SET name = ?, role = ?, color = ?, emoji = ?, sort_order = ?, active = ? WHERE id = ?').run(
+  db.prepare('UPDATE members SET name = ?, role = ?, color = ?, emoji = ?, aliases = ?, sort_order = ?, active = ? WHERE id = ?').run(
     b.name !== undefined ? String(b.name).trim() : m.name,
     b.role !== undefined ? (b.role === 'parent' ? 'parent' : 'kid') : m.role,
     b.color ?? m.color,
     b.emoji ?? m.emoji,
+    b.aliases !== undefined ? cleanAliases(b.aliases) : m.aliases,
     b.sort_order !== undefined ? toInt(b.sort_order, m.sort_order) : m.sort_order,
     b.active !== undefined ? (b.active ? 1 : 0) : m.active,
     m.id,

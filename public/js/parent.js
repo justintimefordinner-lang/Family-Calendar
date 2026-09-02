@@ -425,6 +425,8 @@
         <label class="field"><span>Color</span><input type="color" name="color" class="color-input" value="${m.color || PALETTE[i % PALETTE.length]}"></label>
       </div>
       <label class="field"><span>Role</span><select name="role"><option value="kid" ${m.role !== 'parent' ? 'selected' : ''}>Kid (has chores and money)</option><option value="parent" ${m.role === 'parent' ? 'selected' : ''}>Parent</option></select></label>
+      <label class="field"><span>Nicknames / abbreviations for calendar matching (comma-separated)</span><input type="text" name="aliases" maxlength="200" value="${esc(m.aliases || '')}" placeholder="e.g. Pip, Pipes"></label>
+      <p class="muted small">Events show for this member when the title contains their name or a nickname, or starts with their initial (“${esc((m.name || 'P').charAt(0).toUpperCase())} soccer”, “${esc((m.name || 'P').charAt(0).toUpperCase())} - dentist”).</p>
       ${m.id ? `<label class="field inline"><span>Show on the display</span><input type="checkbox" name="active" ${m.active ? 'checked' : ''}></label>` : ''}
       <div class="actions"><button class="btn primary grow" type="submit">Save</button></div></form>`;
   }
@@ -603,7 +605,7 @@
         }
         case 'shop': await api('/api/shopping', { method: 'POST', body: { text: fd.get('text') } }); render(); break;
         case 'member': {
-          const body = { name: fd.get('name'), emoji: fd.get('emoji'), color: fd.get('color'), role: fd.get('role') };
+          const body = { name: fd.get('name'), emoji: fd.get('emoji'), color: fd.get('color'), role: fd.get('role'), aliases: fd.get('aliases') || '' };
           if (form.dataset.id) { body.active = form.active.checked; await api(`/api/members/${form.dataset.id}`, { method: 'PATCH', body }); }
           else await api('/api/members', { method: 'POST', body });
           closeSheet(); toast('Saved'); render(); break;
