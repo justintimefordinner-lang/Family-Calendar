@@ -1,6 +1,6 @@
 // Minimal service worker: makes the parent app installable and keeps the shell
 // available if the Pi is briefly unreachable. API calls always go to the network.
-const CACHE = 'family-parent-v1';
+const CACHE = 'family-parent-v2';
 const SHELL = ['/parent/', '/parent/index.html', '/css/parent.css', '/js/parent.js', '/icons/icon.svg', '/parent/manifest.webmanifest'];
 
 self.addEventListener('install', (e) => {

@@ -867,6 +867,19 @@
 
   window.addEventListener('hashchange', render);
 
+  // Reload when the server has been updated since this page loaded (home-screen apps
+  // on phones otherwise keep running old JS for days).
+  let build = null;
+  async function checkBuild() {
+    try {
+      const s = await fetch('/api/state', { cache: 'no-store' }).then((r) => r.json());
+      if (build && s.build && s.build !== build) { location.reload(); return; }
+      build = s.build || build;
+    } catch { /* offline */ }
+  }
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) checkBuild(); });
+  setInterval(checkBuild, 5 * 60_000);
+
   // ---- Boot ------------------------------------------------------------------
   (async () => {
     const q = new URLSearchParams(location.search);
@@ -876,6 +889,7 @@
     try {
       S.me = await api('/api/auth/me');
       await render();
+      checkBuild();
     } catch (e) {
       $('#app').innerHTML = `<div class="loading err">Cannot reach the server: ${esc(e.message)}</div>`;
     }
