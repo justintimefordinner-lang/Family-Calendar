@@ -263,13 +263,49 @@ router.get('/google/callback', wrap(async (req, res) => {
   }
 }));
 
-// ---- Games: coins per minute of play ---------------------------------------
+// ---- Games: allowed hours, and coins per minute of play --------------------
 const GAME_NAMES = { pacman: 'Pac-Man', snake: 'Snake', frogger: 'Frogger', asteroids: 'Asteroids' };
 const coinTx = db.prepare('SELECT * FROM coin_transactions WHERE id = ?');
 
+const parseHM = (s, fallback) => { const m = /^(\d{1,2}):(\d{2})$/.exec(String(s || '')); return m ? Number(m[1]) * 60 + Number(m[2]) : fallback; };
+const fmtHM = (mins) => { const h = Math.floor(mins / 60); const m = mins % 60; return `${((h + 11) % 12) + 1}:${String(m).padStart(2, '0')} ${h < 12 ? 'AM' : 'PM'}`; };
+
+// School days: open before `games_weekday_until` and from `games_weekday_from`; weekends all day if enabled.
+function gamesWindow(now = new Date()) {
+  const day = now.getDay();
+  if (day === 0 || day === 6) {
+    return Number(settings.get('games_weekends')) !== 0 ? { open: true } : { open: false, reason: 'Games are closed on weekends' };
+  }
+  const hm = now.getHours() * 60 + now.getMinutes();
+  const until = parseHM(settings.get('games_weekday_until'), 7 * 60 + 45);
+  const from = parseHM(settings.get('games_weekday_from'), 16 * 60);
+  if (hm < until || hm >= from) return { open: true };
+  return { open: false, reason: `Games open at ${fmtHM(from)} on school days` };
+}
+
+router.get('/games/window', (req, res) => res.json(gamesWindow()));
+
+// Mornings need all morning chores ticked; from noon on, all afternoon chores. (Rejected = not done.)
+function choreGate(memberId, now = new Date()) {
+  const period = now.getHours() < 12 ? 'morning' : 'afternoon';
+  const missing = chores.choresForDay(localDate(now), memberId)
+    .filter((c) => !c.paid && c.period === period && (!c.status || c.status === 'rejected'))
+    .map((c) => c.title);
+  return { member_id: memberId, ok: missing.length === 0, period, missing };
+}
+
+router.get('/games/ready', (req, res) => {
+  const kids = db.prepare(`SELECT id FROM members WHERE active = 1 AND role = 'kid' ORDER BY sort_order, id`).all();
+  res.json({ window: gamesWindow(), kids: kids.map((k) => choreGate(k.id)) });
+});
+
 router.post('/games/session', (req, res) => {
+  const win = gamesWindow();
+  if (!win.open) throw new HttpError(403, win.reason);
   const memberId = toInt(req.body.member_id);
   if (!memberId || !db.prepare('SELECT 1 FROM members WHERE id = ? AND active = 1').get(memberId)) throw new HttpError(404, 'Member not found');
+  const gate = choreGate(memberId);
+  if (!gate.ok) throw new HttpError(403, `Finish your ${gate.period} chores first: ${gate.missing.join(', ')}`);
   const label = GAME_NAMES[req.body.game] || 'Game';
   const rate = Math.max(0, Number(settings.get('game_coins_per_minute')) || 0);
   const coins = chores.coinBalance(memberId);
@@ -291,7 +327,8 @@ router.post('/games/session/:id/tick', (req, res) => {
   const minutes = Math.round(seconds / 6) / 10;
   db.prepare('UPDATE coin_transactions SET amount = ?, note = ? WHERE id = ?').run(amount, `${String(tx.note).replace(/ · .*$/, '')} · ${minutes} min`, tx.id);
   const coins = chores.coinBalance(tx.member_id);
-  res.json({ coins, amount, out: coins <= 0 });
+  const win = gamesWindow();
+  res.json({ coins, amount, out: coins <= 0 || !win.open, reason: !win.open ? win.reason : (coins <= 0 ? 'out_of_coins' : null) });
 });
 
 // ---- Weather ---------------------------------------------------------------

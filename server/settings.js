@@ -17,6 +17,9 @@ const DEFAULTS = {
   coin_name: 'Mom Coins',    // reward points for approved chores
   coins_per_chore: 2,
   game_coins_per_minute: 0.5, // what playing a game on the display costs (0 = free)
+  games_weekday_until: '07:45', // school days: games allowed before this time...
+  games_weekday_from: '16:00',  // ...and from this time on
+  games_weekends: 1,            // weekends: all day
   sync_minutes: 5,
   ntfy_topic: '',            // parents subscribe to this topic in the ntfy app
   ntfy_server: 'https://ntfy.sh',
@@ -32,13 +35,15 @@ const DEFAULTS = {
 // Settings safe to expose to the (unauthenticated) kiosk.
 const PUBLIC_KEYS = [
   'family_name', 'timezone', 'week_start', 'screensaver_minutes', 'photo_seconds', 'month_themes',
-  'temp_unit', 'weather_label', 'interest_apr', 'interest_day', 'coin_name', 'coins_per_chore', 'game_coins_per_minute', 'last_sync_at',
+  'temp_unit', 'weather_label', 'interest_apr', 'interest_day', 'coin_name', 'coins_per_chore', 'game_coins_per_minute',
+  'games_weekday_until', 'games_weekday_from', 'games_weekends', 'last_sync_at',
 ];
 // Settings a parent may change through PATCH /api/settings.
 const EDITABLE_KEYS = [
   'family_name', 'timezone', 'week_start', 'screensaver_minutes', 'photo_seconds', 'month_themes',
   'temp_unit', 'weather_lat', 'weather_lon', 'weather_label', 'interest_apr',
-  'interest_day', 'coin_name', 'coins_per_chore', 'game_coins_per_minute', 'sync_minutes', 'ntfy_topic', 'ntfy_server', 'app_url',
+  'interest_day', 'coin_name', 'coins_per_chore', 'game_coins_per_minute', 'games_weekday_until', 'games_weekday_from', 'games_weekends',
+  'sync_minutes', 'ntfy_topic', 'ntfy_server', 'app_url',
   'google_client_id', 'google_client_secret',
 ];
 const SECRET_KEYS = ['pin_hash', 'session_secret', 'google_client_secret'];

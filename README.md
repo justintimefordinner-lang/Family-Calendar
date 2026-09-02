@@ -134,6 +134,11 @@ The display has a **Games** button under Earn Money with Pac-Man, Snake, Frogger
 reward coins per minute (Settings › Rewards, default 0.5, 0 = free) and end when the coins run out.
 Each play session is one entry in the kid's coin history.
 
+Games also have hours: on school days they open before a morning cutoff (default 7:45 AM) and
+again from an afternoon time (default 4:00 PM); weekends are all day unless switched off
+(Settings › Rewards). And a kid has to have ticked all their *morning* chores before noon, or all
+their *afternoon* chores after noon, before the "who's playing?" picker lets them in.
+
 ## Money model
 
 Each kid has two accounts, each a ledger of signed transactions:

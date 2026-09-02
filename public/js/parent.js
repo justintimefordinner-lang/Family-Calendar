@@ -547,6 +547,11 @@
         <label class="field"><span>Coins per approved chore</span><input type="number" name="coins_per_chore" min="0" max="100" value="${settings.coins_per_chore}"></label>
       </div>
       <label class="field"><span>🎮 Games on the display cost (coins per minute, 0 = free)</span><input type="number" name="game_coins_per_minute" min="0" max="100" step="0.1" inputmode="decimal" value="${settings.game_coins_per_minute ?? 0.5}"></label>
+      <div class="row2">
+        <label class="field"><span>School days: games allowed before</span><input type="time" name="games_weekday_until" value="${esc(settings.games_weekday_until || '07:45')}"></label>
+        <label class="field"><span>…and again from</span><input type="time" name="games_weekday_from" value="${esc(settings.games_weekday_from || '16:00')}"></label>
+      </div>
+      <label class="field"><span>Weekends</span><select name="games_weekends"><option value="1" ${Number(settings.games_weekends ?? 1) !== 0 ? 'selected' : ''}>Games allowed all day</option><option value="0" ${Number(settings.games_weekends ?? 1) === 0 ? 'selected' : ''}>Games closed</option></select></label>
       <p class="muted small">Every chore a kid taps shows a "Great Job!" and waits for a parent's OK. Regular chores then award coins; Earn Money chores pay cash instead. Spend coins from the Money tab.</p>
       <button class="btn primary" type="submit">Save</button></form>`;
 

@@ -425,29 +425,57 @@
   const gameRate = () => Number(state.settings.game_coins_per_minute) || 0;
   const coinName = () => state.settings.coin_name || 'Mom Coins';
 
+  // Mirrors the server's rule so the panel can show "opens at 4:00 PM" without a round trip.
+  function gamesWindow(now = new Date()) {
+    const s = state.settings;
+    const parseHM = (v, d) => { const m = /^(\d{1,2}):(\d{2})$/.exec(String(v || '')); return m ? Number(m[1]) * 60 + Number(m[2]) : d; };
+    const fmtHM = (mins) => { const h = Math.floor(mins / 60); const m = mins % 60; return `${((h + 11) % 12) + 1}:${String(m).padStart(2, '0')} ${h < 12 ? 'AM' : 'PM'}`; };
+    const day = now.getDay();
+    if (day === 0 || day === 6) return Number(s.games_weekends ?? 1) !== 0 ? { open: true } : { open: false, reason: 'Games are closed on weekends' };
+    const hm = now.getHours() * 60 + now.getMinutes();
+    const until = parseHM(s.games_weekday_until, 7 * 60 + 45);
+    const from = parseHM(s.games_weekday_from, 16 * 60);
+    if (hm < until || hm >= from) return { open: true };
+    return { open: false, reason: `Games open at ${fmtHM(from)} on school days` };
+  }
+
   function renderSideGames() {
     const rate = gameRate();
-    $('#side').innerHTML = `<div class="card accent" style="--c:#111827"><h3>🎮 Games <span class="meta">${rate > 0 ? `🪙 ${rate} ${esc(coinName())} per minute` : 'free play'}</span></h3>
-      ${GAME_LIST.map((g) => `<div class="game-card" data-game="${g.key}"><div class="icon ${g.key}">${g.icon}</div><div><div class="name">${g.name}</div><span class="sub">${g.sub} · High score ${Number(localStorage.getItem(`fc_${g.key}_high`) || 0)}</span></div></div>`).join('')}
+    const win = gamesWindow();
+    $('#side').innerHTML = `<div class="card accent ${win.open ? '' : 'games-closed'}" style="--c:#111827"><h3>🎮 Games <span class="meta">${rate > 0 ? `🪙 ${rate} ${esc(coinName())} per minute` : 'free play'}</span></h3>
+      ${win.open ? '' : `<p class="games-locked">🔒 ${esc(win.reason)}</p>`}
+      ${GAME_LIST.map((g) => `<div class="game-card" data-game="${g.key}"><div class="icon ${g.key}">${win.open ? g.icon : '🔒'}</div><div><div class="name">${g.name}</div><span class="sub">${g.sub} · High score ${Number(localStorage.getItem(`fc_${g.key}_high`) || 0)}</span></div></div>`).join('')}
     </div>
-    <p class="muted center">Chores first, then games 😉</p>`;
+    <p class="muted center">Morning chores done before noon, afternoon chores after — then games 😉</p>`;
   }
 
   // ---- Play sessions: who is playing, and coins ticking away per minute ----------------
   const play = { key: null, memberId: null, sessionId: null, startedAt: 0, timer: null, coins: 0 };
 
-  function openGame(key) {
+  async function openGame(key) {
     const g = GAME_LIST.find((x) => x.key === key);
     if (!g) return;
+    const win = gamesWindow();
+    if (!win.open) {
+      openModal(`<h2>🔒 ${esc(win.reason)}</h2><p class="kv">Chores, homework, outside time… games later!</p><div class="kid-pick"><button class="btn" data-close>OK</button></div>`);
+      return;
+    }
     const kids = state.members.filter((m) => m.role === 'kid');
     if (!kids.length) return startGame(key, null);
     const rate = gameRate();
+    openModal(`<h2>${g.icon} ${g.name} — who's playing?</h2><p class="kv muted">Checking chores…</p>`);
+    let ready = { kids: [] };
+    try { ready = await api('/api/games/ready'); } catch { /* server too old: no gate */ }
+    const gateFor = (id) => (ready.kids || []).find((k) => k.member_id === id) || { ok: true, missing: [] };
+    if ($('#modal').hidden) return;
     openModal(`<h2>${g.icon} ${g.name} — who's playing?</h2>
       ${rate > 0 ? `<p class="kv">Costs <b>🪙 ${rate} ${esc(coinName())}</b> per minute while the game is open.</p>` : ''}
       <div class="kid-pick">${kids.map((m) => {
         const fin = state.finance.find((f) => f.member_id === m.id);
         const coins = fin ? (fin.coins || 0) : 0;
-        return `<button class="member-btn" data-play="${key}" data-kid="${m.id}" style="--c:${esc(m.color)}"><span class="avatar">${esc(m.emoji)}</span><span>${esc(m.name)}<small class="sub">🪙 ${coins}</small></span></button>`;
+        const gate = gateFor(m.id);
+        const lock = gate.ok ? '' : `data-locked="${esc(`Finish your ${gate.period} chores first: ${gate.missing.join(', ')}`)}"`;
+        return `<button class="member-btn ${gate.ok ? '' : 'locked'}" data-play="${key}" data-kid="${m.id}" ${lock} style="--c:${esc(m.color)}"><span class="avatar">${gate.ok ? esc(m.emoji) : '🔒'}</span><span>${esc(m.name)}<small class="sub">${gate.ok ? `🪙 ${coins}` : `${gate.missing.length} ${gate.period} chore${gate.missing.length === 1 ? '' : 's'} left`}</small></span></button>`;
       }).join('')}</div>`);
   }
 
@@ -473,7 +501,11 @@
     window.Games[key].start($('#gameCanvas'), { height: wrap.clientHeight || (window.innerHeight - 120), width: Math.min(1100, window.innerWidth - 520) });
     clearInterval(play.timer); clearInterval(play.hudTimer);
     if (play.sessionId) play.timer = setInterval(() => gameTick(false), 30_000);
-    play.hudTimer = setInterval(updateGameCoins, 1000);
+    play.hudTimer = setInterval(() => {
+      updateGameCoins();
+      // Free play has no server ticks, so watch the clock here too.
+      if (!play.sessionId && !gamesWindow().open) { closeGame(); openModal(`<h2>🔒 ${esc(gamesWindow().reason)}</h2><div class="kid-pick"><button class="btn" data-close>OK</button></div>`); }
+    }, 1000);
   }
 
   // Live countdown: coins at the last server check, minus what has ticked away since.
@@ -498,7 +530,10 @@
       updateGameCoins();
       if (r.out && !final) {
         await closeGame();
-        openModal(`<h2>🪙 Out of ${esc(coinName())}!</h2><p class="kv">Do some chores to earn more, then play again.</p><div class="kid-pick"><button class="btn" data-close>OK</button></div>`);
+        const closed = r.reason && r.reason !== 'out_of_coins';
+        openModal(closed
+          ? `<h2>🔒 ${esc(r.reason)}</h2><p class="kv">Time's up for now — see you later!</p><div class="kid-pick"><button class="btn" data-close>OK</button></div>`
+          : `<h2>🪙 Out of ${esc(coinName())}!</h2><p class="kv">Do some chores to earn more, then play again.</p><div class="kid-pick"><button class="btn" data-close>OK</button></div>`);
       }
     } catch { /* keep playing; next tick retries */ }
   }
@@ -811,7 +846,14 @@
     const gameCard = t.closest('[data-game]');
     if (gameCard) { openGame(gameCard.dataset.game); return; }
     const playBtn = t.closest('[data-play]');
-    if (playBtn) { await startGame(playBtn.dataset.play, Number(playBtn.dataset.kid)); return; }
+    if (playBtn) {
+      if (playBtn.dataset.locked) {
+        openModal(`<h2>🔒 Not yet!</h2><p class="kv">${esc(playBtn.dataset.locked)}</p><div class="kid-pick"><button class="btn" data-close>OK</button></div>`);
+        return;
+      }
+      await startGame(playBtn.dataset.play, Number(playBtn.dataset.kid));
+      return;
+    }
     if (t.closest('[data-game-close]')) { await closeGame(); return; }
     if (t.closest('[data-game-pause]')) { const gm = currentGame(); if (gm) gm.togglePause(); return; }
     if (t.closest('[data-game-restart]')) { const gm = currentGame(); if (gm) gm.restart(); return; }
