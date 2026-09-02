@@ -1,52 +1,44 @@
 # Showing the display full-screen on the Pi
 
-The touchscreen shows `http://localhost:3100/` in Chromium kiosk mode. These steps
-assume Raspberry Pi OS with the desktop (Wayland/labwc or X11) and auto-login enabled.
+The touchscreen shows `http://localhost:3100/` in Chromium kiosk mode, starting automatically at boot.
 
-## 1. Install Chromium (if it is not already there)
-
-```bash
-sudo apt-get update && sudo apt-get install -y chromium-browser || sudo apt-get install -y chromium
-```
-
-## 2. Autostart the kiosk
-
-Create `~/.config/autostart/family-calendar.desktop`:
-
-```ini
-[Desktop Entry]
-Type=Application
-Name=Family Calendar
-Exec=/bin/bash -c 'sleep 8; chromium-browser --kiosk --noerrdialogs --disable-infobars --disable-session-crashed-bubble --check-for-update-interval=31536000 --touch-events=enabled --overscroll-history-navigation=0 --app=http://localhost:3100/'
-X-GNOME-Autostart-enabled=true
-```
-
-If your Chromium binary is `chromium` rather than `chromium-browser`, change the `Exec` line.
-
-## 3. Keep the screen awake
-
-Raspberry Pi OS (Bookworm, Wayland):
+## Quick way
 
 ```bash
-# disable screen blanking via raspi-config: Display Options -> Screen Blanking -> No
-sudo raspi-config nonint do_blanking 1
+cd ~/Family-Calendar && bash deploy/kiosk-setup.sh && sudo reboot
 ```
 
-The app's own photo screensaver takes over after the idle time set in the parent app
-(Settings > Display), so the screen stays on but shows family photos.
+The script installs Chromium, sets the Pi to boot to the desktop with auto-login, turns off
+screen blanking, hides the mouse cursor, and adds an autostart entry. Requires Raspberry Pi OS
+**with desktop** (if you installed the Lite image, install the desktop first:
+`sudo apt-get install -y raspberrypi-ui-mods` and reboot).
 
-## 4. Optional: hide the mouse cursor on a touch-only screen
+## Hardware notes
 
-```bash
-sudo apt-get install -y unclutter
+- **HDMI touchscreen**: HDMI for the picture plus a USB cable for touch. Works out of the box.
+- **Official Raspberry Pi Touch Display (DSI ribbon)**: works out of the box on Pi 4/5.
+- The layout is designed for **1920×1080 landscape**. Anything 1280 px wide or more works; smaller
+  panels get cramped.
+
+## Rotating the screen
+
+Desktop menu → Preferences → **Screen Configuration** → right-click the display → Orientation → Apply.
+Touch input follows the rotation automatically on recent Raspberry Pi OS.
+
+## Screen off at night (optional)
+
+The app's own photo screensaver keeps the panel on. To actually switch the display off on a
+schedule, add cron entries (`crontab -e`), for example off at 10 pm and on at 6 am:
+
+```
+0 22 * * * wlr-randr --output HDMI-A-1 --off
+0 6  * * * wlr-randr --output HDMI-A-1 --on
 ```
 
-Add `unclutter -idle 1 &` as another autostart entry or before the chromium line above.
+(`wlr-randr` lists your output name. On older X11 installs use `xset dpms force off` / `xset dpms force on` with `DISPLAY=:0`.)
 
-## 5. Reboot
+## Leaving kiosk mode
 
-```bash
-sudo reboot
-```
-
-Tap anywhere on the screensaver to wake the display. To exit kiosk mode with a keyboard, press `Alt+F4`.
+With a keyboard attached press `Alt+F4`. To stop it starting at boot, delete
+`~/.config/autostart/family-calendar-kiosk.desktop` (and the `family-calendar-kiosk` lines in
+`~/.config/labwc/autostart` if present).
