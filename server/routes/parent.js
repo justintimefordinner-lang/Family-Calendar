@@ -117,6 +117,20 @@ router.delete('/chores/:id', (req, res) => {
   res.json({ ok: true });
 });
 
+router.get('/chores/removed', (req, res) => {
+  res.json(db.prepare(`
+    SELECT c.*, m.name AS member_name FROM chores c LEFT JOIN members m ON m.id = c.member_id
+    WHERE c.active = 0 ORDER BY c.id DESC LIMIT 30
+  `).all());
+});
+
+router.post('/chores/:id/restore', (req, res) => {
+  const c = choreById.get(toInt(req.params.id));
+  if (!c) throw new HttpError(404, 'Chore not found');
+  db.prepare('UPDATE chores SET active = 1 WHERE id = ?').run(c.id);
+  res.json(choreById.get(c.id));
+});
+
 router.get('/chores/pending', (req, res) => res.json(chores.pending()));
 router.post('/chores/approve-all', (req, res) => res.json({ approved: chores.approveAll(toInt(req.body.member_id, null)) }));
 

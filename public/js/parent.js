@@ -178,8 +178,8 @@
   }
 
   async function renderChores() {
-    const [pending, today, all] = await Promise.all([
-      api('/api/chores/pending'), api('/api/chores/day'), api('/api/chores'),
+    const [pending, today, all, removed] = await Promise.all([
+      api('/api/chores/pending'), api('/api/chores/day'), api('/api/chores'), api('/api/chores/removed'),
     ]);
     let html = '';
     if (pending.length) {
@@ -219,6 +219,12 @@
       ${c.paid ? `<div class="amt">${money(c.amount_cents)}</div>` : ''}</div>`;
     html += `<div class="card"><h2>Regular chores <span class="meta">${regular.length}</span></h2>${regular.map(choreItem).join('') || '<p class="muted">Tap + to add a chore.</p>'}</div>`;
     html += `<div class="card"><h2>💵 Earn Money <span class="meta">${paid.length}</span></h2>${paid.map(choreItem).join('') || '<p class="muted">Extra chores kids can do to earn money. Add one with +.</p>'}</div>`;
+    if (Array.isArray(removed) && removed.length) {
+      html += `<details class="section"><summary>🗑️ Recently removed (${removed.length})</summary><div class="body">
+        ${removed.map((c) => `<div class="list-item"><div class="grow"><div class="title">${esc(c.title)}</div><div class="sub">${esc(c.member_name || 'Anyone')} · ${scheduleLabel(c)}${c.paid ? ' · ' + money(c.amount_cents) : ''}</div></div>
+          <button class="btn small" data-action="restore-chore" data-id="${c.id}">Restore</button></div>`).join('')}
+        <p class="muted small mt">Removed chores keep their history. Restoring puts them straight back on the display.</p></div></details>`;
+    }
     html += `<button class="fab" data-action="new-chore" aria-label="Add chore">+</button>`;
     shell('Chores', html);
     S.allChores = all;
@@ -643,6 +649,7 @@
       switch (a) {
         case 'add-member-row': $('#setupMembers').insertAdjacentHTML('beforeend', memberRow($('#setupMembers').children.length)); break;
         case 'new-chore': openSheet(choreForm()); break;
+        case 'restore-chore': await api(`/api/chores/${id}/restore`, { method: 'POST' }); toast('Restored'); render(); break;
         case 'new-levent': openSheet(leventForm()); break;
         case 'delete-levent':
           if (!confirm('Delete this?')) return;
