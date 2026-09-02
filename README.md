@@ -124,8 +124,8 @@ notifications go through [ntfy](https://ntfy.sh) (free, open source):
 
 When a kid finishes an Earn Money chore, parents get a notification with **Pay** and **Reject**
 buttons (signed one-time links back to the Pi — the phone must be able to reach the Pi, i.e. be on
-the home Wi-Fi or VPN) plus an *Open app* button. Approving a repeating chore in the app asks
-whether to keep it on the list or remove it.
+the home Wi-Fi or VPN) plus an *Open app* button. In the app, approvals are grouped by kid with
+an *Approve all* per kid.
 
 ## Money model
 

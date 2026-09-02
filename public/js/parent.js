@@ -185,14 +185,24 @@
     if (pending.length) {
       const st = S.settings || (S.settings = await api('/api/settings'));
       const coins = Number(st.coins_per_chore) || 0;
-      html += `<div class="card"><h2>⏳ Waiting for approval <span class="meta">${pending.length > 1 ? `<button class="btn small good" data-action="approve-all">Approve all ${pending.length}</button>` : pending.length}</span></h2>
-        ${pending.map((p) => `<div class="list-item">
-          <div class="avatar" style="--c:${esc(p.color)}">${esc(p.emoji)}</div>
-          <div class="grow"><div class="title">${esc(p.title)}</div><div class="sub">${esc(p.member_name)} · ${fmtWhen(p.completed_at)}</div></div>
-          <div class="amt">${p.paid ? money(p.amount_cents) : (coins ? `🪙 +${coins}` : '')}</div>
-          <button class="btn small good" data-action="approve" data-id="${p.id}">${p.paid ? 'Pay' : 'OK'}</button>
-          <button class="btn small icon" data-action="reject" data-id="${p.id}" title="Reject">✕</button>
-        </div>`).join('')}</div>`;
+      // Grouped by kid, each with its own Approve all.
+      const byKid = [];
+      for (const p of pending) {
+        let g = byKid.find((x) => x.member_id === p.member_id);
+        if (!g) { g = { member_id: p.member_id, name: p.member_name, color: p.color, emoji: p.emoji, items: [] }; byKid.push(g); }
+        g.items.push(p);
+      }
+      html += `<div class="card"><h2>⏳ Waiting for approval <span class="meta">${byKid.length > 1 ? `<button class="btn small good" data-action="approve-all">Approve all ${pending.length}</button>` : ''}</span></h2>
+        ${byKid.map((g) => `
+          <div class="list-item" style="padding-bottom:4px"><div class="avatar" style="--c:${esc(g.color)}">${esc(g.emoji)}</div>
+            <div class="grow title">${esc(g.name)} <span class="muted small">· ${g.items.length}</span></div>
+            <button class="btn small good" data-action="approve-all" data-member="${g.member_id}">Approve all</button></div>
+          ${g.items.map((p) => `<div class="list-item" style="padding-left:50px">
+            <div class="grow"><div class="title">${esc(p.title)}</div><div class="sub">${fmtWhen(p.completed_at)}</div></div>
+            <div class="amt">${p.paid ? money(p.amount_cents) : (coins ? `🪙 +${coins}` : '')}</div>
+            <button class="btn small good" data-action="approve" data-id="${p.id}">${p.paid ? 'Pay' : 'OK'}</button>
+            <button class="btn small icon" data-action="reject" data-id="${p.id}" title="Reject">✕</button>
+          </div>`).join('')}`).join('')}</div>`;
     }
 
     // Today, grouped by member
@@ -658,24 +668,15 @@
           if (!confirm('Delete this chore? History is kept.')) return;
           await api(`/api/chores/${id}`, { method: 'DELETE' }); closeSheet(); toast('Chore deleted'); render(); break;
         case 'approve-all': {
-          const r = await api('/api/chores/approve-all', { method: 'POST', body: {} });
+          const body = act.dataset.member ? { member_id: Number(act.dataset.member) } : {};
+          const r = await api('/api/chores/approve-all', { method: 'POST', body });
           toast(`Approved ${r.approved}`); render(); break;
         }
         case 'approve': {
           const p = (S.pending || []).find((x) => x.id === Number(id));
           await api(`/api/chores/completions/${id}/approve`, { method: 'POST' });
-          toast(p && p.paid ? 'Paid!' : 'Approved');
-          await render();
-          if (p && p.paid && p.schedule !== 'once') {
-            openSheet(`<h2>Keep “${esc(p.title)}” on the list?</h2>
-              <p class="muted">It repeats (${p.schedule === 'daily' ? 'every day' : 'certain days'}). Keep it so ${esc(p.member_name)} can earn again, or remove it now.</p>
-              <div class="actions"><button class="btn primary grow" data-action="close-sheet">Keep on list</button>
-              <button class="btn danger" data-action="remove-chore-quiet" data-id="${p.chore_id}">Remove chore</button></div>`);
-          }
-          break;
+          toast(p && p.paid ? 'Paid!' : 'Approved'); render(); break;
         }
-        case 'close-sheet': closeSheet(); break;
-        case 'remove-chore-quiet': await api(`/api/chores/${id}`, { method: 'DELETE' }); closeSheet(); toast('Chore removed'); render(); break;
         case 'reject': await api(`/api/chores/completions/${id}/reject`, { method: 'POST' }); toast('Rejected'); render(); break;
         case 'delete-coins':
           if (!confirm('Remove this coin entry?')) return;
