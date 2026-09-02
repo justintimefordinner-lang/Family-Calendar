@@ -28,6 +28,7 @@ router.post('/setup', wrap(async (req, res) => {
   db.transaction(() => {
     settings.set('family_name', String(family_name).trim());
     settings.set('pin_hash', auth.hashPin(pin));
+    settings.set('pin_length', String(pin).length);
     const ins = db.prepare('INSERT INTO members(name, role, color, emoji, sort_order) VALUES(?, ?, ?, ?, ?)');
     members.forEach((m, i) => {
       if (!m.name || !String(m.name).trim()) return;
@@ -57,7 +58,7 @@ router.post('/auth/logout', (req, res) => {
 });
 
 router.get('/auth/me', (req, res) => {
-  res.json({ parent: auth.isParent(req), needs_setup: needsSetup() });
+  res.json({ parent: auth.isParent(req), needs_setup: needsSetup(), pin_length: Number(settings.get('pin_length')) || 4 });
 });
 
 module.exports = router;

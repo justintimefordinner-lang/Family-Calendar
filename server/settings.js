@@ -21,6 +21,7 @@ const DEFAULTS = {
   google_client_id: '',
   google_client_secret: '',
   pin_hash: '',
+  pin_length: 4,             // lets the parent app submit automatically after the last digit
   session_secret: '',
   last_sync_at: null,
 };

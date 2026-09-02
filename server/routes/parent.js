@@ -213,6 +213,7 @@ router.post('/settings/pin', (req, res) => {
   if (!auth.verifyPin(current, settings.get('pin_hash'))) throw new HttpError(401, 'Current PIN is wrong');
   if (!validPin(pin)) throw new HttpError(400, 'PIN must be 4-8 digits');
   settings.set('pin_hash', auth.hashPin(pin));
+  settings.set('pin_length', String(pin).length);
   res.json({ ok: true });
 });
 

@@ -150,10 +150,18 @@
     } catch (e) { S.pin = ''; $('#pinDots').textContent = ''; fail(e); }
   }
 
+  // Submits on its own once the PIN's length is reached; the Go key covers the rest.
+  function pinDigit(d) {
+    if (S.pin.length >= 8) return;
+    S.pin += d;
+    $('#pinDots').textContent = '●'.repeat(S.pin.length);
+    if (S.pin.length === (Number(S.me.pin_length) || 4)) submitPin();
+  }
+
   document.addEventListener('keydown', (e) => {
     if (!S.me || S.me.parent || S.me.needs_setup) return;
-    if (/^\d$/.test(e.key) && S.pin.length < 8) S.pin += e.key;
-    else if (e.key === 'Backspace') S.pin = S.pin.slice(0, -1);
+    if (/^\d$/.test(e.key)) return pinDigit(e.key);
+    if (e.key === 'Backspace') S.pin = S.pin.slice(0, -1);
     else if (e.key === 'Enter') return submitPin();
     $('#pinDots').textContent = '●'.repeat(S.pin.length);
   });
@@ -523,7 +531,7 @@
       const k = key.dataset.key;
       if (k === 'back') S.pin = S.pin.slice(0, -1);
       else if (k === 'go') return submitPin();
-      else if (S.pin.length < 8) S.pin += k;
+      else return pinDigit(k);
       $('#pinDots').textContent = '●'.repeat(S.pin.length);
       return;
     }
