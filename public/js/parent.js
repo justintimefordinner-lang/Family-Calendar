@@ -228,7 +228,7 @@
           const done = c.status === 'done' || c.status === 'approved';
           return `<div class="list-item tappable" data-toggle="${c.id}" data-member="${g.m.id}" data-completion="${c.completion_id || ''}" data-status="${c.status || ''}">
           <div class="check ${c.status === 'pending' ? 'pending' : done ? 'done' : ''}">${c.status === 'pending' ? '⏳' : done ? '✓' : ''}</div>
-          <div class="grow ${done ? 'strike' : ''}">${esc(c.title)}${c.status === 'rejected' ? ' <span class="badge rejected">rejected</span>' : ''}</div>
+          <div class="grow ${done ? 'strike' : ''}">${esc(c.title)}${c.status === 'rejected' ? ' <span class="badge rejected">rejected</span>' : ''}${c.status === 'approved' ? ' <span class="badge approved">approved</span>' : ''}</div>
           ${c.paid ? `<span class="badge ${c.status === 'approved' ? 'approved' : c.status === 'pending' ? 'pending' : 'paid'}">${money(c.amount_cents)}</span>` : ''}
         </div>`; }).join('')}`).join('') : '<p class="muted">No chores due today.</p>'}
       ${open.length ? `<p class="muted small mt">💵 ${open.length} open Earn Money chore${open.length > 1 ? 's' : ''} nobody has claimed yet.</p>` : ''}
