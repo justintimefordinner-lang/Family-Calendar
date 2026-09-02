@@ -15,7 +15,7 @@
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 [hidden] { display: none !important; }
 html, body { margin: 0; background: var(--bg); color: var(--ink); font-family: "Segoe UI", system-ui, -apple-system, Roboto, "Helvetica Neue", Arial, sans-serif; font-size: 16px; }
-body { padding-bottom: calc(var(--tabbar) + env(safe-area-inset-bottom)); }
+body { padding-top: env(safe-area-inset-top); padding-bottom: calc(var(--tabbar) + env(safe-area-inset-bottom)); }
 h1, h2, h3 { margin: 0; }
 button, input, select, textarea { font: inherit; color: inherit; }
 a { color: var(--accent); }
@@ -71,7 +71,7 @@ a { color: var(--accent); }
 .list-item { display: flex; align-items: center; gap: 12px; padding: 10px 0; border-top: 1px solid var(--line); min-height: 52px; }
 .list-item:first-child { border-top: 0; }
 .list-item .grow { flex: 1; min-width: 0; }
-.list-item .title { font-weight: 600; }
+.list-item .title { font-weight: 600; overflow-wrap: anywhere; }
 .list-item .sub { font-size: 0.85rem; color: var(--muted); }
 .list-item .amt { font-weight: 700; color: var(--good); white-space: nowrap; }
 .list-item.tappable { cursor: pointer; }
@@ -125,7 +125,7 @@ details.section .body { padding: 0 16px 16px; }
 .cal-row { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-top: 1px solid var(--line); }
 .cal-row:first-child { border-top: 0; }
 .cal-row .name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
-.cal-row select { padding: 8px; border-radius: 10px; border: 1px solid var(--line); max-width: 45%; }
+.cal-row select { padding: 8px; border-radius: 10px; border: 1px solid var(--line); max-width: 55%; flex: none; }
 .swatch { width: 12px; height: 12px; border-radius: 50%; flex: none; }
 
 .meal-row { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-top: 1px solid var(--line); }

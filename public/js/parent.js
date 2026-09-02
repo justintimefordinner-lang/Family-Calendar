@@ -405,7 +405,7 @@
   // ---- Settings --------------------------------------------------------------
   function calendarOptions(cal) {
     const current = !cal.enabled ? 'off' : cal.is_family ? 'family' : cal.member_id != null ? `m:${cal.member_id}` : 'family';
-    const opts = [['off', 'Hidden'], ['family', '👨‍👩‍👧‍👦 Family (everyone)'], ...S.members.map((m) => [`m:${m.id}`, `${m.emoji} ${m.name}`])];
+    const opts = [['off', 'Hidden'], ['family', '👨‍👩‍👧‍👦 Family'], ...S.members.map((m) => [`m:${m.id}`, `${m.emoji} ${m.name}`])];
     return opts.map(([v, l]) => `<option value="${v}" ${v === current ? 'selected' : ''}>${esc(l)}</option>`).join('');
   }
 
@@ -425,10 +425,10 @@
       <div class="actions"><button class="btn" data-action="new-member">+ Add member</button></div>`;
 
     const accountsHtml = accounts.map((a) => `<div class="card" style="box-shadow:none;border:1px solid var(--line)">
-        <div class="list-item"><div class="grow"><div class="title">${esc(a.email)}</div>
-          <div class="sub ${a.last_error ? 'err' : ''}">${a.last_error ? esc(a.last_error) : a.last_sync_at ? 'Synced ' + new Date(a.last_sync_at).toLocaleString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) : 'Not synced yet'}</div></div>
-          <button class="btn small" data-action="refresh-cals" data-id="${a.id}">Refresh</button>
-          <button class="btn small danger" data-action="remove-account" data-id="${a.id}">Remove</button></div>
+        <div class="list-item" style="display:block"><div class="title">${esc(a.email)}</div>
+          <div class="sub ${a.last_error ? 'err' : ''}">${a.last_error ? esc(a.last_error) : a.last_sync_at ? 'Synced ' + new Date(a.last_sync_at).toLocaleString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) : 'Not synced yet'}</div>
+          <div class="actions" style="margin-top:8px"><button class="btn small" data-action="refresh-cals" data-id="${a.id}">Refresh calendars</button>
+          <button class="btn small danger" data-action="remove-account" data-id="${a.id}">Remove</button></div></div>
         ${a.calendars.length ? a.calendars.map((c) => `<div class="cal-row"><span class="swatch" style="background:${esc(c.color || '#999')}"></span><span class="name">${esc(c.name)}</span>
           <select data-cal="${c.id}">${calendarOptions(c)}</select></div>`).join('') : '<p class="muted small">No calendars found. Tap Refresh.</p>'}
       </div>`).join('');
