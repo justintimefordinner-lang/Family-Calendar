@@ -297,7 +297,7 @@
       }).join('')
       : regular.map((c) => choreRow(c, false)).join('');
     let html = `<div class="card accent" style="--c:${esc(m.color)}">
-      <h3>${esc(m.emoji)} ${esc(m.name)}'s Chores <span class="meta">${done}/${regular.length} done</span></h3>
+      <h3>${esc(m.emoji)} ${esc(m.name)}'s Chores <span class="meta">${done}/${regular.length} done · <button class="linkish" data-avatar-edit="${m.id}">🎨 change my look</button></span></h3>
       ${regular.length ? list : '<p class="muted center">No chores today 🎉</p>'}
     </div>`;
     const mine = paid.filter((c) => c.member_id === m.id || c.completed_by === m.id);
@@ -639,6 +639,42 @@
     if (chore.paid) batch.cents = Math.max(0, batch.cents - chore.amount_cents);
   }
 
+  // ---- Avatar picker ---------------------------------------------------------
+  const AVATARS = {
+    'Animals': '🐶 🐱 🐭 🐹 🐰 🦊 🐻 🐼 🐨 🐯 🦁 🐮 🐷 🐸 🐵 🐔 🐧 🐦 🦆 🦅 🦉 🐺 🦄 🐴 🐝 🦋 🐌 🐢 🐍 🦎 🐙 🦈 🐬 🐳 🐟 🐠 🦀 🦖 🦕 🐉 🦩 🦜 🐿️ 🦔 🐘 🦒 🦓 🐆 🐎 🦥 🦦 🐨 🦘 🐪 🦙 🐐 🐑 🦃 🐓 🐣 🐞 🦗 🦂 🕷️'.split(' '),
+    'Cool': '⭐ 🌟 ✨ ⚡ 🔥 💎 🌈 🌙 ☀️ 🪐 🚀 🛸 👑 💫 🔮 🎯 🧿 ❤️ 🧡 💛 💚 💙 💜 🖤 🤍 🔷 🔶 🟢 🟣 🔴 🟡 🔵 🟠 ⬛ ⬜ 🔺 🔻 💠 ♦️ ♠️ ♣️ ♥️ 🎲 🧩 🪄 🛡️ ⚔️ 🏹 🧨 💥'.split(' '),
+    'Fun': '😎 🤩 😜 🥳 🤠 🥸 🤖 👾 👻 🎃 💀 🦸 🦹 🧙 🧚 🧜 🧞 🥷 👽 🎅 🤶 🧑‍🚀 🧑‍🚒 🧑‍🔬 🧑‍🎨 🧑‍🍳 🧑‍🌾 🕵️ 🦸‍♀️ 🦸‍♂️ 🧝 🧛 🧟 😺 😸 😻 🙈 🙉 🙊 🐲 🦹‍♀️ 🦹‍♂️ 🧑‍🎤 🧑‍✈️ 🧑‍🏫 🧑‍⚕️'.split(' '),
+    'Sports & stuff': '⚽ 🏀 🏈 ⚾ 🎾 🏐 🏓 🎳 🏒 🥍 ⛳ 🥊 🥋 🛹 🛼 🚲 🏄 🏊 🤸 🎿 ⛷️ 🏂 🎮 🕹️ 🎸 🎹 🎺 🥁 🎻 🎤 🎧 🎨 🖌️ 📚 🔬 🔭 🧪 🧲 ✈️ 🚂 🏎️ 🚁 ⛵ 🚤 🚜 🚒 🚓 🛵 🛶 🪁 🎠 🎡 🎢 🏰 🗼'.split(' '),
+    'Food & nature': '🍕 🍔 🌮 🌭 🍩 🍦 🍰 🧁 🍪 🍫 🍭 🍓 🍉 🍒 🍎 🍌 🥑 🥕 🌽 🍿 🥨 🧀 🌸 🌻 🌷 🌹 🌵 🍀 🌴 🌲 🍄 🌊 ❄️ ⛄ 🏔️ 🌋 🌍 🌵 🐚 🌺 🍁 🍂 🌾 🪴 🎄 🎋 🎍'.split(' '),
+  };
+  const AVATAR_COLORS = ['#f59e0b', '#ef4444', '#ec4899', '#8b5cf6', '#2f6fed', '#0ea5e9', '#14b8a6', '#16a34a', '#84cc16', '#f97316', '#6b7280', '#111827'];
+  const pick = { memberId: null, emoji: '', color: '', tab: 'Animals' };
+
+  function renderAvatarPicker() {
+    const m = memberById(pick.memberId);
+    if (!m) return;
+    const tabs = Object.keys(AVATARS).map((t) => `<button class="btn ${pick.tab === t ? 'on' : ''}" data-av-tab="${esc(t)}">${esc(t)}</button>`).join('');
+    const grid = AVATARS[pick.tab].map((e) => `<button class="av-btn ${e === pick.emoji ? 'on' : ''}" data-av-emoji="${esc(e)}">${e}</button>`).join('');
+    const colors = AVATAR_COLORS.map((c) => `<button class="av-color ${c === pick.color ? 'on' : ''}" data-av-color="${c}" style="background:${c}"></button>`).join('');
+    openModal(`<h2>🎨 Pick your look</h2>
+      <div class="av-preview"><span class="avatar" style="background:${esc(pick.color)}">${pick.emoji}</span><b>${esc(m.name)}</b></div>
+      <div class="qty-row av-tabs">${tabs}</div>
+      <div class="av-grid">${grid}</div>
+      <div class="av-colors">${colors}</div>
+      <div class="kid-pick"><button class="btn primary-btn" data-av-save>Save my look</button><button class="btn" data-close>Cancel</button></div>`);
+  }
+
+  async function saveAvatar() {
+    try {
+      const m = await api(`/api/members/${pick.memberId}/avatar`, { method: 'PATCH', body: { emoji: pick.emoji, color: pick.color } });
+      const i = state.members.findIndex((x) => x.id === m.id);
+      if (i >= 0) state.members[i] = { ...state.members[i], ...m };
+      closeModal();
+      renderMembers(); renderCalendar(); renderSide();
+      celebrate(m.name, 'Looking good!');
+    } catch (err) { alert(err.message); }
+  }
+
   // ---- Modals ---------------------------------------------------------------
   function openModal(html) {
     $('#modalBody').innerHTML = html;
@@ -843,6 +879,21 @@
     if (chore) { await toggleChore(chore); return; }
     const moneyCard = t.closest('[data-money]');
     if (moneyCard) { await showMoney(Number(moneyCard.dataset.money)); return; }
+    const avEdit = t.closest('[data-avatar-edit]');
+    if (avEdit) {
+      const m = memberById(Number(avEdit.dataset.avatarEdit));
+      if (!m) return;
+      Object.assign(pick, { memberId: m.id, emoji: m.emoji, color: m.color, tab: Object.keys(AVATARS).find((k) => AVATARS[k].includes(m.emoji)) || 'Animals' });
+      renderAvatarPicker();
+      return;
+    }
+    const avTab = t.closest('[data-av-tab]');
+    if (avTab) { pick.tab = avTab.dataset.avTab; renderAvatarPicker(); return; }
+    const avEmoji = t.closest('[data-av-emoji]');
+    if (avEmoji) { pick.emoji = avEmoji.dataset.avEmoji; renderAvatarPicker(); return; }
+    const avColor = t.closest('[data-av-color]');
+    if (avColor) { pick.color = avColor.dataset.avColor; renderAvatarPicker(); return; }
+    if (t.closest('[data-av-save]')) { await saveAvatar(); return; }
     const gameCard = t.closest('[data-game]');
     if (gameCard) { openGame(gameCard.dataset.game); return; }
     const playBtn = t.closest('[data-play]');

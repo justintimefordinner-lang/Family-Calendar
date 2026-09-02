@@ -40,6 +40,18 @@ router.get('/members', (req, res) => {
   res.json(activeMembers.all());
 });
 
+// Kids pick their own avatar and color on the display (no PIN — it is only their own look).
+router.patch('/members/:id/avatar', (req, res) => {
+  const m = db.prepare('SELECT * FROM members WHERE id = ? AND active = 1').get(toInt(req.params.id));
+  if (!m) throw new HttpError(404, 'Member not found');
+  const emoji = String(req.body.emoji || '').trim();
+  const color = String(req.body.color || '').trim();
+  if (emoji && (emoji.length > 12 || /[<>"'&]/.test(emoji))) throw new HttpError(400, 'Bad emoji');
+  if (color && !/^#[0-9a-f]{6}$/i.test(color)) throw new HttpError(400, 'Bad color');
+  db.prepare('UPDATE members SET emoji = ?, color = ? WHERE id = ?').run(emoji || m.emoji, color || m.color, m.id);
+  res.json(db.prepare('SELECT id, name, role, color, emoji, sort_order FROM members WHERE id = ?').get(m.id));
+});
+
 // ---- Calendar events -------------------------------------------------------
 const eventsInRange = db.prepare(`
   SELECT e.id, e.title, e.start, e.end, e.start_ts, e.end_ts, e.all_day, e.location, e.description,
