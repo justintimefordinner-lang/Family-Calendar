@@ -7,6 +7,7 @@ const DEFAULTS = {
   week_start: 0,             // 0 = Sunday, 1 = Monday
   screensaver_minutes: 10,   // 0 disables the photo screensaver
   photo_seconds: 15,
+  month_themes: 1,           // seasonal kid-friendly styling per month on the display
   temp_unit: 'fahrenheit',
   weather_lat: null,
   weather_lon: null,
@@ -23,12 +24,12 @@ const DEFAULTS = {
 
 // Settings safe to expose to the (unauthenticated) kiosk.
 const PUBLIC_KEYS = [
-  'family_name', 'timezone', 'week_start', 'screensaver_minutes', 'photo_seconds',
+  'family_name', 'timezone', 'week_start', 'screensaver_minutes', 'photo_seconds', 'month_themes',
   'temp_unit', 'weather_label', 'interest_apr', 'interest_day', 'last_sync_at',
 ];
 // Settings a parent may change through PATCH /api/settings.
 const EDITABLE_KEYS = [
-  'family_name', 'timezone', 'week_start', 'screensaver_minutes', 'photo_seconds',
+  'family_name', 'timezone', 'week_start', 'screensaver_minutes', 'photo_seconds', 'month_themes',
   'temp_unit', 'weather_lat', 'weather_lon', 'weather_label', 'interest_apr',
   'interest_day', 'sync_minutes', 'google_client_id', 'google_client_secret',
 ];

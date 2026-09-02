@@ -13,6 +13,40 @@
   const DOW = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
   const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 
+  // Seasonal styling per month (index = month). `ink`/`muted` only for dark backgrounds.
+  const THEMES = [
+    { deco: '❄️', strip: '❄️ ⛄ 🧣 ❄️ ☃️ 🧤', bg: '#e6f0fb', accent: '#2563eb' },
+    { deco: '💗', strip: '💗 💌 🍫 💘 🌹 💗', bg: '#fde8ef', accent: '#e11d48' },
+    { deco: '🍀', strip: '🍀 🌈 🪙 🍀 🎩 🌈', bg: '#e6f6ea', accent: '#15803d' },
+    { deco: '🌷', strip: '🌷 🐣 🌧️ 🐰 🌱 🦋', bg: '#f1eefb', accent: '#7c3aed' },
+    { deco: '🌸', strip: '🌸 🐝 🌼 🌸 🐞 🌻', bg: '#fff0f6', accent: '#db2777' },
+    { deco: '☀️', strip: '☀️ 🏖️ 🍉 🌊 🕶️ 🍦', bg: '#fff8d6', accent: '#d97706' },
+    { deco: '🎆', strip: '🎆 🇺🇸 🎇 ⭐ 🍔 🎆', bg: '#eef2ff', accent: '#dc2626' },
+    { deco: '✏️', strip: '✏️ 🚌 📚 🍎 🎒 🖍️', bg: '#fff4e0', accent: '#ea580c' },
+    { deco: '🍂', strip: '🍂 🍎 🌽 🍁 🐿️ 🍂', bg: '#fbeedd', accent: '#c2410c' },
+    { deco: '🎃', strip: '🎃 👻 🦇 🍬 🕸️ 🎃', bg: '#2b1a47', accent: '#ff7a1a', ink: '#ffffff', muted: '#c9bde3' },
+    { deco: '🦃', strip: '🦃 🍁 🥧 🌽 🍗 🍁', bg: '#f3e4cf', accent: '#b45309' },
+    { deco: '🎄', strip: '🎄 ⛄ 🎁 ❄️ 🦌 🎅', bg: '#e8f4ea', accent: '#c81e1e' },
+  ];
+
+  function applyTheme() {
+    const enabled = Number(state.settings.month_themes ?? 1) !== 0;
+    const t = enabled ? THEMES[state.anchor.getMonth()] : null;
+    const s = document.body.style;
+    const banner = $('#themeBanner');
+    if (!t) {
+      ['--bg', '--accent', '--page-ink', '--page-muted', '--deco'].forEach((v) => s.removeProperty(v));
+      banner.textContent = '';
+      return;
+    }
+    s.setProperty('--bg', t.bg);
+    s.setProperty('--accent', t.accent);
+    if (t.ink) s.setProperty('--page-ink', t.ink); else s.removeProperty('--page-ink');
+    if (t.muted) s.setProperty('--page-muted', t.muted); else s.removeProperty('--page-muted');
+    s.setProperty('--deco', JSON.stringify(t.deco));
+    banner.textContent = t.strip;
+  }
+
   const state = {
     settings: {},
     members: [],
@@ -26,8 +60,11 @@
     finance: [],           // summary rows
     shopping: [],
     photos: [],
+    weather: null,
     google: { configured: false, accounts: [] },
   };
+
+  const wxFor = (dateKey) => (state.weather && !state.weather.error ? state.weather.daily.find((d) => d.date === dateKey) : null);
 
   async function api(path, opts = {}) {
     const res = await fetch(path, {
@@ -150,9 +187,11 @@
       const evs = eventsOnDay(visible, d);
       const cls = ['day-col', key === state.today ? 'today' : '', d < todayD ? 'past' : ''].join(' ');
       const meal = state.meals[key];
+      const wx = wxFor(key);
       cols.push(`<div class="${cls}">
-        <div class="day-head"><div class="dow">${DOW[d.getDay()]}</div><div class="num">${d.getDate()}</div></div>
-        <div class="day-body">${evs.length ? evs.map((e) => eventHtml(e, d)).join('') : '<div class="empty-day">·</div>'}</div>
+        <div class="day-head"><div><div class="dow">${DOW[d.getDay()]}</div><div class="num">${d.getDate()}</div></div>
+          ${wx ? `<div class="day-wx" title="${esc(wx.label)}"><span class="emoji">${wx.emoji}</span>${wx.hi}°<small>/${wx.lo}°</small></div>` : ''}</div>
+        <div class="day-body">${evs.length ? evs.map((e) => eventHtml(e, d)).join('') : '<div class="empty-day"></div>'}</div>
         ${meal ? `<div class="day-foot">🍽️ <b>${esc(meal.title)}</b></div>` : ''}
       </div>`);
     }
@@ -178,13 +217,15 @@
       const shown = evs.slice(0, 3).map((e) => `<div class="chip" style="--c:${esc(eventColor(e))}" data-event="${e.id}">${e.all_day ? '' : fmtTime(e.start_ts) + ' '}${esc(e.title)}</div>`).join('');
       const more = evs.length > 3 ? `<div class="more">+${evs.length - 3} more</div>` : '';
       const cls = ['m-cell', d.getMonth() !== month ? 'other' : '', key === state.today ? 'today' : ''].join(' ');
-      cells.push(`<div class="${cls}" data-day="${key}"><div class="num">${d.getDate()}</div>${shown}${more}</div>`);
+      const wx = wxFor(key);
+      cells.push(`<div class="${cls}" data-day="${key}"><div class="num">${d.getDate()}${wx ? `<span class="m-wx">${wx.emoji} ${wx.hi}°</span>` : ''}</div>${shown}${more}</div>`);
     }
     grid.innerHTML = cells.join('');
     $('#rangeLabel').textContent = `${MONTHS[month]} ${state.anchor.getFullYear()}`;
   }
 
   function renderCalendar() {
+    applyTheme();
     if (state.view === 'week') renderWeek(); else renderMonth();
   }
 
@@ -359,7 +400,11 @@
   }
 
   async function loadWeather() {
-    try { renderWeather(await api('/api/weather')); } catch { /* keep last */ }
+    try {
+      state.weather = await api('/api/weather');
+      renderWeather(state.weather);
+      renderCalendar();
+    } catch { /* keep last */ }
   }
 
   async function loadPhotos() {

@@ -381,6 +381,7 @@
         <label class="field"><span>Photo screensaver after (minutes, 0 = off)</span><input type="number" name="screensaver_minutes" min="0" max="240" value="${settings.screensaver_minutes}"></label>
         <label class="field"><span>Seconds per photo</span><input type="number" name="photo_seconds" min="5" max="600" value="${settings.photo_seconds}"></label>
       </div>
+      <label class="field"><span>Seasonal month themes on the display (Halloween in October, etc.)</span><select name="month_themes"><option value="1" ${Number(settings.month_themes) !== 0 ? 'selected' : ''}>On</option><option value="0" ${Number(settings.month_themes) === 0 ? 'selected' : ''}>Off</option></select></label>
       <label class="field"><span>Timezone (restart required)</span><input type="text" name="timezone" value="${esc(settings.timezone)}" placeholder="America/Chicago"></label>
       <button class="btn primary" type="submit">Save</button></form>`;
 
