@@ -368,7 +368,7 @@
   const PRIZE_IDEAS = [
     ['🌙', 'Stay up 30 minutes later', 15], ['🍨', 'Ice cream run', 25], ['🛝', 'Trip to the park', 15], ['🎨', 'Crafternoon', 20],
     ['🧁', 'Bake something together', 30], ['📚', 'New book', 40], ['🎬', 'Pick the family movie', 25], ['🎲', 'Pick game night', 20],
-    ['🍰', 'Dessert first', 12], ['🍦', 'Date with Mom', 50], ['🎣', 'Date with Dad', 55], ['🍕', 'Pick dinner', 20],
+    ['🍰', 'Dessert first', 12], ['🌃', 'Date Night (Mom or Dad)', 50], ['🍦', 'Date with Mom', 50], ['🎣', 'Date with Dad', 55], ['🍕', 'Pick dinner', 20],
     ['📱', 'Extra 30 min screen time', 10], ['🎟️', 'Skip one chore', 20], ['🛏️', 'Friend sleepover', 60], ['💵', '$5 cash', 50],
     ['⛺', 'Camp in the living room', 35], ['🥞', 'Breakfast in bed', 30], ['👑', 'Boss for a day', 45], ['🚗', 'Front seat for a week', 25],
   ];
