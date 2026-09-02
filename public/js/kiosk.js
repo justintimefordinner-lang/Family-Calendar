@@ -420,12 +420,41 @@
   }
   $('#celebrate').addEventListener('click', () => { clearTimeout(celebrateTimer); $('#celebrate').hidden = true; });
 
-  function rewardMessage(chore) {
+  // Taps within a short window are celebrated together ("3 chores — 6 Mom Coins"), so a kid
+  // can tick off several chores in a row without waiting for the animation each time.
+  const BATCH_MS = 1500;
+  const batch = { memberId: null, name: '', count: 0, coins: 0, cents: 0, timer: null };
+  const choreCoins = (chore) => (chore.paid ? 0 : (chore.coins != null ? Number(chore.coins) : (Number(state.settings.coins_per_chore) || 0)));
+
+  function batchMessage() {
     const coinName = state.settings.coin_name || 'Mom Coins';
-    const coins = chore.coins != null ? Number(chore.coins) : (Number(state.settings.coins_per_chore) || 0);
-    if (chore.paid) return `Sent to Mom & Dad — ${money(chore.amount_cents)} once they approve it`;
-    if (coins > 0) return `Sent to Mom & Dad — ${coins} ${coinName} once they approve it`;
-    return 'Sent to Mom & Dad for approval';
+    const rewards = [];
+    if (batch.coins > 0) rewards.push(`${batch.coins} ${coinName}`);
+    if (batch.cents > 0) rewards.push(money(batch.cents));
+    const what = batch.count === 1 ? 'Chore sent to Mom & Dad' : `${batch.count} chores sent to Mom & Dad`;
+    return rewards.length ? `${what} — ${rewards.join(' + ')} once they approve` : `${what} for approval`;
+  }
+
+  function queueCelebration(memberId, chore) {
+    if (batch.memberId !== memberId) Object.assign(batch, { memberId, count: 0, coins: 0, cents: 0 });
+    const m = memberById(memberId);
+    batch.name = m ? m.name : '';
+    batch.count += 1;
+    batch.coins += choreCoins(chore);
+    if (chore.paid) batch.cents += chore.amount_cents;
+    clearTimeout(batch.timer);
+    batch.timer = setTimeout(() => {
+      if (batch.count > 0) celebrate(batch.name, batchMessage());
+      Object.assign(batch, { memberId: null, count: 0, coins: 0, cents: 0, timer: null });
+    }, BATCH_MS);
+  }
+
+  // A tap undone inside the window comes back out of the tally.
+  function unqueueCelebration(memberId, chore) {
+    if (!batch.timer || batch.memberId !== memberId || !chore) return;
+    batch.count = Math.max(0, batch.count - 1);
+    batch.coins = Math.max(0, batch.coins - choreCoins(chore));
+    if (chore.paid) batch.cents = Math.max(0, batch.cents - chore.amount_cents);
   }
 
   // ---- Modals ---------------------------------------------------------------
@@ -578,8 +607,7 @@
         await api(`/api/chores/${claim.dataset.claim}/complete`, { method: 'POST', body: { member_id: Number(claim.dataset.kid), date: state.today } });
         closeModal();
         const chore = state.chores.find((c) => c.id === Number(claim.dataset.claim));
-        const m = memberById(Number(claim.dataset.kid));
-        celebrate(m ? m.name : '', chore ? rewardMessage(chore) : '');
+        if (chore) queueCelebration(Number(claim.dataset.kid), chore);
         await loadSide();
       } catch (err) { alert(err.message); }
       return;
@@ -649,14 +677,14 @@
     const memberId = typeof state.selected === 'number' ? state.selected : (el.dataset.owner ? Number(el.dataset.owner) : null);
     if (memberId == null) return; // open Earn Money chores are claimed from a kid's own view
     try {
+      const chore = state.chores.find((c) => c.id === Number(el.dataset.chore));
       if (el.dataset.status && el.dataset.status !== 'rejected') {
         if (el.dataset.status === 'approved') return;
         await api(`/api/chores/completions/${el.dataset.completion}`, { method: 'DELETE' });
+        unqueueCelebration(memberId, chore);
       } else {
         await api(`/api/chores/${el.dataset.chore}/complete`, { method: 'POST', body: { member_id: memberId, date: state.today } });
-        const chore = state.chores.find((c) => c.id === Number(el.dataset.chore));
-        const m = memberById(memberId);
-        celebrate(m ? m.name : '', chore ? rewardMessage(chore) : '');
+        if (chore) queueCelebration(memberId, chore);
       }
       await loadSide();
     } catch (err) {
