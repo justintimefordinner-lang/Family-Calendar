@@ -11,7 +11,7 @@
   --warn: #d97706;
   --radius: 18px;
   --shadow: 0 6px 24px rgba(31, 36, 48, 0.08);
-  --header-h: 96px;
+  --header-h: 112px;
   --members-w: 220px;
   --side-w: 500px;
   font-size: clamp(14px, 1.05vw, 22px);
@@ -39,7 +39,7 @@ h1, h2, h3 { margin: 0; font-weight: 700; }
   padding: 0 28px;
   gap: 24px;
 }
-.brand h1 { font-size: 1.9rem; letter-spacing: -0.01em; }
+.brand h1 { font-size: clamp(1.2rem, 1.6vw, 1.9rem); letter-spacing: -0.01em; }
 .today-label { color: var(--muted); font-size: 1.05rem; margin-top: 2px; }
 .clock-wrap { text-align: right; }
 .clock { font-size: 2.6rem; font-weight: 700; font-variant-numeric: tabular-nums; line-height: 1; }
@@ -181,6 +181,10 @@ h1, h2, h3 { margin: 0; font-weight: 700; }
 .badge.approved { background: #e7f8ec; color: var(--good); }
 
 .money { text-align: center; padding: 8px 0 4px; }
+.money2 { display: flex; gap: 12px; text-align: center; padding: 4px 0; }
+.money2 > div { flex: 1; padding: 10px 6px; border-radius: 14px; background: #f7f5f0; }
+.money2 .lbl { font-size: 0.85rem; color: var(--muted); font-weight: 600; }
+.money2 .balance { font-size: 2rem; font-weight: 800; letter-spacing: -0.02em; line-height: 1.15; }
 .money .balance { font-size: 2.8rem; font-weight: 800; letter-spacing: -0.02em; line-height: 1; }
 .money .hint { color: var(--muted); margin-top: 8px; font-size: 0.95rem; }
 .money .hint b { color: var(--good); }
@@ -242,9 +246,17 @@ h1, h2, h3 { margin: 0; font-weight: 700; }
 .today-label, .sync, .weather .day, .weather .now small, .m-head { color: var(--page-muted, var(--muted)); }
 .weather .day b { color: var(--page-ink, var(--ink)); }
 .cal-toolbar .btn, .cal-toolbar .seg { color: var(--ink); }
-.header-mid { display: flex; flex-direction: column; align-items: center; gap: 4px; }
-.theme-banner { font-size: 1.5rem; line-height: 1; letter-spacing: 0.3em; white-space: nowrap; }
+.header-mid { display: flex; align-items: center; gap: 24px; }
+.theme-banner { font-size: 1.5rem; line-height: 1; letter-spacing: 0.3em; white-space: nowrap; display: flex; align-items: center; }
 .theme-banner:empty { display: none; }
+.theme-banner svg, .theme-banner img { height: 88px; width: auto; max-width: 440px; border-radius: 16px; display: block; box-shadow: var(--shadow); }
+.top { grid-template-columns: minmax(320px, 1.3fr) auto minmax(200px, 1fr); }
+.brand h1 { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.theme-banner img { object-fit: cover; }
+body { background-repeat: repeat; background-size: 64px 64px; }
+/* faint doodle tiles: draw the tinted page over them */
+body::before { content: ""; position: fixed; inset: 0; background: var(--bg); opacity: 0.88; z-index: -1; pointer-events: none; }
+body { position: relative; z-index: 0; }
 .brand h1::after { content: var(--deco, ""); margin-left: 0.4em; }
 .empty-day { font-size: 2.4rem; opacity: 0.16; color: var(--ink); }
 .empty-day::before { content: var(--deco, "·"); }

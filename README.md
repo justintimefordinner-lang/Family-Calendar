@@ -129,9 +129,19 @@ whether to keep it on the list or remove it.
 
 ## Money model
 
-Each kid has a ledger of signed transactions: deposits, withdrawals, chore payouts, interest, and
-manual adjustments. The balance is the sum. If an interest rate is set, on the chosen day each month
-every kid with a positive balance is credited `balance × rate ÷ 12`.
+Each kid has two accounts, each a ledger of signed transactions:
+
+- **Cash** — pocket money. Chore payouts land here. Parents can add/withdraw, or simply *set the
+  balance* after counting the cash (an adjustment for the difference is recorded).
+- **Invested with Dad** — money handed to a parent to grow. If an interest rate is set, on the
+  chosen day each month every kid with a positive invested balance is credited `balance × rate ÷ 12`.
+
+*Move ⇄* transfers between the two. The display shows both balances and the combined history.
+
+## Month artwork
+
+Each month restyles the display (colors, a hand-drawn scene in the header, a faint doodle pattern).
+Replace any month's scene with a photo of the kids' own drawing in Settings › Display › Month artwork.
 
 ---
 

@@ -132,7 +132,8 @@ const approve = db.transaction((completionId) => {
   if (!c) throw new HttpError(404, 'Not found');
   if (c.status === 'approved') return c;
   db.prepare(`UPDATE chore_completions SET status = 'approved', reviewed_at = datetime('now') WHERE id = ?`).run(completionId);
-  db.prepare(`INSERT INTO transactions(member_id, type, amount_cents, note, completion_id) VALUES(?, 'chore', ?, ?, ?)`)
+  // Earnings land in the kid's cash; a parent can move them to "invested" later.
+  db.prepare(`INSERT INTO transactions(member_id, type, account, amount_cents, note, completion_id) VALUES(?, 'chore', 'cash', ?, ?, ?)`)
     .run(c.member_id, c.amount_cents, `Earned: ${c.title}`, completionId);
   return { ...c, status: 'approved' };
 });

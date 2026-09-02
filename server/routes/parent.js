@@ -12,10 +12,10 @@ const weather = require('../weather');
 const interest = require('../interest');
 const notify = require('../notify');
 const localEvents = require('../localEvents');
-const { PHOTO_DIR } = require('../config');
+const { PHOTO_DIR, THEME_DIR } = require('../config');
 const { HttpError, wrap, isDateStr, toInt, requireFields } = require('../util');
 const { validPin } = require('./auth');
-const { listPhotos, PHOTO_EXT } = require('./public');
+const { listPhotos, listThemeArt, PHOTO_EXT } = require('./public');
 
 const router = express.Router();
 
@@ -122,21 +122,47 @@ router.post('/chores/completions/:id/approve', (req, res) => res.json(chores.app
 router.post('/chores/completions/:id/reject', (req, res) => { chores.reject(toInt(req.params.id)); res.json({ ok: true }); });
 
 // ---- Money -----------------------------------------------------------------
+const insertTx = db.prepare('INSERT INTO transactions(member_id, type, account, amount_cents, note) VALUES(?, ?, ?, ?, ?)');
+const balances = (memberId) => {
+  const cash = interest.balance(memberId, 'cash');
+  const invested = interest.balance(memberId, 'invested');
+  return { cash_cents: cash, invested_cents: invested, balance_cents: cash + invested };
+};
+const money = (cents) => `$${(Math.abs(cents) / 100).toFixed(2)}`;
+
+// type: deposit | withdrawal | adjustment | transfer (to the other account) | set_balance
 router.post('/finance/:memberId/transactions', (req, res) => {
   const memberId = toInt(req.params.memberId);
   if (!memberById.get(memberId)) throw new HttpError(404, 'Member not found');
-  const { type, note = '' } = req.body;
+  const { type } = req.body;
+  const account = req.body.account === 'cash' ? 'cash' : 'invested';
+  const other = account === 'cash' ? 'invested' : 'cash';
+  const label = { cash: 'Cash', invested: 'Invested with Dad' };
+  const note = String(req.body.note || '').trim().slice(0, 200) || null;
+
+  if (type === 'set_balance') {
+    const target = toInt(req.body.balance_cents);
+    if (target == null) throw new HttpError(400, 'balance_cents required');
+    const diff = target - interest.balance(memberId, account);
+    if (diff) insertTx.run(memberId, 'adjustment', account, diff, note || `${label[account]} balance set to ${money(target)}`);
+    return res.json(balances(memberId));
+  }
+
   let cents = toInt(req.body.amount_cents);
   if (!cents) throw new HttpError(400, 'amount_cents required');
+  if (type === 'transfer') {
+    cents = Math.abs(cents);
+    db.transaction(() => {
+      insertTx.run(memberId, 'transfer', account, -cents, note || `Moved to ${label[other]}`);
+      insertTx.run(memberId, 'transfer', other, cents, note || `Moved from ${label[account]}`);
+    })();
+    return res.json(balances(memberId));
+  }
   if (type === 'deposit') cents = Math.abs(cents);
   else if (type === 'withdrawal') cents = -Math.abs(cents);
-  else if (type !== 'adjustment') throw new HttpError(400, 'type must be deposit, withdrawal or adjustment');
-  const info = db.prepare('INSERT INTO transactions(member_id, type, amount_cents, note) VALUES(?, ?, ?, ?)')
-    .run(memberId, type, cents, String(note).trim().slice(0, 200) || null);
-  res.json({
-    transaction: db.prepare('SELECT * FROM transactions WHERE id = ?').get(info.lastInsertRowid),
-    balance_cents: interest.balance(memberId),
-  });
+  else if (type !== 'adjustment') throw new HttpError(400, 'type must be deposit, withdrawal, adjustment, transfer or set_balance');
+  const info = insertTx.run(memberId, type, account, cents, note);
+  res.json({ transaction: db.prepare('SELECT * FROM transactions WHERE id = ?').get(info.lastInsertRowid), ...balances(memberId) });
 });
 
 router.delete('/finance/transactions/:id', (req, res) => {
@@ -148,7 +174,7 @@ router.delete('/finance/transactions/:id', (req, res) => {
     }
     db.prepare('DELETE FROM transactions WHERE id = ?').run(t.id);
   })();
-  res.json({ ok: true, balance_cents: interest.balance(t.member_id) });
+  res.json({ ok: true, ...balances(t.member_id) });
 });
 
 router.post('/finance/apply-interest', (req, res) => {
@@ -287,6 +313,39 @@ const upload = multer({
 
 router.post('/photos', upload.array('photos', 30), (req, res) => {
   res.json({ added: (req.files || []).length, photos: listPhotos() });
+});
+
+// ---- Month artwork (kids' drawings replacing the built-in scenes) ----------
+const themeUpload = multer({
+  storage: multer.diskStorage({
+    destination: THEME_DIR,
+    filename: (req, file, cb) => cb(null, `m${toInt(req.params.month)}${path.extname(file.originalname).toLowerCase()}`),
+  }),
+  limits: { fileSize: 20 * 1024 * 1024, files: 1 },
+  fileFilter: (req, file, cb) => cb(null, PHOTO_EXT.has(path.extname(file.originalname).toLowerCase())),
+});
+
+function removeThemeArt(month) {
+  for (const f of fs.readdirSync(THEME_DIR)) {
+    if (new RegExp(`^m${month}\\.`, 'i').test(f)) fs.unlinkSync(path.join(THEME_DIR, f));
+  }
+}
+
+router.post('/theme-art/:month', (req, res, next) => {
+  const month = toInt(req.params.month, -1);
+  if (month < 0 || month > 11) return next(new HttpError(400, 'month must be 0-11'));
+  removeThemeArt(month); // replace any previous file, whatever its extension
+  next();
+}, themeUpload.single('image'), (req, res) => {
+  if (!req.file) throw new HttpError(400, 'Choose a JPG, PNG, WebP or GIF image');
+  res.json(listThemeArt());
+});
+
+router.delete('/theme-art/:month', (req, res) => {
+  const month = toInt(req.params.month, -1);
+  if (month < 0 || month > 11) throw new HttpError(400, 'month must be 0-11');
+  removeThemeArt(month);
+  res.json(listThemeArt());
 });
 
 router.delete('/photos/:name', (req, res) => {

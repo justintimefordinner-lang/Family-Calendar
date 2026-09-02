@@ -31,11 +31,13 @@
 
   function applyTheme() {
     const enabled = Number(state.settings.month_themes ?? 1) !== 0;
-    const t = enabled ? THEMES[state.anchor.getMonth()] : null;
+    const month = state.anchor.getMonth();
+    const t = enabled ? THEMES[month] : null;
     const s = document.body.style;
     const banner = $('#themeBanner');
     if (!t) {
       ['--bg', '--accent', '--page-ink', '--page-muted', '--deco'].forEach((v) => s.removeProperty(v));
+      s.removeProperty('background-image');
       banner.textContent = '';
       return;
     }
@@ -44,7 +46,14 @@
     if (t.ink) s.setProperty('--page-ink', t.ink); else s.removeProperty('--page-ink');
     if (t.muted) s.setProperty('--page-muted', t.muted); else s.removeProperty('--page-muted');
     s.setProperty('--deco', JSON.stringify(t.deco));
-    banner.textContent = t.strip;
+    const art = window.THEME_ART;
+    const custom = state.themeArt[month];
+    if (custom) banner.innerHTML = `<img src="${esc(custom)}" alt="">`;
+    else if (art && art.scenes[month]) banner.innerHTML = art.scenes[month];
+    else banner.textContent = t.strip;
+    if (art && art.tiles[month]) {
+      s.setProperty('background-image', `url("data:image/svg+xml;utf8,${encodeURIComponent(art.tiles[month])}")`);
+    }
   }
 
   const state = {
@@ -60,6 +69,7 @@
     finance: [],           // summary rows
     shopping: [],
     photos: [],
+    themeArt: {},          // month -> uploaded artwork url
     weather: null,
     google: { configured: false, accounts: [] },
   };
@@ -289,12 +299,15 @@
         <p class="muted">${mine.length} extra chore${mine.length > 1 ? 's' : ''} for you${pendingMine ? ` · ${pendingMine} waiting for approval` : ''}</p></div>`;
     }
     if (m.role === 'kid') {
+      const cash = fin ? (fin.cash_cents || 0) : 0;
+      const invested = fin ? (fin.invested_cents || 0) : 0;
       html += `<div class="card" data-money="${m.id}">
-        <h3>💰 Invested with Dad <span class="meta">tap for history</span></h3>
-        <div class="money">
-          <div class="balance">${money(fin ? fin.balance_cents : 0)}</div>
-          <div class="hint">${fin && fin.pending_cents ? `<b>+${money(fin.pending_cents)}</b> waiting for approval · ` : ''}${apr > 0 ? `earning ${apr}% per year` : 'saved so far'}</div>
+        <h3>💰 My Money <span class="meta">tap for history</span></h3>
+        <div class="money2">
+          <div><div class="lbl">💵 Cash</div><div class="balance">${money(cash)}</div></div>
+          <div><div class="lbl">📈 Invested with Dad</div><div class="balance">${money(invested)}</div>${apr > 0 ? `<div class="lbl">earning ${apr}% a year</div>` : ''}</div>
         </div>
+        ${fin && fin.pending_cents ? `<div class="hint center"><b>+${money(fin.pending_cents)}</b> waiting for a parent to approve</div>` : ''}
       </div>`;
     }
     $('#side').innerHTML = html;
@@ -413,13 +426,17 @@
   async function showMoney(memberId) {
     const m = memberById(memberId);
     const f = await api(`/api/finance/${memberId}`);
-    const label = { deposit: 'Deposit', withdrawal: 'Withdrawal', chore: 'Chore', interest: 'Interest', adjustment: 'Adjustment' };
+    const label = { deposit: 'Deposit', withdrawal: 'Withdrawal', chore: 'Chore', interest: 'Interest', adjustment: 'Adjustment', transfer: 'Moved' };
+    const acct = (t) => (t.account === 'cash' ? '💵 Cash' : '📈 Invested');
     const rows = f.transactions.map((t) => `<div class="tx">
-      <div class="n">${esc(t.note || label[t.type] || t.type)}<small>${new Date(t.created_at.replace(' ', 'T') + 'Z').toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' })} · ${label[t.type] || t.type}</small></div>
+      <div class="n">${esc(t.note || label[t.type] || t.type)}<small>${new Date(t.created_at.replace(' ', 'T') + 'Z').toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' })} · ${label[t.type] || t.type} · ${acct(t)}</small></div>
       <div class="a ${t.amount_cents < 0 ? 'neg' : 'pos'}">${t.amount_cents < 0 ? '−' : '+'}${money(Math.abs(t.amount_cents))}</div></div>`).join('');
     openModal(`<h2>${esc(m.emoji)} ${esc(m.name)}'s Money</h2>
-      <div class="money"><div class="balance">${money(f.balance_cents)}</div>
-      <div class="hint">${f.interest_apr > 0 ? `Earning ${f.interest_apr}% per year, paid on day ${f.interest_day} of each month` : 'Invested with Dad'}</div></div>
+      <div class="money2">
+        <div><div class="lbl">💵 Cash</div><div class="balance">${money(f.cash_cents || 0)}</div></div>
+        <div><div class="lbl">📈 Invested with Dad</div><div class="balance">${money(f.invested_cents || 0)}</div>
+          <div class="lbl">${f.interest_apr > 0 ? `${f.interest_apr}% a year, paid on day ${f.interest_day} of each month` : 'no interest yet'}</div></div>
+      </div>
       <div style="margin-top:16px">${rows || '<p class="muted center">No activity yet</p>'}</div>`);
   }
 
@@ -479,6 +496,12 @@
 
   async function loadPhotos() {
     try { state.photos = await api('/api/photos'); } catch { state.photos = []; }
+    try {
+      const art = await api('/api/theme-art');
+      const changed = JSON.stringify(art) !== JSON.stringify(state.themeArt);
+      state.themeArt = art;
+      if (changed) applyTheme();
+    } catch { /* keep last */ }
   }
 
   async function refreshAll() {

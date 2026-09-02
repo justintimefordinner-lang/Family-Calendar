@@ -3,12 +3,13 @@ const db = require('./db');
 const settings = require('./settings');
 const { localDate } = require('./util');
 
-const balanceStmt = db.prepare('SELECT COALESCE(SUM(amount_cents), 0) AS bal FROM transactions WHERE member_id = ?');
+const balanceStmt = db.prepare('SELECT COALESCE(SUM(amount_cents), 0) AS bal FROM transactions WHERE member_id = ? AND account = ?');
 const paidThisMonth = db.prepare(`SELECT 1 FROM transactions WHERE member_id = ? AND type = 'interest' AND substr(created_at, 1, 7) = ? LIMIT 1`);
-const insert = db.prepare(`INSERT INTO transactions(member_id, type, amount_cents, note) VALUES(?, 'interest', ?, ?)`);
+const insert = db.prepare(`INSERT INTO transactions(member_id, type, account, amount_cents, note) VALUES(?, 'interest', 'invested', ?, ?)`);
 
-function balance(memberId) {
-  return balanceStmt.get(memberId).bal;
+// Interest is only paid on the "invested with Dad" account.
+function balance(memberId, account = 'invested') {
+  return balanceStmt.get(memberId, account).bal;
 }
 
 function applyIfDue(now = new Date()) {
@@ -22,7 +23,7 @@ function applyIfDue(now = new Date()) {
   db.transaction(() => {
     for (const { id } of kids) {
       if (paidThisMonth.get(id, month)) continue;
-      const bal = balance(id);
+      const bal = balance(id, 'invested');
       if (bal <= 0) continue;
       const amount = Math.round(bal * (apr / 100) / 12);
       if (amount <= 0) continue;

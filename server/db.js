@@ -1,8 +1,9 @@
 const fs = require('fs');
 const Database = require('better-sqlite3');
-const { DB_PATH, PHOTO_DIR } = require('./config');
+const { DB_PATH, PHOTO_DIR, THEME_DIR } = require('./config');
 
 fs.mkdirSync(PHOTO_DIR, { recursive: true });
+fs.mkdirSync(THEME_DIR, { recursive: true });
 
 const db = new Database(DB_PATH);
 db.pragma('journal_mode = WAL');
@@ -92,7 +93,8 @@ CREATE TABLE IF NOT EXISTS chore_completions (
 CREATE TABLE IF NOT EXISTS transactions (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   member_id INTEGER NOT NULL REFERENCES members(id) ON DELETE CASCADE,
-  type TEXT NOT NULL,            -- 'deposit' | 'withdrawal' | 'chore' | 'interest' | 'adjustment'
+  type TEXT NOT NULL,            -- 'deposit' | 'withdrawal' | 'chore' | 'interest' | 'adjustment' | 'transfer'
+  account TEXT NOT NULL DEFAULT 'invested',  -- 'cash' (pocket money) | 'invested' (with Dad, earns interest)
   amount_cents INTEGER NOT NULL, -- signed; positive adds to the balance
   note TEXT,
   completion_id INTEGER REFERENCES chore_completions(id) ON DELETE SET NULL,
@@ -134,5 +136,7 @@ const memberCols = db.prepare('PRAGMA table_info(members)').all().map((c) => c.n
 if (!memberCols.includes('aliases')) db.exec(`ALTER TABLE members ADD COLUMN aliases TEXT NOT NULL DEFAULT ''`);
 const choreCols = db.prepare('PRAGMA table_info(chores)').all().map((c) => c.name);
 if (!choreCols.includes('period')) db.exec(`ALTER TABLE chores ADD COLUMN period TEXT NOT NULL DEFAULT 'any'`);
+const txCols = db.prepare('PRAGMA table_info(transactions)').all().map((c) => c.name);
+if (!txCols.includes('account')) db.exec(`ALTER TABLE transactions ADD COLUMN account TEXT NOT NULL DEFAULT 'invested'`);
 
 module.exports = db;

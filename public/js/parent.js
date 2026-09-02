@@ -13,7 +13,8 @@
   const DOW = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
   const PALETTE = ['#2f6fed', '#16a34a', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#0ea5e9', '#14b8a6'];
   const EMOJIS = ['🙂', '😎', '🦄', '🐯', '🦊', '🐼', '🚀', '⚽', '🎨', '🎸', '🦖', '🐶', '🐱', '⭐', '🌈', '🍕', '👩', '👨'];
-  const TX_LABEL = { deposit: 'Deposit', withdrawal: 'Withdrawal', chore: 'Chore', interest: 'Interest', adjustment: 'Adjustment' };
+  const TX_LABEL = { deposit: 'Deposit', withdrawal: 'Withdrawal', chore: 'Chore', interest: 'Interest', adjustment: 'Adjustment', transfer: 'Moved' };
+  const ACCT_LABEL = { cash: '💵 Cash', invested: '📈 Invested' };
 
   const S = { me: null, members: [], settings: null, route: 'chores', arg: null, mealWeek: 0, pin: '' };
 
@@ -259,13 +260,13 @@
     const [summary, settings] = await Promise.all([api('/api/finance/summary'), api('/api/settings')]);
     const apr = Number(settings.interest_apr) || 0;
     const cards = kids().map((m) => {
-      const f = summary.find((s) => s.member_id === m.id) || { balance_cents: 0, pending_cents: 0 };
+      const f = summary.find((s) => s.member_id === m.id) || { cash_cents: 0, invested_cents: 0, pending_cents: 0 };
       return `<div class="card balance-card tappable" data-href="#money/${m.id}">
         <div class="avatar" style="--c:${esc(m.color)}">${esc(m.emoji)}</div>
         <div><div class="title" style="font-weight:600">${esc(m.name)}</div>${f.pending_cents ? `<div class="sub muted small">+${money(f.pending_cents)} awaiting approval</div>` : ''}</div>
-        <div class="bal">${money(f.balance_cents)}</div></div>`;
+        <div class="bal" style="text-align:right;font-size:1.05rem;line-height:1.35">💵 ${money(f.cash_cents || 0)}<br>📈 ${money(f.invested_cents || 0)}</div></div>`;
     }).join('');
-    shell('Money', `<p class="muted small">${apr > 0 ? `Balances earn ${apr}% per year, credited on day ${settings.interest_day} of each month.` : 'No interest is being paid. Set a rate in Settings › Interest.'}</p>
+    shell('Money', `<p class="muted small">Each kid has <b>Cash</b> (pocket money you keep track of; chore earnings land here) and <b>Invested with Dad</b>${apr > 0 ? `, which earns ${apr}% per year credited on day ${settings.interest_day} of each month.` : ' (no interest set — see Settings › Interest).'}</p>
       ${cards || '<div class="card"><p class="muted">Add kids in Settings › Family to start tracking money.</p></div>'}`);
   }
 
@@ -274,24 +275,37 @@
     if (!m) { location.hash = '#money'; return; }
     const f = await api(`/api/finance/${id}`);
     const rows = f.transactions.map((t) => `<div class="list-item tx">
-      <div class="grow"><div class="title">${esc(t.note || TX_LABEL[t.type] || t.type)}</div><div class="sub">${fmtWhen(t.created_at)} · ${TX_LABEL[t.type] || t.type}</div></div>
+      <div class="grow"><div class="title">${esc(t.note || TX_LABEL[t.type] || t.type)}</div><div class="sub">${fmtWhen(t.created_at)} · ${TX_LABEL[t.type] || t.type} · ${ACCT_LABEL[t.account] || t.account}</div></div>
       <div class="a ${t.amount_cents < 0 ? 'neg' : 'pos'}">${t.amount_cents < 0 ? '−' : '+'}${money(Math.abs(t.amount_cents))}</div>
       <button class="btn small icon" data-action="delete-tx" data-id="${t.id}" title="Remove">✕</button></div>`).join('');
     shell(`${esc(m.emoji)} ${esc(m.name)}`, `
-      <div class="card"><div class="big-balance">${money(f.balance_cents)}</div>
-        <p class="muted small center">${f.pending_cents ? `+${money(f.pending_cents)} awaiting approval · ` : ''}${f.interest_apr > 0 ? `${f.interest_apr}% per year` : 'no interest set'}</p></div>
+      <div class="card"><div class="row2">
+          <div class="center"><div class="muted small">💵 Cash</div><div class="big-balance" style="font-size:1.9rem">${money(f.cash_cents || 0)}</div></div>
+          <div class="center"><div class="muted small">📈 Invested with Dad</div><div class="big-balance" style="font-size:1.9rem">${money(f.invested_cents || 0)}</div></div>
+        </div>
+        <p class="muted small center">${f.pending_cents ? `+${money(f.pending_cents)} awaiting approval · ` : ''}${f.interest_apr > 0 ? `invested money earns ${f.interest_apr}% per year` : 'no interest set'}</p></div>
       <div class="card"><h2>Add a transaction</h2>
         <form data-form="tx" data-member="${m.id}">
+          <div class="field"><div class="seg" data-seg="account">
+            <button type="button" data-val="cash" class="active">💵 Cash</button>
+            <button type="button" data-val="invested">📈 Invested</button></div><input type="hidden" name="account" value="cash"></div>
           <div class="field"><div class="seg" data-seg="type">
             <button type="button" data-val="deposit" class="active">Deposit</button>
             <button type="button" data-val="withdrawal">Withdraw</button>
-            <button type="button" data-val="adjustment">Adjust ±</button></div><input type="hidden" name="type" value="deposit"></div>
+            <button type="button" data-val="adjustment">Adjust ±</button>
+            <button type="button" data-val="transfer">Move ⇄</button></div><input type="hidden" name="type" value="deposit"></div>
+          <p class="muted small" data-when="transfer" data-for="type" hidden>Moves the amount from the selected account into the other one.</p>
           <div class="row2">
             <label class="field"><span>Amount ($)</span><input type="number" name="amount" step="0.01" inputmode="decimal" required placeholder="20.00"></label>
             <label class="field"><span>Note</span><input type="text" name="note" maxlength="200" placeholder="Birthday money"></label>
           </div>
           <button class="btn primary block" type="submit">Save</button>
         </form></div>
+      <div class="card"><h2>Set cash balance</h2>
+        <form data-form="setbal" data-member="${m.id}" class="actions" style="margin:0">
+          <input type="number" name="balance" step="0.01" inputmode="decimal" class="input grow" required placeholder="Count the cash… e.g. 12.50">
+          <button class="btn" type="submit">Set</button></form>
+        <p class="muted small mt">Records an adjustment for the difference, so the history stays honest.</p></div>
       <div class="card"><h2>History</h2>${rows || '<p class="muted">Nothing yet.</p>'}</div>`,
     `<a class="btn small" href="#money">‹ All kids</a>`);
   }
@@ -413,8 +427,8 @@
   }
 
   async function renderSettings() {
-    const [settings, accounts, allMembers, photos] = await Promise.all([
-      api('/api/settings'), api('/api/google/accounts'), api('/api/members/all'), api('/api/photos'),
+    const [settings, accounts, allMembers, photos, themeArt] = await Promise.all([
+      api('/api/settings'), api('/api/google/accounts'), api('/api/members/all'), api('/api/photos'), api('/api/theme-art'),
     ]);
     S.settings = settings;
     const section = (title, body, open = false) => `<details class="section" ${open ? 'open' : ''}><summary>${title}</summary><div class="body">${body}</div></details>`;
@@ -464,7 +478,15 @@
       </div>
       <label class="field"><span>Seasonal month themes on the display (Halloween in October, etc.)</span><select name="month_themes"><option value="1" ${Number(settings.month_themes) !== 0 ? 'selected' : ''}>On</option><option value="0" ${Number(settings.month_themes) === 0 ? 'selected' : ''}>Off</option></select></label>
       <label class="field"><span>Timezone (restart required)</span><input type="text" name="timezone" value="${esc(settings.timezone)}" placeholder="America/Chicago"></label>
-      <button class="btn primary" type="submit">Save</button></form>`;
+      <button class="btn primary" type="submit">Save</button></form>
+      <h2 class="mt">Month artwork</h2>
+      <p class="muted small">Each month has a built-in drawing on the display. Replace any of them with a photo of the kids' own drawing — a wide picture (about 6:1, landscape) fits the header best.</p>
+      ${['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'].map((name, i) => `
+        <div class="list-item"><div class="grow"><div class="title">${name}</div><div class="sub">${themeArt[i] ? 'Custom drawing' : 'Built-in drawing'}</div></div>
+          ${themeArt[i] ? `<img src="${esc(themeArt[i])}" alt="" style="height:40px;width:80px;object-fit:cover;border-radius:8px">` : ''}
+          <label class="btn small">${themeArt[i] ? 'Replace' : 'Upload'}<input type="file" accept="image/*" data-upload-art="${i}" hidden></label>
+          ${themeArt[i] ? `<button class="btn small icon" data-action="delete-art" data-id="${i}" title="Use built-in">✕</button>` : ''}
+        </div>`).join('')}`;
 
     const interest = `<form data-form="settings">
       <div class="row2">
@@ -544,7 +566,10 @@
       wrap.querySelectorAll('button').forEach((b) => b.classList.toggle('active', b === seg));
       const form = wrap.closest('form');
       form.querySelector(`input[name=${wrap.dataset.seg}]`).value = seg.dataset.val;
-      form.querySelectorAll('[data-when]').forEach((el) => { el.hidden = el.dataset.when !== seg.dataset.val; });
+      form.querySelectorAll('[data-when]').forEach((el) => {
+        if (el.dataset.for && el.dataset.for !== wrap.dataset.seg) return; // belongs to another segmented control
+        el.hidden = el.dataset.when !== seg.dataset.val;
+      });
       return;
     }
     const day = t.closest('[data-days] button');
@@ -653,6 +678,8 @@
           const r = await api('/api/finance/apply-interest', { method: 'POST' });
           toast(r.credited ? `Credited ${r.credited} account(s)` : 'Nothing to credit (rate is 0, day not reached, or already paid this month)'); break;
         }
+        case 'delete-art':
+          await api(`/api/theme-art/${id}`, { method: 'DELETE' }); toast('Back to the built-in drawing'); render(); break;
         case 'delete-photo':
           if (!confirm('Delete this photo?')) return;
           await api(`/api/photos/${encodeURIComponent(act.dataset.name)}`, { method: 'DELETE' }); render(); break;
@@ -681,6 +708,17 @@
       const body = v === 'off' ? { enabled: false } : v === 'family' ? { enabled: true, is_family: true, member_id: null }
         : { enabled: true, is_family: false, member_id: Number(v.slice(2)) };
       try { await api(`/api/google/calendars/${t.dataset.cal}`, { method: 'PATCH', body }); toast('Calendar updated'); } catch (err) { fail(err); }
+      return;
+    }
+    if (t.matches('[data-upload-art]')) {
+      if (!t.files.length) return;
+      const fd = new FormData();
+      fd.append('image', t.files[0]);
+      try {
+        toast('Uploading…');
+        await api(`/api/theme-art/${t.dataset.uploadArt}`, { method: 'POST', body: fd });
+        toast('Artwork saved'); render();
+      } catch (err) { fail(err); }
       return;
     }
     if (t.matches('[data-upload]')) {
@@ -726,8 +764,12 @@
         case 'tx': {
           const cents = toCents(fd.get('amount'));
           if (!cents) return toast('Enter an amount', true);
-          await api(`/api/finance/${form.dataset.member}/transactions`, { method: 'POST', body: { type: fd.get('type'), amount_cents: cents, note: fd.get('note') } });
+          await api(`/api/finance/${form.dataset.member}/transactions`, { method: 'POST', body: { type: fd.get('type'), account: fd.get('account'), amount_cents: cents, note: fd.get('note') } });
           toast('Saved'); render(); break;
+        }
+        case 'setbal': {
+          await api(`/api/finance/${form.dataset.member}/transactions`, { method: 'POST', body: { type: 'set_balance', account: 'cash', balance_cents: toCents(fd.get('balance')) } });
+          toast('Cash balance updated'); render(); break;
         }
         case 'shop': await api('/api/shopping', { method: 'POST', body: { text: fd.get('text') } }); render(); break;
         case 'levent': {

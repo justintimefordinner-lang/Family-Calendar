@@ -10,7 +10,7 @@ const weather = require('../weather');
 const google = require('../google');
 const notify = require('../notify');
 const localEvents = require('../localEvents');
-const { PHOTO_DIR } = require('../config');
+const { PHOTO_DIR, THEME_DIR } = require('../config');
 const { HttpError, wrap, localDate, isDateStr, toInt } = require('../util');
 
 const router = express.Router();
@@ -142,11 +142,11 @@ const pendingCents = db.prepare(`
 
 router.get('/finance/summary', (req, res) => {
   const kids = activeMembers.all().filter((m) => m.role === 'kid');
-  res.json(kids.map((m) => ({
-    member_id: m.id,
-    balance_cents: interest.balance(m.id),
-    pending_cents: pendingCents.get(m.id).cents,
-  })));
+  res.json(kids.map((m) => {
+    const cash = interest.balance(m.id, 'cash');
+    const invested = interest.balance(m.id, 'invested');
+    return { member_id: m.id, cash_cents: cash, invested_cents: invested, balance_cents: cash + invested, pending_cents: pendingCents.get(m.id).cents };
+  }));
 });
 
 router.get('/finance/:memberId', (req, res) => {
@@ -154,9 +154,13 @@ router.get('/finance/:memberId', (req, res) => {
   const member = db.prepare('SELECT id, name FROM members WHERE id = ?').get(id);
   if (!member) throw new HttpError(404, 'Member not found');
   const limit = Math.min(500, toInt(req.query.limit, 100));
+  const cash = interest.balance(id, 'cash');
+  const invested = interest.balance(id, 'invested');
   res.json({
     member_id: id,
-    balance_cents: interest.balance(id),
+    cash_cents: cash,
+    invested_cents: invested,
+    balance_cents: cash + invested,
     pending_cents: pendingCents.get(id).cents,
     interest_apr: Number(settings.get('interest_apr')) || 0,
     interest_day: Number(settings.get('interest_day')) || 1,
@@ -238,6 +242,21 @@ function listPhotos() {
 
 router.get('/photos', (req, res) => res.json(listPhotos()));
 
+// Uploaded month artwork: data/theme/m<0-11>.<ext>  ->  { "8": "/theme-art/m8.jpg?v=..." }
+function listThemeArt() {
+  const out = {};
+  for (const f of fs.readdirSync(THEME_DIR)) {
+    const m = /^m(\d{1,2})\.(jpg|jpeg|png|webp|gif)$/i.exec(f);
+    if (!m) continue;
+    const stat = fs.statSync(path.join(THEME_DIR, f));
+    out[Number(m[1])] = `/theme-art/${f}?v=${Math.floor(stat.mtimeMs)}`;
+  }
+  return out;
+}
+
+router.get('/theme-art', (req, res) => res.json(listThemeArt()));
+
 module.exports = router;
 module.exports.listPhotos = listPhotos;
+module.exports.listThemeArt = listThemeArt;
 module.exports.PHOTO_EXT = PHOTO_EXT;
