@@ -71,6 +71,7 @@ CREATE TABLE IF NOT EXISTS chores (
   due_date TEXT,                            -- used by 'once'
   paid INTEGER NOT NULL DEFAULT 0,          -- 1 = Earn Money chore
   amount_cents INTEGER NOT NULL DEFAULT 0,
+  period TEXT NOT NULL DEFAULT 'any',       -- 'morning' | 'afternoon' | 'evening' | 'any'
   notes TEXT,
   sort_order INTEGER NOT NULL DEFAULT 0,
   active INTEGER NOT NULL DEFAULT 1,
@@ -131,5 +132,7 @@ CREATE TABLE IF NOT EXISTS shopping_items (
 // Migrations for databases created by earlier versions.
 const memberCols = db.prepare('PRAGMA table_info(members)').all().map((c) => c.name);
 if (!memberCols.includes('aliases')) db.exec(`ALTER TABLE members ADD COLUMN aliases TEXT NOT NULL DEFAULT ''`);
+const choreCols = db.prepare('PRAGMA table_info(chores)').all().map((c) => c.name);
+if (!choreCols.includes('period')) db.exec(`ALTER TABLE chores ADD COLUMN period TEXT NOT NULL DEFAULT 'any'`);
 
 module.exports = db;

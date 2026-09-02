@@ -5,7 +5,8 @@ const { HttpError, localDate } = require('./util');
 const listActive = db.prepare(`
   SELECT c.*, m.name AS member_name FROM chores c
   LEFT JOIN members m ON m.id = c.member_id
-  WHERE c.active = 1 ORDER BY c.paid, c.sort_order, c.id
+  WHERE c.active = 1
+  ORDER BY c.paid, CASE c.period WHEN 'morning' THEN 0 WHEN 'afternoon' THEN 1 WHEN 'evening' THEN 2 ELSE 3 END, c.sort_order, c.id
 `);
 const completionsForDate = db.prepare(`
   SELECT cc.*, m.name AS member_name FROM chore_completions cc
@@ -63,6 +64,7 @@ function choresForDay(date = localDate(), memberId = null) {
       member_id: chore.member_id,
       member_name: chore.member_name,
       schedule: chore.schedule,
+      period: chore.period || 'any',
       paid: Boolean(chore.paid),
       amount_cents: chore.amount_cents,
       status: completion ? completion.status : null,

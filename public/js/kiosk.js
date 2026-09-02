@@ -267,9 +267,18 @@
     const done = regular.filter((c) => c.status).length;
     const fin = state.finance.find((f) => f.member_id === m.id);
     const apr = Number(state.settings.interest_apr) || 0;
+    // Group by time of day like a paper chore chart; headers only when periods are in use.
+    const PERIODS = [['morning', '☀️ Morning'], ['afternoon', '🌤️ Afternoon'], ['evening', '🌙 Evening'], ['any', '📋 Anytime']];
+    const usesPeriods = regular.some((c) => c.period && c.period !== 'any');
+    const list = usesPeriods
+      ? PERIODS.map(([key, label]) => {
+        const items = regular.filter((c) => (c.period || 'any') === key);
+        return items.length ? `<div class="period-head">${label}</div>${items.map((c) => choreRow(c, false)).join('')}` : '';
+      }).join('')
+      : regular.map((c) => choreRow(c, false)).join('');
     let html = `<div class="card accent" style="--c:${esc(m.color)}">
       <h3>${esc(m.emoji)} ${esc(m.name)}'s Chores <span class="meta">${done}/${regular.length} done</span></h3>
-      ${regular.length ? regular.map((c) => choreRow(c, false)).join('') : '<p class="muted center">No chores today 🎉</p>'}
+      ${regular.length ? list : '<p class="muted center">No chores today 🎉</p>'}
     </div>`;
     if (paid.length) {
       html += `<div class="card"><h3>💵 Earn Money</h3>${paid.map((c) => choreRow(c, false)).join('')}</div>`;

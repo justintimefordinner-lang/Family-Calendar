@@ -212,7 +212,7 @@
     const paid = all.filter((c) => c.paid);
     const choreItem = (c) => `<div class="list-item tappable" data-edit-chore="${c.id}">
       <div class="avatar" style="--c:${esc(c.member_id ? memberById(c.member_id)?.color : '#9ca3af')}">${c.member_id ? esc(memberById(c.member_id)?.emoji || '?') : '👥'}</div>
-      <div class="grow"><div class="title">${esc(c.title)}</div><div class="sub">${esc(c.member_name || 'Anyone')} · ${scheduleLabel(c)}</div></div>
+      <div class="grow"><div class="title">${esc(c.title)}</div><div class="sub">${esc(c.member_name || 'Anyone')} · ${scheduleLabel(c)}${c.period && c.period !== 'any' ? ' · ' + c.period : ''}</div></div>
       ${c.paid ? `<div class="amt">${money(c.amount_cents)}</div>` : ''}</div>`;
     html += `<div class="card"><h2>Regular chores <span class="meta">${regular.length}</span></h2>${regular.map(choreItem).join('') || '<p class="muted">Tap + to add a chore.</p>'}</div>`;
     html += `<div class="card"><h2>💵 Earn Money <span class="meta">${paid.length}</span></h2>${paid.map(choreItem).join('') || '<p class="muted">Extra chores kids can do to earn money. Add one with +.</p>'}</div>`;
@@ -245,6 +245,9 @@
         <div class="days" data-days>${DOW.map((d, i) => `<button type="button" data-day="${i}" class="${days[i] === '1' ? 'on' : ''}">${d[0]}</button>`).join('')}</div>
         <input type="hidden" name="days" value="${days}"></div>
       <div data-when="once" ${sched === 'once' ? '' : 'hidden'}><label class="field"><span>Available from (optional)</span><input type="date" name="due_date" value="${c.due_date || ''}"></label></div>
+      <label class="field"><span>Time of day</span><select name="period">
+        ${[['any', 'Anytime'], ['morning', '☀️ Morning'], ['afternoon', '🌤️ Afternoon'], ['evening', '🌙 Evening']].map(([v, l]) => `<option value="${v}" ${(c.period || 'any') === v ? 'selected' : ''}>${l}</option>`).join('')}
+      </select></label>
       <label class="field"><span>Notes (optional)</span><input type="text" name="notes" maxlength="200" value="${esc(c.notes || '')}"></label>
       <div class="actions"><button class="btn primary grow" type="submit">Save</button>
         ${c.id ? `<button type="button" class="btn danger" data-action="delete-chore" data-id="${c.id}">Delete</button>` : ''}</div>
@@ -714,6 +717,7 @@
             title: fd.get('title'), paid: form.paid.checked, amount_cents: toCents(fd.get('amount')),
             member_id: fd.get('member_id') ? Number(fd.get('member_id')) : null,
             schedule: fd.get('schedule'), days: fd.get('days'), due_date: fd.get('due_date') || null, notes: fd.get('notes'),
+            period: fd.get('period') || 'any',
           };
           if (form.dataset.id) await api(`/api/chores/${form.dataset.id}`, { method: 'PATCH', body });
           else await api('/api/chores', { method: 'POST', body });
