@@ -326,7 +326,7 @@
             <label class="field"><span>Note</span><input type="text" name="note" maxlength="200" placeholder="Movie pick"></label>
           </div>
           <button class="btn primary block" type="submit">Save</button></form>
-        ${(f.coin_transactions || []).slice(0, 10).map((t) => `<div class="list-item tx">
+        ${(f.coin_transactions || []).slice(0, 40).map((t) => `<div class="list-item tx">
           <div class="grow"><div class="title">${esc(t.note || 'Coins')}</div><div class="sub">${fmtWhen(t.created_at)}</div></div>
           <div class="a ${t.amount < 0 ? 'neg' : 'pos'}">${t.amount < 0 ? '−' : '+'}${Math.abs(t.amount)}</div>
           <button class="btn small icon" data-action="delete-coins" data-id="${t.id}" title="Remove">✕</button></div>`).join('')}
@@ -679,7 +679,7 @@
         }
         case 'reject': await api(`/api/chores/completions/${id}/reject`, { method: 'POST' }); toast('Rejected'); render(); break;
         case 'delete-coins':
-          if (!confirm('Remove this coin entry?')) return;
+          if (!confirm('Remove this coin entry? If it came from a chore, the chore goes back to not approved.')) return;
           await api(`/api/coins/transactions/${id}`, { method: 'DELETE' }); toast('Removed'); render(); break;
         case 'delete-tx':
           if (!confirm('Remove this transaction?')) return;

@@ -148,7 +148,13 @@ router.post('/coins/:memberId', (req, res) => {
 router.delete('/coins/transactions/:id', (req, res) => {
   const t = db.prepare('SELECT * FROM coin_transactions WHERE id = ?').get(toInt(req.params.id));
   if (!t) throw new HttpError(404, 'Not found');
-  db.prepare('DELETE FROM coin_transactions WHERE id = ?').run(t.id);
+  db.transaction(() => {
+    // Same as removing a cash payout: the chore goes back to "not approved" so it can be redone.
+    if (t.completion_id) {
+      db.prepare(`UPDATE chore_completions SET status = 'rejected', reviewed_at = datetime('now') WHERE id = ?`).run(t.completion_id);
+    }
+    db.prepare('DELETE FROM coin_transactions WHERE id = ?').run(t.id);
+  })();
   res.json({ coins: chores.coinBalance(t.member_id) });
 });
 router.post('/chores/completions/:id/approve', (req, res) => res.json(chores.approve(toInt(req.params.id))));
