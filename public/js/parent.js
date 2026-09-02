@@ -223,11 +223,13 @@
     html += `<div class="card"><h2>Today <span class="meta">${parseYmd(today.date).toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' })}</span></h2>
       ${groups.length ? groups.map((g) => `
         <div class="list-item" style="border-top:0;padding-bottom:0"><div class="avatar" style="--c:${esc(g.m.color)}">${esc(g.m.emoji)}</div><div class="grow title">${esc(g.m.name)}</div></div>
-        ${g.items.map((c) => `<div class="list-item tappable" data-toggle="${c.id}" data-member="${g.m.id}" data-completion="${c.completion_id || ''}" data-status="${c.status || ''}">
-          <div class="check ${c.status === 'pending' ? 'pending' : c.status ? 'done' : ''}">${c.status === 'pending' ? '⏳' : c.status ? '✓' : ''}</div>
-          <div class="grow ${c.status && c.status !== 'pending' ? 'strike' : ''}">${esc(c.title)}</div>
+        ${g.items.map((c) => {
+          const done = c.status === 'done' || c.status === 'approved';
+          return `<div class="list-item tappable" data-toggle="${c.id}" data-member="${g.m.id}" data-completion="${c.completion_id || ''}" data-status="${c.status || ''}">
+          <div class="check ${c.status === 'pending' ? 'pending' : done ? 'done' : ''}">${c.status === 'pending' ? '⏳' : done ? '✓' : ''}</div>
+          <div class="grow ${done ? 'strike' : ''}">${esc(c.title)}${c.status === 'rejected' ? ' <span class="badge">not approved</span>' : ''}</div>
           ${c.paid ? `<span class="badge ${c.status === 'approved' ? 'approved' : c.status === 'pending' ? 'pending' : 'paid'}">${money(c.amount_cents)}</span>` : ''}
-        </div>`).join('')}`).join('') : '<p class="muted">No chores due today.</p>'}
+        </div>`; }).join('')}`).join('') : '<p class="muted">No chores due today.</p>'}
       ${open.length ? `<p class="muted small mt">💵 ${open.length} open Earn Money chore${open.length > 1 ? 's' : ''} nobody has claimed yet.</p>` : ''}
     </div>`;
 
