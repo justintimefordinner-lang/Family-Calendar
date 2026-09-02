@@ -192,12 +192,28 @@ const clampQty = (v) => {
 };
 const shopById = db.prepare('SELECT * FROM shopping_items WHERE id = ?');
 
+const DEFAULT_COMMON = ['Milk', 'Eggs', 'Bread', 'Butter', 'Cheese', 'Yogurt', 'Bananas', 'Apples', 'Chicken', 'Ground beef',
+  'Cereal', 'Rice', 'Pasta', 'Tortillas', 'Peanut butter', 'Juice', 'Toilet paper', 'Paper towels', 'Dish soap', 'Laundry soap'];
+const remember = db.prepare(`
+  INSERT INTO shopping_history(key, label, count, last_used) VALUES(lower(?), ?, 1, datetime('now'))
+  ON CONFLICT(key) DO UPDATE SET label = excluded.label, count = count + 1, last_used = datetime('now')
+`);
+
+// Frequently added items for the one-tap "Common" picker, topped up with staples.
+router.get('/shopping/common', (req, res) => {
+  const seen = db.prepare('SELECT label FROM shopping_history ORDER BY count DESC, last_used DESC LIMIT 36').all().map((r) => r.label);
+  const have = new Set(seen.map((s) => s.toLowerCase()));
+  for (const d of DEFAULT_COMMON) if (seen.length < 24 && !have.has(d.toLowerCase())) { seen.push(d); have.add(d.toLowerCase()); }
+  res.json(seen);
+});
+
 // Adding an item that is already on the list (any case) re-uses it instead of duplicating:
 // it comes back unchecked, and a new quantity replaces the old one.
 router.post('/shopping', (req, res) => {
   const text = String(req.body.text || '').trim().slice(0, 200);
   if (!text) throw new HttpError(400, 'Item text required');
   const qty = clampQty(req.body.qty);
+  remember.run(text, text);
   const existing = db.prepare('SELECT * FROM shopping_items WHERE lower(text) = lower(?) ORDER BY checked, id LIMIT 1').get(text);
   if (existing) {
     db.prepare('UPDATE shopping_items SET checked = 0, qty = COALESCE(?, qty) WHERE id = ?').run(qty, existing.id);
@@ -216,6 +232,11 @@ router.patch('/shopping/:id', (req, res) => {
   const qty = req.body.qty === undefined ? item.qty : clampQty(req.body.qty);
   db.prepare('UPDATE shopping_items SET checked = ?, text = ?, qty = ? WHERE id = ?').run(checked, text, qty, id);
   res.json({ ...item, checked, text, qty });
+});
+
+router.delete('/shopping/all', (req, res) => {
+  const info = db.prepare('DELETE FROM shopping_items').run();
+  res.json({ removed: info.changes });
 });
 
 router.delete('/shopping/checked', (req, res) => {

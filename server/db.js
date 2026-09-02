@@ -134,6 +134,13 @@ CREATE TABLE IF NOT EXISTS local_events (
   created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
+CREATE TABLE IF NOT EXISTS shopping_history (
+  key TEXT PRIMARY KEY,          -- lower-cased item name
+  label TEXT NOT NULL,           -- as last typed
+  count INTEGER NOT NULL DEFAULT 1,
+  last_used TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
 CREATE TABLE IF NOT EXISTS shopping_items (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   text TEXT NOT NULL,

@@ -205,8 +205,15 @@ h1, h2, h3 { margin: 0; font-weight: 700; }
 .shop-item .box { width: 30px; height: 30px; border: 2px solid var(--line); border-radius: 8px; display: grid; place-items: center; color: #fff; flex: none; }
 .shop-item.checked .box { background: var(--good); border-color: var(--good); }
 .shop-item.checked span { text-decoration: line-through; color: var(--muted); }
-.shop-add { display: flex; gap: 8px; margin-top: 10px; }
-.shop-add input { flex: 1; font: inherit; padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px; min-height: 48px; }
+.shop-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; opacity: 0; pointer-events: none; }
+.shop-actions { display: flex; gap: 10px; margin-top: 12px; }
+.shop-actions .btn { flex: 1; font-size: 1.7rem; min-height: 60px; }
+.qty-row { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
+.qty-row .btn { min-width: 60px; }
+.qty-row .btn.on { background: var(--accent); color: #fff; border-color: var(--accent); }
+.common-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-top: 14px; }
+.common-grid .btn { min-height: 60px; font-size: 1.05rem; padding: 8px; white-space: normal; line-height: 1.15; }
+.common-grid .btn.added { background: #e7f8ec; border-color: var(--good); color: var(--good); }
 .dinner { font-size: 1.4rem; font-weight: 700; }
 .dinner small { display: block; color: var(--muted); font-size: 0.9rem; font-weight: 500; margin-top: 4px; }
 .muted { color: var(--muted); }

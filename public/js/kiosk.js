@@ -350,7 +350,12 @@
         <div class="box">${s.checked ? '✓' : ''}</div>${s.qty ? `<span class="qty">${s.qty}</span>` : ''}<span>${esc(s.text)}</span></div>`).join('');
     html += `<div class="card"><h3>🛒 Shopping List <span class="meta">${state.shopping.filter((s) => !s.checked).length} to get</span></h3>
       ${items || '<p class="muted center">Nothing on the list</p>'}
-      <form class="shop-add" id="shopForm"><input type="hidden" id="shopQty"><input id="shopInput" data-qty placeholder="Add an item…" maxlength="200" autocomplete="off"><button class="btn" type="submit">Add</button></form>
+      <form id="shopForm" class="shop-hidden"><input type="hidden" id="shopQty"><input id="shopInput" data-qty maxlength="200" autocomplete="off" aria-label="New item"></form>
+      <div class="shop-actions">
+        <button class="btn" data-shop-kb title="Type an item">⌨️</button>
+        <button class="btn" data-shop-common title="Common items">🧺</button>
+        <button class="btn" data-shop-reset title="Clear the list">↺</button>
+      </div>
     </div>`;
     $('#side').innerHTML = html;
   }
@@ -393,6 +398,20 @@
       <p class="kv"><b>Who finished it?</b></p>
       <div class="kid-pick">${kids.map((m) => `<button class="member-btn" data-claim="${c.id}" data-kid="${m.id}" style="--c:${esc(m.color)}">
         <span class="avatar">${esc(m.emoji)}</span><span>${esc(m.name)}</span></button>`).join('') || '<p class="muted">No kids set up yet</p>'}</div>`);
+  }
+
+  // One-tap picker of frequently bought items, with a quantity chosen first.
+  let commonQty = null;
+  async function showCommonItems() {
+    let items = [];
+    try { items = await api('/api/shopping/common'); } catch { items = []; }
+    if (!Array.isArray(items)) items = [];
+    commonQty = null;
+    const onList = new Set(state.shopping.filter((s) => !s.checked).map((s) => s.text.toLowerCase()));
+    openModal(`<h2>🧺 Common items</h2>
+      <p class="kv">Pick a quantity (optional), then tap items to add them.</p>
+      <div class="qty-row"><button class="btn on" data-qsel="">no qty</button>${[1, 2, 3, 4, 5, 6, 8, 10, 12].map((n) => `<button class="btn" data-qsel="${n}">${n}</button>`).join('')}</div>
+      <div class="common-grid">${items.map((it) => `<button class="btn ${onList.has(it.toLowerCase()) ? 'added' : ''}" data-common="${esc(it)}">${onList.has(it.toLowerCase()) ? '✓ ' : ''}${esc(it)}</button>`).join('') || '<p class="muted">Nothing yet — items you add with the keyboard show up here.</p>'}</div>`);
   }
 
   function renderSide() {
@@ -663,6 +682,37 @@
     if (chore) { await toggleChore(chore); return; }
     const moneyCard = t.closest('[data-money]');
     if (moneyCard) { await showMoney(Number(moneyCard.dataset.money)); return; }
+    if (t.closest('[data-shop-kb]')) {
+      const input = $('#shopInput');
+      if (input) { input.value = ''; input.focus(); oskShow(input); }
+      return;
+    }
+    if (t.closest('[data-shop-common]')) { await showCommonItems(); return; }
+    if (t.closest('[data-shop-reset]')) {
+      openModal(`<h2>↺ Clear the shopping list?</h2><p class="kv">Everything on it, checked or not, will be removed.</p>
+        <div class="kid-pick"><button class="btn" data-shop-clear>Yes, clear it</button><button class="btn" data-close>Keep it</button></div>`);
+      return;
+    }
+    if (t.closest('[data-shop-clear]')) {
+      try { await api('/api/shopping/all', { method: 'DELETE' }); closeModal(); await loadSide(); } catch (err) { alert(err.message); }
+      return;
+    }
+    const qsel = t.closest('[data-qsel]');
+    if (qsel) {
+      commonQty = qsel.dataset.qsel ? Number(qsel.dataset.qsel) : null;
+      document.querySelectorAll('[data-qsel]').forEach((b) => b.classList.toggle('on', b === qsel));
+      return;
+    }
+    const common = t.closest('[data-common]');
+    if (common) {
+      try {
+        await api('/api/shopping', { method: 'POST', body: { text: common.dataset.common, qty: commonQty } });
+        common.classList.add('added');
+        common.textContent = `✓ ${commonQty ? commonQty + ' × ' : ''}${common.dataset.common}`;
+        await loadSide();
+      } catch (err) { alert(err.message); }
+      return;
+    }
     const shop = t.closest('[data-shop]');
     if (shop) {
       const checked = shop.dataset.checked === '1';
