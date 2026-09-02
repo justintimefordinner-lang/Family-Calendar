@@ -706,10 +706,15 @@
     const common = t.closest('[data-common]');
     if (common) {
       try {
-        await api('/api/shopping', { method: 'POST', body: { text: common.dataset.common, qty: commonQty } });
+        // A chosen quantity wins; otherwise repeated taps count up: 1st tap adds, 2nd = 2, 3rd = 3...
+        const name = common.dataset.common;
+        const existing = state.shopping.find((s) => !s.checked && s.text.toLowerCase() === name.toLowerCase());
+        let qty = commonQty;
+        if (qty == null && existing) qty = Math.min(99, (existing.qty || 1) + 1);
+        const saved = await api('/api/shopping', { method: 'POST', body: { text: name, qty } });
         common.classList.add('added');
-        common.textContent = `✓ ${commonQty ? commonQty + ' × ' : ''}${common.dataset.common}`;
-        // Quantity applies to one item, then snaps back to "no qty".
+        common.textContent = `✓ ${saved.qty ? saved.qty + ' × ' : ''}${name}`;
+        // A picked quantity applies to one item, then snaps back to "no qty".
         commonQty = null;
         document.querySelectorAll('[data-qsel]').forEach((b) => b.classList.toggle('on', b.dataset.qsel === ''));
         await loadSide();
