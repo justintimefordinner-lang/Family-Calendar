@@ -250,7 +250,7 @@ h1, h2, h3 { margin: 0; font-weight: 700; }
 .osk-qty-val { font-size: 1.8rem; font-weight: 800; min-height: 2.2rem; color: var(--accent); }
 .osk-qty-grid { display: grid; grid-template-columns: repeat(3, 62px); gap: 8px; margin-top: 6px; }
 .osk-qty-grid .osk-key { min-width: 0; height: 56px; background: #f3f1ea; font-size: 1.3rem; }
-.osk-qty-grid .osk-key.wide { font-size: 1rem; }
+.osk-qty-grid .osk-key.wide, .osk-qty-grid .osk-key.osk-key { min-width: 0; width: 62px; padding: 0; font-size: 1.1rem; }
 .shop-item .qty { min-width: 34px; height: 30px; padding: 0 8px; border-radius: 8px; background: #eef2ff; color: var(--accent); font-weight: 800; display: grid; place-items: center; flex: none; }
 .osk-row { display: flex; gap: 8px; justify-content: center; }
 .osk-key { min-width: 72px; height: 62px; border: 0; border-radius: 12px; background: #fff; font-size: 1.5rem; font-weight: 600; box-shadow: 0 2px 0 #c9c4b8; color: var(--ink); padding: 0 10px; }
