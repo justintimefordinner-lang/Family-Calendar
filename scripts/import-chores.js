@@ -29,8 +29,8 @@ const members = db.prepare('SELECT id, name FROM members WHERE active = 1').all(
 const findMember = (name) => members.find((m) => m.name.trim().toLowerCase() === String(name).trim().toLowerCase());
 const exists = db.prepare('SELECT 1 FROM chores WHERE active = 1 AND title = ? AND member_id IS ? LIMIT 1');
 const insert = db.prepare(`
-  INSERT INTO chores(title, member_id, schedule, days, due_date, paid, amount_cents, period, notes, sort_order)
-  VALUES(@title, @member_id, @schedule, @days, @due_date, @paid, @amount_cents, @period, @notes, @sort_order)
+  INSERT INTO chores(title, member_id, schedule, days, due_date, paid, amount_cents, period, coins, notes, sort_order)
+  VALUES(@title, @member_id, @schedule, @days, @due_date, @paid, @amount_cents, @period, @coins, @notes, @sort_order)
 `);
 
 let added = 0;
@@ -63,6 +63,7 @@ db.transaction(() => {
         paid: paid ? 1 : 0,
         amount_cents: paid ? Math.round(Number(c.amount || 0) * 100) : 0,
         period: ['morning', 'afternoon', 'evening'].includes(c.period) ? c.period : 'any',
+        coins: c.coins === undefined || c.coins === null ? null : Math.max(0, parseInt(c.coins, 10) || 0),
         notes: c.notes || null,
         sort_order: i,
       });

@@ -192,10 +192,9 @@
     const [pending, today, all, removed] = await Promise.all([
       api('/api/chores/pending'), api('/api/chores/day'), api('/api/chores'), api('/api/chores/removed'),
     ]);
+    if (!S.settings) S.settings = await api('/api/settings');
     let html = '';
     if (pending.length) {
-      const st = S.settings || (S.settings = await api('/api/settings'));
-      const coins = Number(st.coins_per_chore) || 0;
       // Grouped by kid, each with its own Approve all.
       const byKid = [];
       for (const p of pending) {
@@ -210,7 +209,7 @@
             <button class="btn small good" data-action="approve-all" data-member="${g.member_id}">Approve all</button></div>
           ${g.items.map((p) => `<div class="list-item" style="padding-left:50px">
             <div class="grow"><div class="title">${esc(p.title)}</div><div class="sub">${fmtWhen(p.completed_at)}</div></div>
-            <div class="amt">${p.paid ? money(p.amount_cents) : (coins ? `🪙 +${coins}` : '')}</div>
+            <div class="amt">${p.paid ? money(p.amount_cents) : (p.coins ? `🪙 +${p.coins}` : '')}</div>
             <button class="btn small good" data-action="approve" data-id="${p.id}">${p.paid ? 'Pay' : 'OK'}</button>
             <button class="btn small icon" data-action="reject" data-id="${p.id}" title="Reject">✕</button>
           </div>`).join('')}`).join('')}</div>`;
@@ -237,7 +236,7 @@
     const choreItem = (c) => `<div class="list-item tappable" data-edit-chore="${c.id}">
       <div class="avatar" style="--c:${esc(c.member_id ? memberById(c.member_id)?.color : '#9ca3af')}">${c.member_id ? esc(memberById(c.member_id)?.emoji || '?') : '👥'}</div>
       <div class="grow"><div class="title">${esc(c.title)}</div><div class="sub">${esc(c.member_name || 'Anyone')} · ${scheduleLabel(c)}${c.period && c.period !== 'any' ? ' · ' + c.period : ''}</div></div>
-      ${c.paid ? `<div class="amt">${money(c.amount_cents)}</div>` : ''}</div>`;
+      ${c.paid ? `<div class="amt">${money(c.amount_cents)}</div>` : `<div class="muted small">🪙 ${c.coins != null ? c.coins : Number(S.settings?.coins_per_chore ?? 2)}</div>`}</div>`;
     html += `<div class="card"><h2>Regular chores <span class="meta">${regular.length}</span></h2>${regular.map(choreItem).join('') || '<p class="muted">Tap + to add a chore.</p>'}</div>`;
     html += `<div class="card"><h2>💵 Earn Money <span class="meta">${paid.length}</span></h2>${paid.map(choreItem).join('') || '<p class="muted">Extra chores kids can do to earn money. Add one with +.</p>'}</div>`;
     if (Array.isArray(removed) && removed.length) {
@@ -261,6 +260,7 @@
       <label class="field"><span>What</span><input type="text" name="title" required maxlength="80" value="${esc(c.title || '')}" placeholder="Make bed"></label>
       <label class="field inline"><span>💵 Earn Money chore (pays when a parent approves)</span><input type="checkbox" name="paid" ${paid ? 'checked' : ''}></label>
       <div data-paid-only ${paid ? '' : 'hidden'}><label class="field"><span>Pays ($)</span><input type="number" name="amount" step="0.25" min="0" inputmode="decimal" value="${c.amount_cents ? (c.amount_cents / 100).toFixed(2) : ''}" placeholder="5.00"></label></div>
+      <div data-unpaid-only ${paid ? 'hidden' : ''}><label class="field"><span>🪙 Coins when approved (blank = default ${Number(S.settings?.coins_per_chore ?? 2)})</span><input type="number" name="coins" step="1" min="0" inputmode="numeric" value="${c.coins != null ? c.coins : ''}" placeholder="${Number(S.settings?.coins_per_chore ?? 2)}"></label></div>
       <label class="field"><span>Who</span><select name="member_id">
         <option value="" ${c.id && c.member_id == null ? 'selected' : ''} ${paid ? '' : 'disabled'}>Anyone — first kid to claim it</option>
         ${S.members.map((m) => `<option value="${m.id}" ${c.member_id === m.id ? 'selected' : ''}>${esc(m.emoji)} ${esc(m.name)}</option>`).join('')}
@@ -746,6 +746,7 @@
     if (t.matches('input[name=paid]')) {
       const form = t.closest('form');
       form.querySelectorAll('[data-paid-only]').forEach((el) => { el.hidden = !t.checked; });
+      form.querySelectorAll('[data-unpaid-only]').forEach((el) => { el.hidden = t.checked; });
       const anyone = form.querySelector('select[name=member_id] option[value=""]');
       anyone.disabled = !t.checked;
       if (!t.checked && !form.member_id.value) form.member_id.selectedIndex = 1;
@@ -808,6 +809,7 @@
             member_id: fd.get('member_id') ? Number(fd.get('member_id')) : null,
             schedule: fd.get('schedule'), days: fd.get('days'), due_date: fd.get('due_date') || null, notes: fd.get('notes'),
             period: fd.get('period') || 'any',
+            coins: fd.get('coins') === '' || fd.get('coins') === null ? null : parseInt(fd.get('coins'), 10),
           };
           if (form.dataset.id) await api(`/api/chores/${form.dataset.id}`, { method: 'PATCH', body });
           else await api('/api/chores', { method: 'POST', body });

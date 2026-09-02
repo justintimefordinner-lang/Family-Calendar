@@ -73,6 +73,7 @@ CREATE TABLE IF NOT EXISTS chores (
   paid INTEGER NOT NULL DEFAULT 0,          -- 1 = Earn Money chore
   amount_cents INTEGER NOT NULL DEFAULT 0,
   period TEXT NOT NULL DEFAULT 'any',       -- 'morning' | 'afternoon' | 'evening' | 'any'
+  coins INTEGER,                            -- reward coins when approved; NULL = use the default setting
   notes TEXT,
   sort_order INTEGER NOT NULL DEFAULT 0,
   active INTEGER NOT NULL DEFAULT 1,
@@ -146,6 +147,7 @@ const memberCols = db.prepare('PRAGMA table_info(members)').all().map((c) => c.n
 if (!memberCols.includes('aliases')) db.exec(`ALTER TABLE members ADD COLUMN aliases TEXT NOT NULL DEFAULT ''`);
 const choreCols = db.prepare('PRAGMA table_info(chores)').all().map((c) => c.name);
 if (!choreCols.includes('period')) db.exec(`ALTER TABLE chores ADD COLUMN period TEXT NOT NULL DEFAULT 'any'`);
+if (!choreCols.includes('coins')) db.exec('ALTER TABLE chores ADD COLUMN coins INTEGER');
 const txCols = db.prepare('PRAGMA table_info(transactions)').all().map((c) => c.name);
 if (!txCols.includes('account')) db.exec(`ALTER TABLE transactions ADD COLUMN account TEXT NOT NULL DEFAULT 'invested'`);
 

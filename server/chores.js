@@ -21,6 +21,12 @@ const completionsForOnce = db.prepare(`
   WHERE c.schedule = 'once' AND cc.status != 'rejected'
 `);
 
+// Coins a regular chore awards: its own value, else the Settings > Rewards default.
+function coinsFor(chore) {
+  if (chore.coins != null) return Math.max(0, Number(chore.coins) || 0);
+  return Math.max(0, Number(settings.get('coins_per_chore')) || 0);
+}
+
 function isDue(chore, date) {
   if (chore.schedule === 'daily') return true;
   if (chore.schedule === 'weekly') {
@@ -66,6 +72,7 @@ function choresForDay(date = localDate(), memberId = null) {
       member_name: chore.member_name,
       schedule: chore.schedule,
       period: chore.period || 'any',
+      coins: chore.paid ? 0 : coinsFor(chore),
       paid: Boolean(chore.paid),
       amount_cents: chore.amount_cents,
       status: completion ? completion.status : null,
@@ -115,7 +122,7 @@ function uncomplete(completionId) {
 }
 
 const pendingList = db.prepare(`
-  SELECT cc.*, c.title, c.amount_cents, c.schedule, c.paid, m.name AS member_name, m.color, m.emoji
+  SELECT cc.*, c.title, c.amount_cents, c.schedule, c.paid, c.coins AS chore_coins, m.name AS member_name, m.color, m.emoji
   FROM chore_completions cc
   JOIN chores c ON c.id = cc.chore_id
   JOIN members m ON m.id = cc.member_id
@@ -123,13 +130,13 @@ const pendingList = db.prepare(`
 `);
 
 function pending() {
-  return pendingList.all();
+  return pendingList.all().map((p) => ({ ...p, coins: p.paid ? 0 : coinsFor({ coins: p.chore_coins }) }));
 }
 
 // Parent approves a completion: Earn Money chores credit cash, regular chores award coins.
 const approve = db.transaction((completionId) => {
   const c = db.prepare(`
-    SELECT cc.*, c.title, c.amount_cents, c.paid FROM chore_completions cc JOIN chores c ON c.id = cc.chore_id WHERE cc.id = ?
+    SELECT cc.*, c.title, c.amount_cents, c.paid, c.coins FROM chore_completions cc JOIN chores c ON c.id = cc.chore_id WHERE cc.id = ?
   `).get(completionId);
   if (!c) throw new HttpError(404, 'Not found');
   if (c.status === 'approved') return c;
@@ -139,7 +146,7 @@ const approve = db.transaction((completionId) => {
     db.prepare(`INSERT INTO transactions(member_id, type, account, amount_cents, note, completion_id) VALUES(?, 'chore', 'cash', ?, ?, ?)`)
       .run(c.member_id, c.amount_cents, `Earned: ${c.title}`, completionId);
   } else {
-    const coins = Math.max(0, Number(settings.get('coins_per_chore')) || 0);
+    const coins = coinsFor(c);
     if (coins > 0) {
       db.prepare('INSERT INTO coin_transactions(member_id, amount, note, completion_id) VALUES(?, ?, ?, ?)')
         .run(c.member_id, coins, c.title, completionId);

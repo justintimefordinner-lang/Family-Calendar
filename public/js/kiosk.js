@@ -266,7 +266,7 @@
       sub = `<span class="sub">${badge}</span>`;
     } else {
       const coinName = state.settings.coin_name || 'Mom Coins';
-      const coins = Number(state.settings.coins_per_chore) || 0;
+      const coins = c.coins != null ? Number(c.coins) : (Number(state.settings.coins_per_chore) || 0);
       if (c.status === 'pending') sub = `<span class="sub"><span class="badge pending">Waiting for approval${coins ? ` · 🪙 +${coins}` : ''}</span></span>`;
       else if (c.status === 'approved' && coins) sub = `<span class="sub"><span class="badge approved">🪙 +${coins} ${esc(coinName)}</span></span>`;
       else if (showWho && c.member_name) sub = `<span class="sub">${esc(c.member_name)}</span>`;
@@ -422,7 +422,7 @@
 
   function rewardMessage(chore) {
     const coinName = state.settings.coin_name || 'Mom Coins';
-    const coins = Number(state.settings.coins_per_chore) || 0;
+    const coins = chore.coins != null ? Number(chore.coins) : (Number(state.settings.coins_per_chore) || 0);
     if (chore.paid) return `Sent to Mom & Dad — ${money(chore.amount_cents)} once they approve it`;
     if (coins > 0) return `Sent to Mom & Dad — ${coins} ${coinName} once they approve it`;
     return 'Sent to Mom & Dad for approval';

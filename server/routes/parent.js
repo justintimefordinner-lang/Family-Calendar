@@ -73,11 +73,13 @@ function choreFields(b, existing = {}) {
   const amount = b.amount_cents !== undefined ? Math.max(0, toInt(b.amount_cents, 0)) : (existing.amount_cents || 0);
   const dueDate = b.due_date !== undefined ? (isDateStr(b.due_date) ? b.due_date : null) : (existing.due_date ?? null);
   const period = ['morning', 'afternoon', 'evening', 'any'].includes(b.period) ? b.period : (existing.period || 'any');
+  let coins = existing.coins ?? null;
+  if (b.coins !== undefined) coins = b.coins === null || b.coins === '' ? null : Math.max(0, toInt(b.coins, 0));
   return {
     title: b.title !== undefined ? String(b.title).trim() : existing.title,
     member_id: memberId,
     schedule, days, due_date: dueDate,
-    paid, amount_cents: paid ? amount : 0, period,
+    paid, amount_cents: paid ? amount : 0, period, coins,
     notes: b.notes !== undefined ? (String(b.notes).trim() || null) : (existing.notes ?? null),
     sort_order: b.sort_order !== undefined ? toInt(b.sort_order, 0) : (existing.sort_order || 0),
   };
@@ -94,8 +96,8 @@ router.post('/chores', (req, res) => {
   requireFields(req.body, ['title']);
   const f = choreFields(req.body);
   const info = db.prepare(`
-    INSERT INTO chores(title, member_id, schedule, days, due_date, paid, amount_cents, period, notes, sort_order)
-    VALUES(@title, @member_id, @schedule, @days, @due_date, @paid, @amount_cents, @period, @notes, @sort_order)
+    INSERT INTO chores(title, member_id, schedule, days, due_date, paid, amount_cents, period, coins, notes, sort_order)
+    VALUES(@title, @member_id, @schedule, @days, @due_date, @paid, @amount_cents, @period, @coins, @notes, @sort_order)
   `).run(f);
   res.json(choreById.get(info.lastInsertRowid));
 });
@@ -107,7 +109,7 @@ router.patch('/chores/:id', (req, res) => {
   if (!f.title) throw new HttpError(400, 'Title required');
   db.prepare(`
     UPDATE chores SET title = @title, member_id = @member_id, schedule = @schedule, days = @days, due_date = @due_date,
-      paid = @paid, amount_cents = @amount_cents, period = @period, notes = @notes, sort_order = @sort_order WHERE id = @id
+      paid = @paid, amount_cents = @amount_cents, period = @period, coins = @coins, notes = @notes, sort_order = @sort_order WHERE id = @id
   `).run({ ...f, id: existing.id });
   res.json(choreById.get(existing.id));
 });
