@@ -87,6 +87,11 @@ h1, h2, h3 { margin: 0; font-weight: 700; }
   font-size: 1.5rem; background: var(--c, var(--accent)); color: #fff; flex: none;
 }
 .member-btn.active { border-color: var(--c, var(--accent)); background: color-mix(in srgb, var(--c, var(--accent)) 12%, white); }
+.member-btn.earn { margin-top: auto; }
+.earn-hint { cursor: pointer; }
+.earn-row .check { font-size: 1.2rem; }
+.kid-pick { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 14px; }
+.kid-pick .member-btn, .kid-pick .btn { min-height: 64px; font-size: 1.15rem; }
 
 /* ---- Calendar ---- */
 .calendar { display: flex; flex-direction: column; min-height: 0; }

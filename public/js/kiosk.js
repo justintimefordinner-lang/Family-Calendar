@@ -113,7 +113,7 @@
     return ev.is_family ? 'Family' : ev.calendar_name;
   }
   function eventsVisible() {
-    if (state.selected == null) return state.events;
+    if (state.selected == null || state.selected === 'earn') return state.events;
     // A person's view shows only their events: calendars mapped to them plus events whose
     // title names them. Family-wide events appear on the Everyone view.
     return state.events.filter((e) => eventMembers(e).some((m) => m.id === state.selected));
@@ -167,7 +167,9 @@
     const rest = state.members.map((m) => `
       <button class="member-btn ${state.selected === m.id ? 'active' : ''}" data-member="${m.id}" style="--c:${esc(m.color)}">
         <span class="avatar">${esc(m.emoji)}</span><span>${esc(m.name)}</span></button>`).join('');
-    $('#members').innerHTML = all + rest;
+    const earn = `<button class="member-btn earn ${state.selected === 'earn' ? 'active' : ''}" data-member="earn" style="--c:#16a34a">
+        <span class="avatar">💵</span><span>Earn Money</span></button>`;
+    $('#members').innerHTML = all + rest + earn;
   }
 
   // ---- Rendering: calendar ---------------------------------------------------
@@ -280,8 +282,11 @@
       <h3>${esc(m.emoji)} ${esc(m.name)}'s Chores <span class="meta">${done}/${regular.length} done</span></h3>
       ${regular.length ? list : '<p class="muted center">No chores today 🎉</p>'}
     </div>`;
-    if (paid.length) {
-      html += `<div class="card"><h3>💵 Earn Money</h3>${paid.map((c) => choreRow(c, false)).join('')}</div>`;
+    const mine = paid.filter((c) => c.member_id === m.id || c.completed_by === m.id);
+    const pendingMine = mine.filter((c) => c.status === 'pending').length;
+    if (mine.length) {
+      html += `<div class="card earn-hint" data-member-row="earn"><h3>💵 Earn Money <span class="meta">tap to open</span></h3>
+        <p class="muted">${mine.length} extra chore${mine.length > 1 ? 's' : ''} for you${pendingMine ? ` · ${pendingMine} waiting for approval` : ''}</p></div>`;
     }
     if (m.role === 'kid') {
       html += `<div class="card" data-money="${m.id}">
@@ -318,7 +323,7 @@
     }).join('');
     const open = state.chores.filter((c) => c.paid && c.member_id == null && !c.status);
     html += `<div class="card"><h3>✅ Chores Today</h3>${rows || '<p class="muted center">Add family members in the parent app</p>'}
-      ${open.length ? `<p class="muted" style="margin:10px 0 0">💵 ${open.length} Earn Money chore${open.length > 1 ? 's' : ''} up for grabs — tap your name to claim</p>` : ''}</div>`;
+      ${open.length ? `<p class="muted" style="margin:10px 0 0" data-member-row="earn">💵 ${open.length} Earn Money chore${open.length > 1 ? 's' : ''} up for grabs — tap here to see them</p>` : ''}</div>`;
 
     const items = state.shopping.map((s) => `<div class="shop-item ${s.checked ? 'checked' : ''}" data-shop="${s.id}" data-checked="${s.checked}">
         <div class="box">${s.checked ? '✓' : ''}</div><span>${esc(s.text)}</span></div>`).join('');
@@ -329,7 +334,48 @@
     $('#side').innerHTML = html;
   }
 
+  // Stand-alone Earn Money board: every paid chore, claimable by any kid.
+  function earnRow(c) {
+    const who = c.completed_by != null ? memberById(c.completed_by) : (c.member_id != null ? memberById(c.member_id) : null);
+    const cls = ['chore', 'earn-row', c.status === 'approved' ? 'done' : '', c.status === 'pending' ? 'pending' : ''].join(' ');
+    const mark = c.status === 'pending' ? '⏳' : (c.status === 'approved' ? '✓' : '');
+    let badge = '';
+    if (c.status === 'pending') badge = `<span class="badge pending">${esc(who ? who.name : '')} · waiting for approval</span>`;
+    else if (c.status === 'approved') badge = `<span class="badge approved">Paid to ${esc(who ? who.name : '')}</span>`;
+    else if (c.status === 'rejected') badge = '<span class="badge">Not approved — try again</span>';
+    else if (who) badge = `<span class="badge">For ${esc(who.name)}</span>`;
+    else badge = '<span class="badge">Anyone can claim</span>';
+    return `<div class="${cls}" data-earn="${c.id}" data-completion="${c.completion_id || ''}" data-status="${c.status || ''}">
+      <div class="check" ${who ? `style="border-color:${esc(who.color)}"` : ''}>${mark || (who ? esc(who.emoji) : '💵')}</div>
+      <div class="text">${esc(c.title)}<span class="sub">${badge}</span>${c.notes ? `<span class="sub">${esc(c.notes)}</span>` : ''}</div>
+      <span class="amt">${money(c.amount_cents)}</span></div>`;
+  }
+
+  function renderSideEarn() {
+    const paid = state.chores.filter((c) => c.paid);
+    const open = paid.filter((c) => c.member_id == null && !c.status);
+    const assigned = paid.filter((c) => c.member_id != null && !c.status);
+    const inProgress = paid.filter((c) => c.status);
+    const total = paid.filter((c) => !c.status).reduce((s, c) => s + c.amount_cents, 0);
+    let html = `<div class="card accent" style="--c:#16a34a"><h3>💵 Earn Money <span class="meta">${money(total)} up for grabs</span></h3>
+      <p class="muted">Finish a chore, tap it, and pick your name. A parent approves it and the money goes into your account.</p></div>`;
+    html += `<div class="card"><h3>🙋 Anyone can do these</h3>${open.map(earnRow).join('') || '<p class="muted center">Nothing open right now</p>'}</div>`;
+    if (assigned.length) html += `<div class="card"><h3>👤 Assigned</h3>${assigned.map(earnRow).join('')}</div>`;
+    if (inProgress.length) html += `<div class="card"><h3>⏳ Claimed today</h3>${inProgress.map(earnRow).join('')}</div>`;
+    $('#side').innerHTML = html;
+  }
+
+  function pickKidForChore(c) {
+    const kids = state.members.filter((m) => m.role === 'kid' && (c.member_id == null || m.id === c.member_id));
+    openModal(`<h2>💵 ${esc(c.title)} <span class="muted">${money(c.amount_cents)}</span></h2>
+      ${c.notes ? `<p class="kv">${esc(c.notes)}</p>` : ''}
+      <p class="kv"><b>Who finished it?</b></p>
+      <div class="kid-pick">${kids.map((m) => `<button class="member-btn" data-claim="${c.id}" data-kid="${m.id}" style="--c:${esc(m.color)}">
+        <span class="avatar">${esc(m.emoji)}</span><span>${esc(m.name)}</span></button>`).join('') || '<p class="muted">No kids set up yet</p>'}</div>`);
+  }
+
   function renderSide() {
+    if (state.selected === 'earn') return renderSideEarn();
     const m = state.selected != null ? memberById(state.selected) : null;
     if (m) renderSideMember(m); else renderSideEveryone();
   }
@@ -390,7 +436,7 @@
     state.google = s.google;
     $('#setupNotice').hidden = !s.needs_setup;
     $('.setup-notice .host').textContent = location.host;
-    if (state.selected != null && !memberById(state.selected)) state.selected = null;
+    if (typeof state.selected === 'number' && !memberById(state.selected)) state.selected = null;
     renderHeader();
     renderMembers();
   }
@@ -411,7 +457,7 @@
   }
 
   async function loadSide() {
-    const member = state.selected != null ? `&member=${state.selected}` : '';
+    const member = typeof state.selected === 'number' ? `&member=${state.selected}` : '';
     const [chores, finance, shopping] = await Promise.all([
       api(`/api/chores/day?date=${state.today}${member}`),
       api('/api/finance/summary'),
@@ -449,7 +495,8 @@
     const t = e.target;
     const memberBtn = t.closest('[data-member]');
     if (memberBtn) {
-      state.selected = memberBtn.dataset.member ? Number(memberBtn.dataset.member) : null;
+      const v = memberBtn.dataset.member;
+      state.selected = v === 'earn' ? 'earn' : (v ? Number(v) : null);
       renderMembers();
       renderCalendar();
       await loadSide();
@@ -457,8 +504,37 @@
     }
     const memberRow = t.closest('[data-member-row]');
     if (memberRow) {
-      state.selected = Number(memberRow.dataset.memberRow);
+      const v = memberRow.dataset.memberRow;
+      state.selected = v === 'earn' ? 'earn' : Number(v);
       renderMembers(); renderCalendar(); await loadSide();
+      return;
+    }
+    const claim = t.closest('[data-claim]');
+    if (claim) {
+      try {
+        await api(`/api/chores/${claim.dataset.claim}/complete`, { method: 'POST', body: { member_id: Number(claim.dataset.kid), date: state.today } });
+        closeModal();
+        await loadSide();
+      } catch (err) { alert(err.message); }
+      return;
+    }
+    const undo = t.closest('[data-uncomplete]');
+    if (undo) {
+      try { await api(`/api/chores/completions/${undo.dataset.uncomplete}`, { method: 'DELETE' }); closeModal(); await loadSide(); } catch (err) { alert(err.message); }
+      return;
+    }
+    const earn = t.closest('[data-earn]');
+    if (earn) {
+      const c = state.chores.find((x) => x.id === Number(earn.dataset.earn));
+      if (!c) return;
+      if (c.status === 'approved') return;
+      if (c.status === 'pending') {
+        const who = memberById(c.completed_by);
+        openModal(`<h2>⏳ ${esc(c.title)}</h2><p class="kv">${esc(who ? who.name : 'Someone')} marked this done — a parent still needs to approve it.</p>
+          <div class="kid-pick"><button class="btn" data-uncomplete="${c.completion_id}">Undo — not finished yet</button><button class="btn" data-close>Keep it</button></div>`);
+        return;
+      }
+      pickKidForChore(c);
       return;
     }
     const nav = t.closest('[data-nav]');
@@ -504,7 +580,7 @@
   });
 
   async function toggleChore(el) {
-    const memberId = state.selected != null ? state.selected : (el.dataset.owner ? Number(el.dataset.owner) : null);
+    const memberId = typeof state.selected === 'number' ? state.selected : (el.dataset.owner ? Number(el.dataset.owner) : null);
     if (memberId == null) return; // open Earn Money chores are claimed from a kid's own view
     try {
       if (el.dataset.status && el.dataset.status !== 'rejected') {
