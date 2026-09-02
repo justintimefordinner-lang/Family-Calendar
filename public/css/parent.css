@@ -93,6 +93,11 @@ a { color: var(--accent); }
 .tx .a.neg { color: var(--bad); }
 .tx .a { font-weight: 700; white-space: nowrap; font-variant-numeric: tabular-nums; }
 
+.chips { display: flex; gap: 8px; overflow-x: auto; padding: 2px 2px 12px; scrollbar-width: none; }
+.chips::-webkit-scrollbar { display: none; }
+.chip { border: 1px solid var(--line); background: var(--panel); border-radius: 999px; padding: 8px 14px; font-weight: 600; white-space: nowrap; min-height: 40px; flex: none; }
+.chip.active { background: var(--c, var(--accent)); color: #fff; border-color: transparent; }
+
 .fab { position: fixed; right: 18px; bottom: calc(var(--tabbar) + 18px + env(safe-area-inset-bottom)); width: 58px; height: 58px; border-radius: 50%; background: var(--accent); color: #fff; border: 0; font-size: 2rem; box-shadow: 0 8px 24px rgba(47,111,237,0.4); z-index: 5; line-height: 1; }
 
 .tabbar { position: fixed; left: 0; right: 0; bottom: 0; height: calc(var(--tabbar) + env(safe-area-inset-bottom)); padding-bottom: env(safe-area-inset-bottom); background: #fff; border-top: 1px solid var(--line); display: flex; z-index: 10; }

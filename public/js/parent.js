@@ -231,8 +231,16 @@
       ${open.length ? `<p class="muted small mt">💵 ${open.length} open Earn Money chore${open.length > 1 ? 's' : ''} nobody has claimed yet.</p>` : ''}
     </div>`;
 
-    const regular = all.filter((c) => !c.paid);
-    const paid = all.filter((c) => c.paid);
+    // Filter chips: All / each member. Chores open to "Anyone" always show.
+    const filt = S.choreFilter ?? null;
+    const chips = `<div class="chips">
+      <button class="chip ${filt == null ? 'active' : ''}" data-chore-filter="">All</button>
+      ${S.members.map((m) => `<button class="chip ${filt === m.id ? 'active' : ''}" data-chore-filter="${m.id}" style="--c:${esc(m.color)}">${esc(m.emoji)} ${esc(m.name)}</button>`).join('')}
+    </div>`;
+    const visible = (c) => filt == null || c.member_id === filt || c.member_id == null;
+    const regular = all.filter((c) => !c.paid && visible(c));
+    const paid = all.filter((c) => c.paid && visible(c));
+    html += chips;
     const choreItem = (c) => `<div class="list-item tappable" data-edit-chore="${c.id}">
       <div class="avatar" style="--c:${esc(c.member_id ? memberById(c.member_id)?.color : '#9ca3af')}">${c.member_id ? esc(memberById(c.member_id)?.emoji || '?') : '👥'}</div>
       <div class="grow"><div class="title">${esc(c.title)}</div><div class="sub">${esc(c.member_name || 'Anyone')} · ${scheduleLabel(c)}${c.period && c.period !== 'any' ? ' · ' + c.period : ''}</div></div>
@@ -630,6 +638,8 @@
       wrap.parentElement.querySelector('input[name=days]').value = flags;
       return;
     }
+    const chip = t.closest('[data-chore-filter]');
+    if (chip) { S.choreFilter = chip.dataset.choreFilter ? Number(chip.dataset.choreFilter) : null; render(); return; }
     const href = t.closest('[data-href]');
     if (href) { location.hash = href.dataset.href; return; }
     const editChore = t.closest('[data-edit-chore]');
