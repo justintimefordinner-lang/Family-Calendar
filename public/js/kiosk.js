@@ -463,7 +463,7 @@
       }
     }
     closeModal();
-    Object.assign(play, { key, memberId, sessionId: session.id || null, startedAt: Date.now(), coins: Number(session.coins) || 0 });
+    Object.assign(play, { key, memberId, sessionId: session.id || null, startedAt: Date.now(), syncedAt: Date.now(), coins: Number(session.coins) || 0 });
     const overlay = $('#game');
     overlay.hidden = false;
     overlay.classList.toggle('uses-fire', Boolean(g.fire));
@@ -471,14 +471,22 @@
     updateGameCoins();
     const wrap = $('.game-canvas-wrap');
     window.Games[key].start($('#gameCanvas'), { height: wrap.clientHeight || (window.innerHeight - 120), width: Math.min(1100, window.innerWidth - 520) });
-    clearInterval(play.timer);
+    clearInterval(play.timer); clearInterval(play.hudTimer);
     if (play.sessionId) play.timer = setInterval(() => gameTick(false), 30_000);
+    play.hudTimer = setInterval(updateGameCoins, 1000);
   }
 
+  // Live countdown: coins at the last server check, minus what has ticked away since.
   function updateGameCoins() {
     const m = play.memberId != null ? memberById(play.memberId) : null;
-    const mins = Math.floor((Date.now() - play.startedAt) / 60_000);
-    $('#gameCoins').textContent = m ? `${m.emoji} ${m.name} · 🪙 ${play.coins}${play.sessionId ? ` · ${mins} min` : ''}` : '';
+    if (!m) { $('#gameCoins').textContent = ''; return; }
+    const rate = gameRate();
+    if (!play.sessionId || rate <= 0) { $('#gameCoins').textContent = `${m.emoji} ${m.name} · 🪙 ${play.coins}`; return; }
+    const spentSince = rate * (Date.now() - play.syncedAt) / 60_000;
+    const live = Math.max(0, play.coins - spentSince);
+    const minsLeft = live / rate;
+    const left = minsLeft >= 1 ? `${Math.floor(minsLeft)} min left` : `${Math.max(0, Math.round(minsLeft * 60))} sec left`;
+    $('#gameCoins').textContent = `${m.emoji} ${m.name} · 🪙 ${live.toFixed(1)} · ${left}`;
   }
 
   async function gameTick(final) {
@@ -486,6 +494,7 @@
     try {
       const r = await api(`/api/games/session/${play.sessionId}/tick`, { method: 'POST', body: { seconds: (Date.now() - play.startedAt) / 1000 } });
       play.coins = r.coins;
+      play.syncedAt = Date.now();
       updateGameCoins();
       if (r.out && !final) {
         await closeGame();
@@ -496,6 +505,7 @@
 
   async function closeGame() {
     clearInterval(play.timer); play.timer = null;
+    clearInterval(play.hudTimer); play.hudTimer = null;
     if (play.key && window.Games[play.key]) window.Games[play.key].stop();
     $('#game').hidden = true;
     if (play.sessionId) { await gameTick(true); play.sessionId = null; }
