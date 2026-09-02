@@ -83,7 +83,7 @@ bash deploy/install.sh
 That installs dependencies, creates `data/`, and registers a systemd service that starts on boot.
 The app listens on port **3100**. Open `http://<pi-ip>:3100/parent` on your phone to run setup.
 
-- Update later: `bash deploy/update.sh`
+- Update later: tap the ⚙ next to the clock on the display → **Pull Updates & Restart** (or run `bash deploy/update.sh` on the Pi)
 - Logs: `journalctl -u family-calendar@$USER -f`
 - Full-screen display on the Pi's touchscreen: see [deploy/kiosk.md](deploy/kiosk.md)
 - Change the port or data directory with a `.env` file (see `.env.example`)

@@ -722,6 +722,36 @@
     } catch (err) { alert(err.message); }
   }
 
+  // ---- Gear menu: pull updates & restart ---------------------------------------
+  async function openGear() {
+    let v = null;
+    try { v = await api('/api/system/version'); } catch { v = null; }
+    const line = v && v.rev && v.rev !== '?' ? `Version <b>${esc(v.rev)}</b>${v.date ? ` · ${esc(v.date)}` : ''}<br><span class="muted">${esc(v.subject || '')}</span>` : 'Version unknown';
+    openModal(`<h2>⚙️ Display</h2><p class="kv">${line}</p>
+      <div class="kid-pick"><button class="btn primary-btn" data-update>⬇️ Pull Updates &amp; Restart</button><button class="btn" data-close>Close</button></div>
+      <p class="kv muted" id="updateStatus"></p>`);
+  }
+
+  async function runUpdate(btn) {
+    btn.disabled = true; btn.textContent = 'Updating…';
+    try {
+      const r = await api('/api/system/update', { method: 'POST' });
+      $('#updateStatus').textContent = r.message || 'Updating… this takes a minute or two. The display reloads by itself when the server is back.';
+      // Poll until the server comes back with a new build id, then reload.
+      const started = Date.now();
+      const poll = setInterval(async () => {
+        try {
+          const s = await fetch('/api/state', { cache: 'no-store' }).then((x) => x.json());
+          if (s.build && s.build !== serverBuild) { clearInterval(poll); location.reload(); }
+        } catch { /* server restarting */ }
+        if (Date.now() - started > 5 * 60_000) { clearInterval(poll); $('#updateStatus').textContent = 'Still not back after 5 minutes — check the Pi.'; }
+      }, 3000);
+    } catch (err) {
+      btn.disabled = false; btn.textContent = '⬇️ Pull Updates & Restart';
+      $('#updateStatus').textContent = err.message;
+    }
+  }
+
   // ---- Modals ---------------------------------------------------------------
   function openModal(html) {
     $('#modalBody').innerHTML = html;
@@ -926,6 +956,9 @@
     if (chore) { await toggleChore(chore); return; }
     const moneyCard = t.closest('[data-money]');
     if (moneyCard) { await showMoney(Number(moneyCard.dataset.money)); return; }
+    if (t.closest('[data-gear]')) { await openGear(); return; }
+    const upd = t.closest('[data-update]');
+    if (upd) { await runUpdate(upd); return; }
     const prizeCard = t.closest('[data-prize]');
     if (prizeCard) { openPrize(Number(prizeCard.dataset.prize)); return; }
     const redeemPick = t.closest('[data-redeem]');

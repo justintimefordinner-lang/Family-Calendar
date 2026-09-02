@@ -244,6 +244,8 @@
     if (p === '/redemptions') return redemptions;
     if (seg[0] === 'redemptions' && seg[2] === 'done') { const r = redemptions.find((x) => x.id === num(seg[1])); if (r) r.status = 'done'; return { ok: true }; }
     if (seg[0] === 'redemptions' && seg[2] === 'cancel') { const r = redemptions.find((x) => x.id === num(seg[1])); if (r) { r.status = 'cancelled'; const i = coins.findIndex((c) => c.id === r.coin_tx_id); if (i >= 0) coins.splice(i, 1); } return { ok: true }; }
+    if (p === '/system/version') return { rev: 'demo', date: '', subject: 'Example mode' };
+    if (p === '/system/update') return { ok: true, message: 'Example mode: nothing to update here.' };
     if (p === '/games/window') return gamesWindow();
     if (p === '/games/ready') return { window: gamesWindow(), kids: active().filter((m) => m.role === 'kid').map((m) => choreGate(m.id)) };
     if (p === '/games/session') { const memberId = num(body.member_id); const gate = choreGate(memberId); if (!gate.ok) return { status: 403, body: { error: `Finish your ${gate.period} chores first: ${gate.missing.join(', ')}` } }; const bal = coinBalance(memberId); if (bal <= 0) return { status: 402, body: { error: `Out of ${settings.coin_name}` } }; const id = nextId++; const row = { id, member_id: memberId, amount: 0, note: `🎮 ${body.game} · 0 min`, created_at: nowIso() }; coins.push(row); sessions.set(id, row); return { id, rate: settings.game_coins_per_minute, coins: bal }; }

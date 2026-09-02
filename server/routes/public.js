@@ -275,6 +275,48 @@ router.get('/google/callback', wrap(async (req, res) => {
   }
 }));
 
+// ---- Self-update from the display's gear menu ------------------------------
+// Runs git pull + npm install in the repo, then exits; systemd (Restart=always)
+// brings the service back and the display reloads when it sees the new build id.
+const { spawn } = require('child_process');
+const REPO_ROOT = path.join(__dirname, '..', '..');
+function runCmd(cmd, args) {
+  return new Promise((resolve) => {
+    let out = '';
+    try {
+      const p = spawn(cmd, args, { cwd: REPO_ROOT, stdio: ['ignore', 'pipe', 'pipe'] });
+      p.stdout.on('data', (d) => { out += d; });
+      p.stderr.on('data', (d) => { out += d; });
+      p.on('close', (code) => resolve({ code, out: out.trim() }));
+      p.on('error', (e) => resolve({ code: -1, out: e.message }));
+    } catch (e) { resolve({ code: -1, out: e.message }); }
+  });
+}
+let versionCache = null;
+router.get('/system/version', wrap(async (req, res) => {
+  if (!versionCache) {
+    const r = await runCmd('git', ['log', '-1', '--format=%h|%cd|%s', '--date=format:%b %d %H:%M']);
+    const [rev, date, subject] = r.code === 0 ? r.out.split('|') : ['?', '', ''];
+    versionCache = { rev, date, subject };
+  }
+  res.json(versionCache);
+}));
+
+let updating = false;
+router.post('/system/update', (req, res) => {
+  if (updating) return res.json({ ok: true, already: true });
+  updating = true;
+  res.json({ ok: true, message: 'Pulling updates — the display reloads on its own when the server is back.' });
+  (async () => {
+    const pull = await runCmd('git', ['pull', '--ff-only']);
+    console.log(`[update] git pull (${pull.code}): ${pull.out}`);
+    const inst = await runCmd('npm', ['install', '--omit=dev', '--no-audit', '--no-fund']);
+    console.log(`[update] npm install (${inst.code}): ${inst.out.split('\n').slice(-2).join(' ')}`);
+    console.log('[update] restarting');
+    setTimeout(() => process.exit(0), 300);
+  })();
+});
+
 // ---- Prizes: kids spend coins on rewards parents set up ---------------------
 router.get('/rewards', (req, res) => {
   res.json(db.prepare('SELECT id, title, coins, emoji, notes FROM rewards WHERE active = 1 ORDER BY coins, sort_order, id').all());

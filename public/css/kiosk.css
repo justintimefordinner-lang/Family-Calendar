@@ -42,6 +42,9 @@ h1, h2, h3 { margin: 0; font-weight: 700; }
 .brand h1 { font-size: clamp(1.2rem, 1.6vw, 1.9rem); letter-spacing: -0.01em; }
 .today-label { color: var(--muted); font-size: 1.05rem; margin-top: 2px; }
 .clock-wrap { text-align: right; }
+.clock-row { display: flex; align-items: center; justify-content: flex-end; gap: 12px; }
+.gear { border: 0; background: transparent; font-size: 1.6rem; padding: 6px; border-radius: 50%; opacity: 0.55; line-height: 1; }
+.gear:active { background: rgba(0,0,0,0.08); opacity: 1; }
 .clock { font-size: 2.6rem; font-weight: 700; font-variant-numeric: tabular-nums; line-height: 1; }
 .sync { font-size: 0.8rem; color: var(--muted); margin-top: 6px; }
 .sync .dot { display: inline-block; width: 0.6em; height: 0.6em; border-radius: 50%; background: #bbb; margin-right: 6px; }
