@@ -1,0 +1,178 @@
+// Kiosk-facing routes. No login: the display hangs on the wall and kids tap it.
+const fs = require('fs');
+const path = require('path');
+const express = require('express');
+const db = require('../db');
+const settings = require('../settings');
+const chores = require('../chores');
+const interest = require('../interest');
+const weather = require('../weather');
+const google = require('../google');
+const { PHOTO_DIR } = require('../config');
+const { HttpError, wrap, localDate, isDateStr, toInt } = require('../util');
+
+const router = express.Router();
+
+const activeMembers = db.prepare('SELECT id, name, role, color, emoji, sort_order FROM members WHERE active = 1 ORDER BY sort_order, id');
+
+router.get('/state', (req, res) => {
+  const accounts = db.prepare('SELECT email, last_error, last_sync_at FROM google_accounts').all();
+  res.json({
+    settings: settings.publicSettings(),
+    members: activeMembers.all(),
+    today: localDate(),
+    needs_setup: !settings.get('pin_hash'),
+    google: {
+      configured: google.isConfigured(),
+      accounts: accounts.map((a) => ({ email: a.email, error: a.last_error, last_sync_at: a.last_sync_at })),
+    },
+  });
+});
+
+router.get('/members', (req, res) => {
+  res.json(activeMembers.all());
+});
+
+// ---- Calendar events -------------------------------------------------------
+const eventsInRange = db.prepare(`
+  SELECT e.id, e.title, e.start, e.end, e.start_ts, e.end_ts, e.all_day, e.location, e.description,
+         c.id AS calendar_id, c.name AS calendar_name, c.color AS calendar_color, c.member_id, c.is_family
+  FROM events e JOIN calendars c ON c.id = e.calendar_id
+  WHERE c.enabled = 1 AND e.end_ts > ? AND e.start_ts < ?
+  ORDER BY e.all_day DESC, e.start_ts
+`);
+
+router.get('/events', (req, res) => {
+  const from = isDateStr(req.query.from) ? req.query.from : localDate();
+  const to = isDateStr(req.query.to) ? req.query.to : from;
+  const fromTs = new Date(`${from}T00:00:00`).getTime();
+  const toTs = new Date(`${to}T00:00:00`).getTime() + 86_400_000;
+  res.json(eventsInRange.all(fromTs, toTs));
+});
+
+// ---- Chores ----------------------------------------------------------------
+router.get('/chores/day', (req, res) => {
+  const date = isDateStr(req.query.date) ? req.query.date : localDate();
+  const memberId = toInt(req.query.member, null);
+  res.json({ date, chores: chores.choresForDay(date, memberId) });
+});
+
+router.post('/chores/:id/complete', (req, res) => {
+  const memberId = toInt(req.body.member_id);
+  if (!memberId) throw new HttpError(400, 'member_id required');
+  const date = isDateStr(req.body.date) ? req.body.date : localDate();
+  res.json(chores.complete(toInt(req.params.id), memberId, date));
+});
+
+router.delete('/chores/completions/:id', (req, res) => {
+  chores.uncomplete(toInt(req.params.id));
+  res.json({ ok: true });
+});
+
+// ---- Money -----------------------------------------------------------------
+const pendingCents = db.prepare(`
+  SELECT COALESCE(SUM(c.amount_cents), 0) AS cents FROM chore_completions cc
+  JOIN chores c ON c.id = cc.chore_id WHERE cc.member_id = ? AND cc.status = 'pending'
+`);
+
+router.get('/finance/summary', (req, res) => {
+  const kids = activeMembers.all().filter((m) => m.role === 'kid');
+  res.json(kids.map((m) => ({
+    member_id: m.id,
+    balance_cents: interest.balance(m.id),
+    pending_cents: pendingCents.get(m.id).cents,
+  })));
+});
+
+router.get('/finance/:memberId', (req, res) => {
+  const id = toInt(req.params.memberId);
+  const member = db.prepare('SELECT id, name FROM members WHERE id = ?').get(id);
+  if (!member) throw new HttpError(404, 'Member not found');
+  const limit = Math.min(500, toInt(req.query.limit, 100));
+  res.json({
+    member_id: id,
+    balance_cents: interest.balance(id),
+    pending_cents: pendingCents.get(id).cents,
+    interest_apr: Number(settings.get('interest_apr')) || 0,
+    interest_day: Number(settings.get('interest_day')) || 1,
+    transactions: db.prepare('SELECT * FROM transactions WHERE member_id = ? ORDER BY created_at DESC, id DESC LIMIT ?').all(id, limit),
+  });
+});
+
+// ---- Meals -----------------------------------------------------------------
+router.get('/meals', (req, res) => {
+  const from = isDateStr(req.query.from) ? req.query.from : localDate();
+  const to = isDateStr(req.query.to) ? req.query.to : from;
+  res.json(db.prepare('SELECT * FROM meals WHERE date >= ? AND date <= ? ORDER BY date').all(from, to));
+});
+
+// ---- Shopping list (editable from the kiosk too) ---------------------------
+const listShopping = db.prepare('SELECT * FROM shopping_items ORDER BY checked, id');
+
+router.get('/shopping', (req, res) => res.json(listShopping.all()));
+
+router.post('/shopping', (req, res) => {
+  const text = String(req.body.text || '').trim();
+  if (!text) throw new HttpError(400, 'Item text required');
+  const info = db.prepare('INSERT INTO shopping_items(text) VALUES(?)').run(text.slice(0, 200));
+  res.json(db.prepare('SELECT * FROM shopping_items WHERE id = ?').get(info.lastInsertRowid));
+});
+
+router.patch('/shopping/:id', (req, res) => {
+  const id = toInt(req.params.id);
+  const item = db.prepare('SELECT * FROM shopping_items WHERE id = ?').get(id);
+  if (!item) throw new HttpError(404, 'Not found');
+  const checked = req.body.checked === undefined ? item.checked : (req.body.checked ? 1 : 0);
+  const text = req.body.text === undefined ? item.text : String(req.body.text).trim().slice(0, 200);
+  db.prepare('UPDATE shopping_items SET checked = ?, text = ? WHERE id = ?').run(checked, text, id);
+  res.json({ ...item, checked, text });
+});
+
+router.delete('/shopping/checked', (req, res) => {
+  const info = db.prepare('DELETE FROM shopping_items WHERE checked = 1').run();
+  res.json({ removed: info.changes });
+});
+
+router.delete('/shopping/:id', (req, res) => {
+  db.prepare('DELETE FROM shopping_items WHERE id = ?').run(toInt(req.params.id));
+  res.json({ ok: true });
+});
+
+// ---- Google OAuth loopback -------------------------------------------------
+// Google redirects here when the consent flow runs in a browser on the Pi itself.
+// From a phone the redirect fails to load; the parent app has a paste box for that case.
+router.get('/google/callback', wrap(async (req, res) => {
+  if (req.query.error) return res.redirect(`/parent/?google=error&msg=${encodeURIComponent(req.query.error)}#settings`);
+  try {
+    const account = await google.connectWithCode(String(req.query.code || ''));
+    google.syncAll().catch(() => {});
+    res.redirect(`/parent/?google=connected&email=${encodeURIComponent(account.email)}#settings`);
+  } catch (e) {
+    res.redirect(`/parent/?google=error&msg=${encodeURIComponent(e.message)}#settings`);
+  }
+}));
+
+// ---- Weather ---------------------------------------------------------------
+router.get('/weather', wrap(async (req, res) => {
+  try {
+    res.json(await weather.forecast());
+  } catch (e) {
+    res.json({ error: e.message });
+  }
+}));
+
+// ---- Photos (screensaver) --------------------------------------------------
+const PHOTO_EXT = new Set(['.jpg', '.jpeg', '.png', '.webp', '.gif']);
+
+function listPhotos() {
+  return fs.readdirSync(PHOTO_DIR)
+    .filter((f) => PHOTO_EXT.has(path.extname(f).toLowerCase()))
+    .sort()
+    .map((f) => ({ name: f, url: `/photos/${encodeURIComponent(f)}` }));
+}
+
+router.get('/photos', (req, res) => res.json(listPhotos()));
+
+module.exports = router;
+module.exports.listPhotos = listPhotos;
+module.exports.PHOTO_EXT = PHOTO_EXT;

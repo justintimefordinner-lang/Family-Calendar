@@ -1,0 +1,22 @@
+{
+  "name": "family-calendar",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Self-hosted family calendar, chore chart and kids' money tracker for a touchscreen display, with a parent app for phones.",
+  "main": "server/index.js",
+  "scripts": {
+    "start": "node server/index.js",
+    "dev": "node --watch server/index.js",
+    "check": "node --check server/index.js && for f in server/*.js server/routes/*.js; do node --check \"$f\" || exit 1; done && echo OK"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "license": "MIT",
+  "dependencies": {
+    "better-sqlite3": "^11.7.0",
+    "express": "^4.21.2",
+    "google-auth-library": "^9.15.0",
+    "multer": "^2.0.1"
+  }
+}

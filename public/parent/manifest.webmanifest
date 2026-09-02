@@ -1,0 +1,13 @@
+{
+  "name": "Family Calendar – Parent",
+  "short_name": "Family",
+  "description": "Manage chores, money, meals and the shopping list for the family display.",
+  "start_url": "/parent/",
+  "scope": "/parent/",
+  "display": "standalone",
+  "background_color": "#f4f1ea",
+  "theme_color": "#2f6fed",
+  "icons": [
+    { "src": "/icons/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
+  ]
+}

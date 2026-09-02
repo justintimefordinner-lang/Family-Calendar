@@ -1,0 +1,18 @@
+[Unit]
+Description=Family Calendar (kiosk + parent app)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=%i
+WorkingDirectory=/home/%i/Family-Calendar
+Environment=NODE_ENV=production
+Environment=PORT=3100
+EnvironmentFile=-/home/%i/Family-Calendar/.env
+ExecStart=/usr/bin/env node server/index.js
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

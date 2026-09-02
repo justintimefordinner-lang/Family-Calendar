@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+  <title>Family Calendar</title>
+  <link rel="icon" href="/icons/icon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/css/kiosk.css">
+</head>
+<body>
+  <header class="top">
+    <div class="brand">
+      <h1 id="familyName">Family Calendar</h1>
+      <div id="todayLabel" class="today-label"></div>
+    </div>
+    <div id="weather" class="weather"></div>
+    <div class="clock-wrap">
+      <div id="clock" class="clock"></div>
+      <div id="syncStatus" class="sync" title="Google Calendar sync status"></div>
+    </div>
+  </header>
+
+  <main class="layout">
+    <nav id="members" class="members" aria-label="Family members"></nav>
+
+    <section class="calendar">
+      <div class="cal-toolbar">
+        <div class="cal-nav">
+          <button class="btn" data-nav="-1" aria-label="Previous">‹</button>
+          <button class="btn" data-nav="0">Today</button>
+          <button class="btn" data-nav="1" aria-label="Next">›</button>
+          <h2 id="rangeLabel" class="range-label"></h2>
+        </div>
+        <div class="seg" role="group">
+          <button class="seg-btn active" data-view="week">Week</button>
+          <button class="seg-btn" data-view="month">Month</button>
+        </div>
+      </div>
+      <div id="calGrid" class="cal-grid"></div>
+    </section>
+
+    <aside id="side" class="side"></aside>
+  </main>
+
+  <div id="setupNotice" class="setup-notice" hidden>
+    <div>
+      <h2>Welcome to Family Calendar</h2>
+      <p>Open <strong><span class="host"></span>/parent</strong> on a phone to set up your family, PIN and Google calendars.</p>
+    </div>
+  </div>
+
+  <div id="modal" class="modal" hidden>
+    <div class="modal-card" role="dialog">
+      <button class="modal-close" data-close aria-label="Close">×</button>
+      <div id="modalBody"></div>
+    </div>
+  </div>
+
+  <div id="screensaver" class="screensaver" hidden>
+    <img id="ssImgA" alt="">
+    <img id="ssImgB" alt="">
+    <div class="ss-overlay">
+      <div id="ssClock"></div>
+      <div id="ssDate"></div>
+    </div>
+  </div>
+
+  <script src="/js/kiosk.js"></script>
+</body>
+</html>
