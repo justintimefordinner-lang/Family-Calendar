@@ -15,12 +15,12 @@ const DEFAULT_PRIZES = [
 ];
 
 function seedDefaults() {
-  const exists = db.prepare('SELECT 1 FROM rewards WHERE lower(title) = lower(?) AND active = 1').get;
+  const exists = db.prepare('SELECT 1 FROM rewards WHERE lower(title) = lower(?) AND active = 1');
   const insert = db.prepare('INSERT INTO rewards(title, coins, emoji, notes, sort_order) VALUES(?, ?, ?, ?, ?)');
   let added = 0;
   db.transaction(() => {
     DEFAULT_PRIZES.forEach((p, i) => {
-      if (exists(p.title)) return;
+      if (exists.get(p.title)) return;
       insert.run(p.title, p.coins, p.emoji, p.notes || null, i);
       added += 1;
     });
