@@ -13,6 +13,7 @@
   --tabbar: 64px;
 }
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+[hidden] { display: none !important; }
 html, body { margin: 0; background: var(--bg); color: var(--ink); font-family: "Segoe UI", system-ui, -apple-system, Roboto, "Helvetica Neue", Arial, sans-serif; font-size: 16px; }
 body { padding-bottom: calc(var(--tabbar) + env(safe-area-inset-bottom)); }
 h1, h2, h3 { margin: 0; }

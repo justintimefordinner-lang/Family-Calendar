@@ -11,6 +11,7 @@ const google = require('../google');
 const weather = require('../weather');
 const interest = require('../interest');
 const notify = require('../notify');
+const localEvents = require('../localEvents');
 const { PHOTO_DIR } = require('../config');
 const { HttpError, wrap, isDateStr, toInt, requireFields } = require('../util');
 const { validPin } = require('./auth');
@@ -152,6 +153,12 @@ router.delete('/finance/transactions/:id', (req, res) => {
 router.post('/finance/apply-interest', (req, res) => {
   res.json({ credited: interest.applyIfDue() });
 });
+
+// ---- Birthdays & events entered in the app --------------------------------
+router.get('/local-events', (req, res) => res.json(localEvents.list()));
+router.post('/local-events', (req, res) => res.json(localEvents.create(req.body || {})));
+router.patch('/local-events/:id', (req, res) => res.json(localEvents.update(toInt(req.params.id), req.body || {})));
+router.delete('/local-events/:id', (req, res) => { localEvents.remove(toInt(req.params.id)); res.json({ ok: true }); });
 
 // ---- Meals -----------------------------------------------------------------
 router.put('/meals/:date', (req, res) => {

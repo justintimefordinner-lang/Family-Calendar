@@ -105,6 +105,21 @@ CREATE TABLE IF NOT EXISTS meals (
   notes TEXT
 );
 
+CREATE TABLE IF NOT EXISTS local_events (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  kind TEXT NOT NULL DEFAULT 'event',       -- 'birthday' | 'event'
+  title TEXT NOT NULL,                      -- birthday: the person's name
+  date TEXT NOT NULL,                       -- YYYY-MM-DD; for birthdays the date of birth
+  end_date TEXT,
+  time TEXT,                                -- HH:MM, NULL = all day
+  end_time TEXT,
+  yearly INTEGER NOT NULL DEFAULT 0,
+  show_age INTEGER NOT NULL DEFAULT 1,
+  member_id INTEGER REFERENCES members(id) ON DELETE SET NULL,  -- NULL = family-wide
+  notes TEXT,
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
 CREATE TABLE IF NOT EXISTS shopping_items (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   text TEXT NOT NULL,

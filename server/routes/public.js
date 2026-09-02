@@ -9,6 +9,7 @@ const interest = require('../interest');
 const weather = require('../weather');
 const google = require('../google');
 const notify = require('../notify');
+const localEvents = require('../localEvents');
 const { PHOTO_DIR } = require('../config');
 const { HttpError, wrap, localDate, isDateStr, toInt } = require('../util');
 
@@ -92,7 +93,9 @@ router.get('/events', (req, res) => {
   const fromTs = new Date(`${from}T00:00:00`).getTime();
   const toTs = new Date(`${to}T00:00:00`).getTime() + 86_400_000;
   const matchers = nameMatchers();
-  res.json(eventsInRange.all(fromTs, toTs).map((e) => ({ ...e, member_ids: membersForTitle(e.title, matchers) })));
+  const all = [...eventsInRange.all(fromTs, toTs), ...localEvents.occurrences(fromTs, toTs)]
+    .sort((a, b) => (b.all_day - a.all_day) || (a.start_ts - b.start_ts));
+  res.json(all.map((e) => ({ ...e, member_ids: membersForTitle(e.title, matchers) })));
 });
 
 // ---- Chores ----------------------------------------------------------------

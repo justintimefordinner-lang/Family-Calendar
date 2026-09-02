@@ -67,7 +67,7 @@
   }
 
   function tabbar() {
-    const tabs = [['chores', '✅', 'Chores'], ['money', '💰', 'Money'], ['meals', '🍽️', 'Meals'], ['list', '🛒', 'List'], ['settings', '⚙️', 'Settings']];
+    const tabs = [['chores', '✅', 'Chores'], ['money', '💰', 'Money'], ['events', '🎂', 'Events'], ['meals', '🍽️', 'Meals'], ['list', '🛒', 'List'], ['settings', '⚙️', 'Settings']];
     return `<nav class="tabbar">${tabs.map(([r, ic, l]) => `<a href="#${r}" class="${S.route === r ? 'active' : ''}"><span class="ic">${ic}</span>${l}</a>`).join('')}</nav>`;
   }
 
@@ -88,7 +88,7 @@
       if (!S.me.parent) return renderLogin();
       await loadMembers();
       if (route === 'money' && arg) return await renderMoneyDetail(Number(arg));
-      const views = { chores: renderChores, money: renderMoney, meals: renderMeals, list: renderList, settings: renderSettings };
+      const views = { chores: renderChores, money: renderMoney, events: renderEvents, meals: renderMeals, list: renderList, settings: renderSettings };
       await (views[route] || renderChores)();
     } catch (e) {
       fail(e);
@@ -285,6 +285,75 @@
     `<a class="btn small" href="#money">‹ All kids</a>`);
   }
 
+  // ---- Birthdays & events ----------------------------------------------------
+  function nextOccurrence(e, today) {
+    if (!e.yearly) return e.date;
+    const y = Number(today.slice(0, 4));
+    const md = e.date.slice(5);
+    return `${y}-${md}` >= today ? `${y}-${md}` : `${y + 1}-${md}`;
+  }
+  const fmtTime12 = (t) => new Date(`2000-01-01T${t}:00`).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+
+  async function renderEvents() {
+    const items = await api('/api/local-events');
+    const today = ymd(new Date());
+    const withNext = items.map((e) => ({ ...e, next: nextOccurrence(e, today) })).sort((a, b) => a.next.localeCompare(b.next));
+    const bdays = withNext.filter((e) => e.kind === 'birthday');
+    const events = withNext.filter((e) => e.kind === 'event' && (e.yearly || (e.end_date || e.date) >= today));
+    const past = withNext.filter((e) => e.kind === 'event' && !e.yearly && (e.end_date || e.date) < today).reverse();
+    const fmt = (s) => parseYmd(s).toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' });
+    const until = (s) => {
+      const n = Math.round((parseYmd(s) - parseYmd(today)) / 86_400_000);
+      return n === 0 ? 'Today' : n === 1 ? 'Tomorrow' : n > 0 ? `in ${n} days` : `${-n} days ago`;
+    };
+    const row = (e) => {
+      const m = e.member_id ? memberById(e.member_id) : null;
+      const isB = e.kind === 'birthday';
+      const age = isB && e.show_age ? Number(e.next.slice(0, 4)) - Number(e.date.slice(0, 4)) : 0;
+      return `<div class="list-item tappable" data-edit-levent="${e.id}">
+        <div class="avatar" style="--c:${isB ? '#f59e0b' : esc(m ? m.color : '#7c6f9b')}">${isB ? '🎂' : (m ? esc(m.emoji) : '📌')}</div>
+        <div class="grow"><div class="title">${esc(e.title)}${age > 0 && age < 120 ? ` <span class="muted">turns ${age}</span>` : ''}</div>
+          <div class="sub">${fmt(e.next)}${e.time ? ' · ' + fmtTime12(e.time) : ''}${e.yearly && !isB ? ' · every year' : ''}${m ? ' · ' + esc(m.name) : ''}</div></div>
+        <div class="muted small">${until(e.next)}</div></div>`;
+    };
+    shell('Birthdays & Events', `
+      <div class="card"><h2>🎂 Birthdays <span class="meta">${bdays.length}</span></h2>${bdays.map(row).join('') || '<p class="muted">Add family and friends’ birthdays with +. They repeat every year and show the age.</p>'}</div>
+      <div class="card"><h2>📌 Upcoming events <span class="meta">${events.length}</span></h2>${events.map(row).join('') || '<p class="muted">School plays, trips, visits… anything not on Google Calendar.</p>'}</div>
+      ${past.length ? `<details class="section"><summary>Past events (${past.length})</summary><div class="body">${past.map(row).join('')}</div></details>` : ''}
+      <button class="fab" data-action="new-levent" aria-label="Add">+</button>`);
+    S.levents = items;
+  }
+
+  function leventForm(e = {}) {
+    const kind = e.kind || 'birthday';
+    const isB = kind === 'birthday';
+    return `<form data-form="levent" data-id="${e.id || ''}"><h2>${e.id ? 'Edit' : 'New'}</h2>
+      <div class="field"><div class="seg" data-seg="kind">
+        <button type="button" data-val="birthday" class="${isB ? 'active' : ''}">🎂 Birthday</button>
+        <button type="button" data-val="event" class="${isB ? '' : 'active'}">📌 Event</button></div><input type="hidden" name="kind" value="${kind}"></div>
+      <label class="field"><span>Who / what</span><input type="text" name="title" required maxlength="120" value="${esc(e.title || '')}" placeholder="Grandma, or School play"></label>
+      <div class="row2">
+        <label class="field"><span>Date (birthdays: date of birth)</span><input type="date" name="date" required value="${e.date || ''}"></label>
+        <label class="field" data-when="event" ${isB ? 'hidden' : ''}><span>End date (optional)</span><input type="date" name="end_date" value="${e.end_date || ''}"></label>
+      </div>
+      <div data-when="birthday" ${isB ? '' : 'hidden'}>
+        <label class="field inline"><span>Show the age (“turns 9”) — untick if the birth year is unknown</span><input type="checkbox" name="show_age" ${e.show_age === 0 ? '' : 'checked'}></label>
+      </div>
+      <div data-when="event" ${isB ? 'hidden' : ''}>
+        <div class="row2">
+          <label class="field"><span>Time (blank = all day)</span><input type="time" name="time" value="${e.time || ''}"></label>
+          <label class="field"><span>End time</span><input type="time" name="end_time" value="${e.end_time || ''}"></label>
+        </div>
+        <label class="field inline"><span>Repeats every year (anniversary etc.)</span><input type="checkbox" name="yearly" ${e.yearly ? 'checked' : ''}></label>
+      </div>
+      <label class="field"><span>Shows for</span><select name="member_id"><option value="">Everyone (family)</option>${S.members.map((m) => `<option value="${m.id}" ${e.member_id === m.id ? 'selected' : ''}>${esc(m.emoji)} ${esc(m.name)}</option>`).join('')}</select></label>
+      <p class="muted small">Tip: a kid’s name in the title also puts it on their own calendar view.</p>
+      <label class="field"><span>Notes (optional)</span><input type="text" name="notes" maxlength="300" value="${esc(e.notes || '')}"></label>
+      <div class="actions"><button class="btn primary grow" type="submit">Save</button>
+        ${e.id ? `<button type="button" class="btn danger" data-action="delete-levent" data-id="${e.id}">Delete</button>` : ''}</div>
+    </form>`;
+  }
+
   // ---- Meals -----------------------------------------------------------------
   async function renderMeals() {
     const settings = S.settings || (S.settings = await api('/api/settings'));
@@ -479,6 +548,8 @@
     if (href) { location.hash = href.dataset.href; return; }
     const editChore = t.closest('[data-edit-chore]');
     if (editChore) { openSheet(choreForm(S.allChores.find((c) => c.id === Number(editChore.dataset.editChore)))); return; }
+    const editLevent = t.closest('[data-edit-levent]');
+    if (editLevent) { openSheet(leventForm((S.levents || []).find((x) => x.id === Number(editLevent.dataset.editLevent)))); return; }
     const editMember = t.closest('[data-edit-member]');
     if (editMember) {
       const all = await api('/api/members/all');
@@ -508,6 +579,10 @@
       switch (a) {
         case 'add-member-row': $('#setupMembers').insertAdjacentHTML('beforeend', memberRow($('#setupMembers').children.length)); break;
         case 'new-chore': openSheet(choreForm()); break;
+        case 'new-levent': openSheet(leventForm()); break;
+        case 'delete-levent':
+          if (!confirm('Delete this?')) return;
+          await api(`/api/local-events/${id}`, { method: 'DELETE' }); closeSheet(); toast('Deleted'); render(); break;
         case 'delete-chore':
           if (!confirm('Delete this chore? History is kept.')) return;
           await api(`/api/chores/${id}`, { method: 'DELETE' }); closeSheet(); toast('Chore deleted'); render(); break;
@@ -643,6 +718,17 @@
           toast('Saved'); render(); break;
         }
         case 'shop': await api('/api/shopping', { method: 'POST', body: { text: fd.get('text') } }); render(); break;
+        case 'levent': {
+          const body = {
+            kind: fd.get('kind'), title: fd.get('title'), date: fd.get('date'),
+            end_date: fd.get('end_date') || null, time: fd.get('time') || null, end_time: fd.get('end_time') || null,
+            yearly: form.yearly.checked, show_age: form.show_age.checked,
+            member_id: fd.get('member_id') ? Number(fd.get('member_id')) : null, notes: fd.get('notes'),
+          };
+          if (form.dataset.id) await api(`/api/local-events/${form.dataset.id}`, { method: 'PATCH', body });
+          else await api('/api/local-events', { method: 'POST', body });
+          closeSheet(); toast('Saved'); render(); break;
+        }
         case 'member': {
           const body = { name: fd.get('name'), emoji: fd.get('emoji'), color: fd.get('color'), role: fd.get('role'), aliases: fd.get('aliases') || '' };
           if (form.dataset.id) { body.active = form.active.checked; await api(`/api/members/${form.dataset.id}`, { method: 'PATCH', body }); }

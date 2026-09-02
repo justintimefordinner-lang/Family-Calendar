@@ -15,6 +15,7 @@ Built for a Raspberry Pi and a 1080p landscape display, but it is plain Node.js 
 
 - Chores: add/edit regular and Earn Money chores, assign them, set schedules, approve payouts
 - Money: deposits, withdrawals, adjustments, and a monthly interest rate you control
+- Birthdays & events kept in the app itself (birthdays repeat yearly and show the age)
 - Meals for the week, the shared shopping list
 - Family members, Google accounts and calendar mapping, weather location, display options, photos
 
