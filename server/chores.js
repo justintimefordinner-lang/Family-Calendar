@@ -1,5 +1,6 @@
 // Chore scheduling logic shared by the kiosk and parent routes.
 const db = require('./db');
+const settings = require('./settings');
 const { HttpError, localDate } = require('./util');
 
 const listActive = db.prepare(`
@@ -94,7 +95,8 @@ function complete(choreId, memberId, date = localDate()) {
     if (existing) return existing;
   }
 
-  const status = chore.paid ? 'pending' : 'done';
+  // Every chore waits for a parent's approval: Earn Money chores pay cash, the rest earn coins.
+  const status = 'pending';
   db.prepare(`
     INSERT INTO chore_completions(chore_id, member_id, date, status) VALUES(?, ?, ?, ?)
     ON CONFLICT(chore_id, member_id, date) DO UPDATE SET
@@ -113,7 +115,7 @@ function uncomplete(completionId) {
 }
 
 const pendingList = db.prepare(`
-  SELECT cc.*, c.title, c.amount_cents, c.schedule, m.name AS member_name, m.color, m.emoji
+  SELECT cc.*, c.title, c.amount_cents, c.schedule, c.paid, m.name AS member_name, m.color, m.emoji
   FROM chore_completions cc
   JOIN chores c ON c.id = cc.chore_id
   JOIN members m ON m.id = cc.member_id
@@ -124,19 +126,37 @@ function pending() {
   return pendingList.all();
 }
 
-// Parent approves an Earn Money completion -> credits the kid's balance.
+// Parent approves a completion: Earn Money chores credit cash, regular chores award coins.
 const approve = db.transaction((completionId) => {
   const c = db.prepare(`
-    SELECT cc.*, c.title, c.amount_cents FROM chore_completions cc JOIN chores c ON c.id = cc.chore_id WHERE cc.id = ?
+    SELECT cc.*, c.title, c.amount_cents, c.paid FROM chore_completions cc JOIN chores c ON c.id = cc.chore_id WHERE cc.id = ?
   `).get(completionId);
   if (!c) throw new HttpError(404, 'Not found');
   if (c.status === 'approved') return c;
   db.prepare(`UPDATE chore_completions SET status = 'approved', reviewed_at = datetime('now') WHERE id = ?`).run(completionId);
-  // Earnings land in the kid's cash; a parent can move them to "invested" later.
-  db.prepare(`INSERT INTO transactions(member_id, type, account, amount_cents, note, completion_id) VALUES(?, 'chore', 'cash', ?, ?, ?)`)
-    .run(c.member_id, c.amount_cents, `Earned: ${c.title}`, completionId);
+  if (c.paid) {
+    // Earnings land in the kid's cash; a parent can move them to "invested" later.
+    db.prepare(`INSERT INTO transactions(member_id, type, account, amount_cents, note, completion_id) VALUES(?, 'chore', 'cash', ?, ?, ?)`)
+      .run(c.member_id, c.amount_cents, `Earned: ${c.title}`, completionId);
+  } else {
+    const coins = Math.max(0, Number(settings.get('coins_per_chore')) || 0);
+    if (coins > 0) {
+      db.prepare('INSERT INTO coin_transactions(member_id, amount, note, completion_id) VALUES(?, ?, ?, ?)')
+        .run(c.member_id, coins, c.title, completionId);
+    }
+  }
   return { ...c, status: 'approved' };
 });
+
+// Approve everything waiting, optionally for one member.
+const approveAll = db.transaction((memberId = null) => {
+  const rows = pendingList.all().filter((p) => memberId == null || p.member_id === memberId);
+  for (const p of rows) approve(p.id);
+  return rows.length;
+});
+
+const coinBalanceStmt = db.prepare('SELECT COALESCE(SUM(amount), 0) AS n FROM coin_transactions WHERE member_id = ?');
+const coinBalance = (memberId) => coinBalanceStmt.get(memberId).n;
 
 function reject(completionId) {
   const c = db.prepare('SELECT * FROM chore_completions WHERE id = ?').get(completionId);
@@ -145,4 +165,4 @@ function reject(completionId) {
   db.prepare(`UPDATE chore_completions SET status = 'rejected', reviewed_at = datetime('now') WHERE id = ?`).run(completionId);
 }
 
-module.exports = { choresForDay, complete, uncomplete, pending, approve, reject, isDue };
+module.exports = { choresForDay, complete, uncomplete, pending, approve, approveAll, reject, isDue, coinBalance };

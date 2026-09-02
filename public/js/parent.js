@@ -183,12 +183,14 @@
     ]);
     let html = '';
     if (pending.length) {
-      html += `<div class="card"><h2>⏳ Waiting for approval <span class="meta">${pending.length}</span></h2>
+      const st = S.settings || (S.settings = await api('/api/settings'));
+      const coins = Number(st.coins_per_chore) || 0;
+      html += `<div class="card"><h2>⏳ Waiting for approval <span class="meta">${pending.length > 1 ? `<button class="btn small good" data-action="approve-all">Approve all ${pending.length}</button>` : pending.length}</span></h2>
         ${pending.map((p) => `<div class="list-item">
           <div class="avatar" style="--c:${esc(p.color)}">${esc(p.emoji)}</div>
           <div class="grow"><div class="title">${esc(p.title)}</div><div class="sub">${esc(p.member_name)} · ${fmtWhen(p.completed_at)}</div></div>
-          <div class="amt">${money(p.amount_cents)}</div>
-          <button class="btn small good" data-action="approve" data-id="${p.id}">Pay</button>
+          <div class="amt">${p.paid ? money(p.amount_cents) : (coins ? `🪙 +${coins}` : '')}</div>
+          <button class="btn small good" data-action="approve" data-id="${p.id}">${p.paid ? 'Pay' : 'OK'}</button>
           <button class="btn small icon" data-action="reject" data-id="${p.id}" title="Reject">✕</button>
         </div>`).join('')}</div>`;
     }
@@ -264,7 +266,7 @@
       return `<div class="card balance-card tappable" data-href="#money/${m.id}">
         <div class="avatar" style="--c:${esc(m.color)}">${esc(m.emoji)}</div>
         <div><div class="title" style="font-weight:600">${esc(m.name)}</div>${f.pending_cents ? `<div class="sub muted small">+${money(f.pending_cents)} awaiting approval</div>` : ''}</div>
-        <div class="bal" style="text-align:right;font-size:1.05rem;line-height:1.35">💵 ${money(f.cash_cents || 0)}<br>📈 ${money(f.invested_cents || 0)}</div></div>`;
+        <div class="bal" style="text-align:right;font-size:1.05rem;line-height:1.35">💵 ${money(f.cash_cents || 0)}<br>📈 ${money(f.invested_cents || 0)}<br>🪙 ${f.coins || 0}</div></div>`;
     }).join('');
     shell('Money', `<p class="muted small">Each kid has <b>Cash</b> (pocket money you keep track of; chore earnings land here) and <b>Invested with Dad</b>${apr > 0 ? `, which earns ${apr}% per year credited on day ${settings.interest_day} of each month.` : ' (no interest set — see Settings › Interest).'}</p>
       ${cards || '<div class="card"><p class="muted">Add kids in Settings › Family to start tracking money.</p></div>'}`);
@@ -301,6 +303,18 @@
           </div>
           <button class="btn primary block" type="submit">Save</button>
         </form></div>
+      <div class="card"><h2>🪙 ${esc(f.coin_name || 'Mom Coins')} <span class="meta">${f.coins || 0}</span></h2>
+        <form data-form="coins" data-member="${m.id}">
+          <div class="row2">
+            <label class="field"><span>Coins (negative to spend)</span><input type="number" name="amount" step="1" inputmode="numeric" required placeholder="-10"></label>
+            <label class="field"><span>Note</span><input type="text" name="note" maxlength="200" placeholder="Movie pick"></label>
+          </div>
+          <button class="btn primary block" type="submit">Save</button></form>
+        ${(f.coin_transactions || []).slice(0, 10).map((t) => `<div class="list-item tx">
+          <div class="grow"><div class="title">${esc(t.note || 'Coins')}</div><div class="sub">${fmtWhen(t.created_at)}</div></div>
+          <div class="a ${t.amount < 0 ? 'neg' : 'pos'}">${t.amount < 0 ? '−' : '+'}${Math.abs(t.amount)}</div>
+          <button class="btn small icon" data-action="delete-coins" data-id="${t.id}" title="Remove">✕</button></div>`).join('')}
+      </div>
       <div class="card"><h2>Set cash balance</h2>
         <form data-form="setbal" data-member="${m.id}" class="actions" style="margin:0">
           <input type="number" name="balance" step="0.01" inputmode="decimal" class="input grow" required placeholder="Count the cash… e.g. 12.50">
@@ -488,6 +502,14 @@
           ${themeArt[i] ? `<button class="btn small icon" data-action="delete-art" data-id="${i}" title="Use built-in">✕</button>` : ''}
         </div>`).join('')}`;
 
+    const rewards = `<form data-form="settings">
+      <div class="row2">
+        <label class="field"><span>Name of the reward points</span><input type="text" name="coin_name" maxlength="30" value="${esc(settings.coin_name)}" placeholder="Mom Coins"></label>
+        <label class="field"><span>Coins per approved chore</span><input type="number" name="coins_per_chore" min="0" max="100" value="${settings.coins_per_chore}"></label>
+      </div>
+      <p class="muted small">Every chore a kid taps shows a "Great Job!" and waits for a parent's OK. Regular chores then award coins; Earn Money chores pay cash instead. Spend coins from the Money tab.</p>
+      <button class="btn primary" type="submit">Save</button></form>`;
+
     const interest = `<form data-form="settings">
       <div class="row2">
         <label class="field"><span>Interest rate (% per year)</span><input type="number" name="interest_apr" min="0" max="100" step="0.1" value="${settings.interest_apr}"></label>
@@ -524,6 +546,7 @@
       section('📅 Google Calendar', google, accounts.length === 0),
       section('🌤️ Weather', weather),
       section('🖥️ Display', display),
+      section('🪙 Rewards', rewards),
       section('📈 Interest', interest),
       section(`🔔 Notifications${settings.ntfy_topic ? '' : ' (off)'}`, notifications),
       section(`🖼️ Screensaver photos (${photos.length})`, photosHtml),
@@ -596,8 +619,13 @@
     if (toggle) {
       try {
         if (toggle.dataset.status === 'approved') return toast('Already paid — remove the transaction under Money to undo.');
-        if (toggle.dataset.status && toggle.dataset.status !== 'rejected') await api(`/api/chores/completions/${toggle.dataset.completion}`, { method: 'DELETE' });
-        else await api(`/api/chores/${toggle.dataset.toggle}/complete`, { method: 'POST', body: { member_id: Number(toggle.dataset.member) } });
+        if (toggle.dataset.status && toggle.dataset.status !== 'rejected') {
+          await api(`/api/chores/completions/${toggle.dataset.completion}`, { method: 'DELETE' });
+        } else {
+          // A parent ticking a chore counts as approving it in one go.
+          const c = await api(`/api/chores/${toggle.dataset.toggle}/complete`, { method: 'POST', body: { member_id: Number(toggle.dataset.member) } });
+          if (c && c.id) await api(`/api/chores/completions/${c.id}/approve`, { method: 'POST' });
+        }
         render();
       } catch (err) { fail(err); }
       return;
@@ -622,12 +650,16 @@
         case 'delete-chore':
           if (!confirm('Delete this chore? History is kept.')) return;
           await api(`/api/chores/${id}`, { method: 'DELETE' }); closeSheet(); toast('Chore deleted'); render(); break;
+        case 'approve-all': {
+          const r = await api('/api/chores/approve-all', { method: 'POST', body: {} });
+          toast(`Approved ${r.approved}`); render(); break;
+        }
         case 'approve': {
           const p = (S.pending || []).find((x) => x.id === Number(id));
           await api(`/api/chores/completions/${id}/approve`, { method: 'POST' });
-          toast('Paid!');
+          toast(p && p.paid ? 'Paid!' : 'Approved');
           await render();
-          if (p && p.schedule !== 'once') {
+          if (p && p.paid && p.schedule !== 'once') {
             openSheet(`<h2>Keep “${esc(p.title)}” on the list?</h2>
               <p class="muted">It repeats (${p.schedule === 'daily' ? 'every day' : 'certain days'}). Keep it so ${esc(p.member_name)} can earn again, or remove it now.</p>
               <div class="actions"><button class="btn primary grow" data-action="close-sheet">Keep on list</button>
@@ -638,6 +670,9 @@
         case 'close-sheet': closeSheet(); break;
         case 'remove-chore-quiet': await api(`/api/chores/${id}`, { method: 'DELETE' }); closeSheet(); toast('Chore removed'); render(); break;
         case 'reject': await api(`/api/chores/completions/${id}/reject`, { method: 'POST' }); toast('Rejected'); render(); break;
+        case 'delete-coins':
+          if (!confirm('Remove this coin entry?')) return;
+          await api(`/api/coins/transactions/${id}`, { method: 'DELETE' }); toast('Removed'); render(); break;
         case 'delete-tx':
           if (!confirm('Remove this transaction?')) return;
           await api(`/api/finance/transactions/${id}`, { method: 'DELETE' }); toast('Removed'); render(); break;
@@ -765,6 +800,12 @@
           const cents = toCents(fd.get('amount'));
           if (!cents) return toast('Enter an amount', true);
           await api(`/api/finance/${form.dataset.member}/transactions`, { method: 'POST', body: { type: fd.get('type'), account: fd.get('account'), amount_cents: cents, note: fd.get('note') } });
+          toast('Saved'); render(); break;
+        }
+        case 'coins': {
+          const amount = parseInt(fd.get('amount'), 10);
+          if (!amount) return toast('Enter a number of coins', true);
+          await api(`/api/coins/${form.dataset.member}`, { method: 'POST', body: { amount, note: fd.get('note') } });
           toast('Saved'); render(); break;
         }
         case 'setbal': {

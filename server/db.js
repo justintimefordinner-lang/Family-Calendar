@@ -102,6 +102,16 @@ CREATE TABLE IF NOT EXISTS transactions (
 );
 CREATE INDEX IF NOT EXISTS idx_tx_member ON transactions(member_id, created_at);
 
+CREATE TABLE IF NOT EXISTS coin_transactions (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  member_id INTEGER NOT NULL REFERENCES members(id) ON DELETE CASCADE,
+  amount INTEGER NOT NULL,       -- signed whole coins
+  note TEXT,
+  completion_id INTEGER REFERENCES chore_completions(id) ON DELETE SET NULL,
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_coins_member ON coin_transactions(member_id, created_at);
+
 CREATE TABLE IF NOT EXISTS meals (
   date TEXT PRIMARY KEY,
   title TEXT NOT NULL,

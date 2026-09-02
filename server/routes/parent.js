@@ -118,6 +118,25 @@ router.delete('/chores/:id', (req, res) => {
 });
 
 router.get('/chores/pending', (req, res) => res.json(chores.pending()));
+router.post('/chores/approve-all', (req, res) => res.json({ approved: chores.approveAll(toInt(req.body.member_id, null)) }));
+
+// ---- Reward coins ----------------------------------------------------------
+router.post('/coins/:memberId', (req, res) => {
+  const memberId = toInt(req.params.memberId);
+  if (!memberById.get(memberId)) throw new HttpError(404, 'Member not found');
+  const amount = toInt(req.body.amount);
+  if (!amount) throw new HttpError(400, 'amount required (whole coins, negative to spend)');
+  db.prepare('INSERT INTO coin_transactions(member_id, amount, note) VALUES(?, ?, ?)')
+    .run(memberId, amount, String(req.body.note || '').trim().slice(0, 200) || null);
+  res.json({ coins: chores.coinBalance(memberId) });
+});
+
+router.delete('/coins/transactions/:id', (req, res) => {
+  const t = db.prepare('SELECT * FROM coin_transactions WHERE id = ?').get(toInt(req.params.id));
+  if (!t) throw new HttpError(404, 'Not found');
+  db.prepare('DELETE FROM coin_transactions WHERE id = ?').run(t.id);
+  res.json({ coins: chores.coinBalance(t.member_id) });
+});
 router.post('/chores/completions/:id/approve', (req, res) => res.json(chores.approve(toInt(req.params.id))));
 router.post('/chores/completions/:id/reject', (req, res) => { chores.reject(toInt(req.params.id)); res.json({ ok: true }); });
 
@@ -227,7 +246,7 @@ router.patch('/settings', (req, res) => {
   if (b.temp_unit !== undefined && !['fahrenheit', 'celsius'].includes(b.temp_unit)) throw new HttpError(400, 'temp_unit must be fahrenheit or celsius');
   db.transaction(() => {
     for (const [key, value] of Object.entries(b)) {
-      if (['week_start', 'screensaver_minutes', 'photo_seconds', 'month_themes', 'interest_day', 'sync_minutes'].includes(key)) settings.set(key, toInt(value, 0));
+      if (['week_start', 'screensaver_minutes', 'photo_seconds', 'month_themes', 'interest_day', 'coins_per_chore', 'sync_minutes'].includes(key)) settings.set(key, toInt(value, 0));
       else if (['interest_apr', 'weather_lat', 'weather_lon'].includes(key)) settings.set(key, value === null || value === '' ? null : Number(value));
       else settings.set(key, typeof value === 'string' ? value.trim() : value);
     }

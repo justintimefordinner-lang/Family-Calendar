@@ -145,7 +145,10 @@ router.get('/finance/summary', (req, res) => {
   res.json(kids.map((m) => {
     const cash = interest.balance(m.id, 'cash');
     const invested = interest.balance(m.id, 'invested');
-    return { member_id: m.id, cash_cents: cash, invested_cents: invested, balance_cents: cash + invested, pending_cents: pendingCents.get(m.id).cents };
+    return {
+      member_id: m.id, cash_cents: cash, invested_cents: invested, balance_cents: cash + invested,
+      pending_cents: pendingCents.get(m.id).cents, coins: chores.coinBalance(m.id),
+    };
   }));
 });
 
@@ -164,7 +167,10 @@ router.get('/finance/:memberId', (req, res) => {
     pending_cents: pendingCents.get(id).cents,
     interest_apr: Number(settings.get('interest_apr')) || 0,
     interest_day: Number(settings.get('interest_day')) || 1,
+    coins: chores.coinBalance(id),
+    coin_name: settings.get('coin_name'),
     transactions: db.prepare('SELECT * FROM transactions WHERE member_id = ? ORDER BY created_at DESC, id DESC LIMIT ?').all(id, limit),
+    coin_transactions: db.prepare('SELECT * FROM coin_transactions WHERE member_id = ? ORDER BY created_at DESC, id DESC LIMIT ?').all(id, limit),
   });
 });
 

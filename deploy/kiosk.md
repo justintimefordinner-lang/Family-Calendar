@@ -15,7 +15,9 @@ screen blanking, hides the mouse cursor, and adds an autostart entry. Requires R
 
 ## Hardware notes
 
-- **HDMI touchscreen**: HDMI for the picture plus a USB cable for touch. Works out of the box.
+- **HDMI touchscreen** (e.g. a 24" 1080p CUNPU-style monitor): HDMI for the picture plus the
+  monitor's USB-B cable into any Pi USB port for touch. It shows up as a standard USB HID
+  touch device — no driver. Ignore the "macOS not supported" note; Linux is fine.
 - **Official Raspberry Pi Touch Display (DSI ribbon)**: works out of the box on Pi 4/5.
 - The layout is designed for **1920×1080 landscape**. Anything 1280 px wide or more works; smaller
   panels get cramped.

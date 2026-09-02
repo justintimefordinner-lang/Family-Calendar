@@ -14,6 +14,8 @@ const DEFAULTS = {
   weather_label: '',
   interest_apr: 0,           // percent per year, credited monthly
   interest_day: 1,           // day of month interest is credited
+  coin_name: 'Mom Coins',    // reward points for approved chores
+  coins_per_chore: 2,
   sync_minutes: 5,
   ntfy_topic: '',            // parents subscribe to this topic in the ntfy app
   ntfy_server: 'https://ntfy.sh',
@@ -29,13 +31,14 @@ const DEFAULTS = {
 // Settings safe to expose to the (unauthenticated) kiosk.
 const PUBLIC_KEYS = [
   'family_name', 'timezone', 'week_start', 'screensaver_minutes', 'photo_seconds', 'month_themes',
-  'temp_unit', 'weather_label', 'interest_apr', 'interest_day', 'last_sync_at',
+  'temp_unit', 'weather_label', 'interest_apr', 'interest_day', 'coin_name', 'coins_per_chore', 'last_sync_at',
 ];
 // Settings a parent may change through PATCH /api/settings.
 const EDITABLE_KEYS = [
   'family_name', 'timezone', 'week_start', 'screensaver_minutes', 'photo_seconds', 'month_themes',
   'temp_unit', 'weather_lat', 'weather_lon', 'weather_label', 'interest_apr',
-  'interest_day', 'sync_minutes', 'ntfy_topic', 'ntfy_server', 'app_url', 'google_client_id', 'google_client_secret',
+  'interest_day', 'coin_name', 'coins_per_chore', 'sync_minutes', 'ntfy_topic', 'ntfy_server', 'app_url',
+  'google_client_id', 'google_client_secret',
 ];
 const SECRET_KEYS = ['pin_hash', 'session_secret', 'google_client_secret'];
 

@@ -264,8 +264,12 @@
       else if (c.member_id == null) badge = '<span class="badge">Anyone can claim this</span>';
       else badge = '<span class="badge">Tap when finished</span>';
       sub = `<span class="sub">${badge}</span>`;
-    } else if (showWho && c.member_name) {
-      sub = `<span class="sub">${esc(c.member_name)}</span>`;
+    } else {
+      const coinName = state.settings.coin_name || 'Mom Coins';
+      const coins = Number(state.settings.coins_per_chore) || 0;
+      if (c.status === 'pending') sub = `<span class="sub"><span class="badge pending">Waiting for approval${coins ? ` · 🪙 +${coins}` : ''}</span></span>`;
+      else if (c.status === 'approved' && coins) sub = `<span class="sub"><span class="badge approved">🪙 +${coins} ${esc(coinName)}</span></span>`;
+      else if (showWho && c.member_name) sub = `<span class="sub">${esc(c.member_name)}</span>`;
     }
     if (c.notes) sub += `<span class="sub">${esc(c.notes)}</span>`;
     const amt = c.paid ? `<span class="amt">${money(c.amount_cents)}</span>` : '';
@@ -306,6 +310,7 @@
         <div class="money2">
           <div><div class="lbl">💵 Cash</div><div class="balance">${money(cash)}</div></div>
           <div><div class="lbl">📈 Invested with Dad</div><div class="balance">${money(invested)}</div>${apr > 0 ? `<div class="lbl">earning ${apr}% a year</div>` : ''}</div>
+          <div class="coins"><div class="lbl">🪙 ${esc(state.settings.coin_name || 'Mom Coins')}</div><div class="balance">${fin ? (fin.coins || 0) : 0}</div></div>
         </div>
         ${fin && fin.pending_cents ? `<div class="hint center"><b>+${money(fin.pending_cents)}</b> waiting for a parent to approve</div>` : ''}
       </div>`;
@@ -328,9 +333,10 @@
       const fin = state.finance.find((f) => f.member_id === m.id);
       const pct = regular.length ? Math.round((done / regular.length) * 100) : 0;
       const pending = fin && fin.pending_cents ? `<small>${money(fin.pending_cents)} waiting for approval</small>` : '';
+      const coins = fin && m.role === 'kid' ? ` · 🪙 ${fin.coins || 0}` : '';
       return `<div class="row" data-member-row="${m.id}" style="--c:${esc(m.color)}">
         <div class="avatar">${esc(m.emoji)}</div>
-        <div class="grow">${esc(m.name)}<small>${regular.length ? `${done} of ${regular.length} chores done` : 'no chores today'}</small>${pending}</div>
+        <div class="grow">${esc(m.name)}<small>${regular.length ? `${done} of ${regular.length} chores done` : 'no chores today'}${coins}</small>${pending}</div>
         ${regular.length ? `<div class="progress"><i style="width:${pct}%"></i></div>` : ''}
       </div>`;
     }).join('');
@@ -393,6 +399,35 @@
     if (m) renderSideMember(m); else renderSideEveryone();
   }
 
+  // ---- "Great Job!" celebration ----------------------------------------------
+  let celebrateTimer = null;
+  function celebrate(name, msg) {
+    const el = $('#celebrate');
+    const stars = el.querySelector('.stars');
+    const glyphs = ['⭐', '🌟', '✨', '💫', '⭐', '🌟'];
+    stars.innerHTML = Array.from({ length: 28 }, (_, i) => {
+      const angle = (i / 28) * Math.PI * 2 + Math.random() * 0.4;
+      const dist = 240 + Math.random() * 420;
+      const dx = Math.cos(angle) * dist;
+      const dy = Math.sin(angle) * dist;
+      return `<span class="star" style="left:50%;top:50%;--dx:${dx.toFixed(0)}px;--dy:${dy.toFixed(0)}px;--rot:${(Math.random() * 720 - 360).toFixed(0)}deg;animation-delay:${(Math.random() * 0.25).toFixed(2)}s;font-size:${(1.8 + Math.random() * 2).toFixed(1)}rem">${glyphs[i % glyphs.length]}</span>`;
+    }).join('');
+    $('#celebrateName').textContent = name ? `Way to go, ${name}!` : '';
+    $('#celebrateMsg').textContent = msg || '';
+    el.hidden = false;
+    clearTimeout(celebrateTimer);
+    celebrateTimer = setTimeout(() => { el.hidden = true; }, 3200);
+  }
+  $('#celebrate').addEventListener('click', () => { clearTimeout(celebrateTimer); $('#celebrate').hidden = true; });
+
+  function rewardMessage(chore) {
+    const coinName = state.settings.coin_name || 'Mom Coins';
+    const coins = Number(state.settings.coins_per_chore) || 0;
+    if (chore.paid) return `Sent to Mom & Dad — ${money(chore.amount_cents)} once they approve it`;
+    if (coins > 0) return `Sent to Mom & Dad — ${coins} ${coinName} once they approve it`;
+    return 'Sent to Mom & Dad for approval';
+  }
+
   // ---- Modals ---------------------------------------------------------------
   function openModal(html) {
     $('#modalBody').innerHTML = html;
@@ -431,13 +466,18 @@
     const rows = f.transactions.map((t) => `<div class="tx">
       <div class="n">${esc(t.note || label[t.type] || t.type)}<small>${new Date(t.created_at.replace(' ', 'T') + 'Z').toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' })} · ${label[t.type] || t.type} · ${acct(t)}</small></div>
       <div class="a ${t.amount_cents < 0 ? 'neg' : 'pos'}">${t.amount_cents < 0 ? '−' : '+'}${money(Math.abs(t.amount_cents))}</div></div>`).join('');
+    const coinRows = (f.coin_transactions || []).slice(0, 15).map((t) => `<div class="tx">
+      <div class="n">${esc(t.note || 'Coins')}<small>${new Date(t.created_at.replace(' ', 'T') + 'Z').toLocaleDateString([], { month: 'short', day: 'numeric' })}</small></div>
+      <div class="a ${t.amount < 0 ? 'neg' : 'pos'}">${t.amount < 0 ? '−' : '+'}${Math.abs(t.amount)} 🪙</div></div>`).join('');
     openModal(`<h2>${esc(m.emoji)} ${esc(m.name)}'s Money</h2>
       <div class="money2">
         <div><div class="lbl">💵 Cash</div><div class="balance">${money(f.cash_cents || 0)}</div></div>
         <div><div class="lbl">📈 Invested with Dad</div><div class="balance">${money(f.invested_cents || 0)}</div>
           <div class="lbl">${f.interest_apr > 0 ? `${f.interest_apr}% a year, paid on day ${f.interest_day} of each month` : 'no interest yet'}</div></div>
+        <div class="coins"><div class="lbl">🪙 ${esc(f.coin_name || 'Mom Coins')}</div><div class="balance">${f.coins || 0}</div></div>
       </div>
-      <div style="margin-top:16px">${rows || '<p class="muted center">No activity yet</p>'}</div>`);
+      <div style="margin-top:16px">${rows || '<p class="muted center">No activity yet</p>'}</div>
+      ${coinRows ? `<h3 style="margin-top:18px">🪙 ${esc(f.coin_name || 'Mom Coins')}</h3>${coinRows}` : ''}`);
   }
 
   // ---- Data loading ---------------------------------------------------------
@@ -537,6 +577,9 @@
       try {
         await api(`/api/chores/${claim.dataset.claim}/complete`, { method: 'POST', body: { member_id: Number(claim.dataset.kid), date: state.today } });
         closeModal();
+        const chore = state.chores.find((c) => c.id === Number(claim.dataset.claim));
+        const m = memberById(Number(claim.dataset.kid));
+        celebrate(m ? m.name : '', chore ? rewardMessage(chore) : '');
         await loadSide();
       } catch (err) { alert(err.message); }
       return;
@@ -611,6 +654,9 @@
         await api(`/api/chores/completions/${el.dataset.completion}`, { method: 'DELETE' });
       } else {
         await api(`/api/chores/${el.dataset.chore}/complete`, { method: 'POST', body: { member_id: memberId, date: state.today } });
+        const chore = state.chores.find((c) => c.id === Number(el.dataset.chore));
+        const m = memberById(memberId);
+        celebrate(m ? m.name : '', chore ? rewardMessage(chore) : '');
       }
       await loadSide();
     } catch (err) {

@@ -185,6 +185,7 @@ h1, h2, h3 { margin: 0; font-weight: 700; }
 .money2 > div { flex: 1; padding: 10px 6px; border-radius: 14px; background: #f7f5f0; }
 .money2 .lbl { font-size: 0.85rem; color: var(--muted); font-weight: 600; }
 .money2 .balance { font-size: 2rem; font-weight: 800; letter-spacing: -0.02em; line-height: 1.15; }
+.money2 .coins { background: #fff7d6; }
 .money .balance { font-size: 2.8rem; font-weight: 800; letter-spacing: -0.02em; line-height: 1; }
 .money .hint { color: var(--muted); margin-top: 8px; font-size: 0.95rem; }
 .money .hint b { color: var(--good); }
@@ -231,6 +232,23 @@ h1, h2, h3 { margin: 0; font-weight: 700; }
 .setup-notice[hidden] { display: none; }
 .setup-notice h2 { font-size: 2.4rem; margin-bottom: 16px; }
 .setup-notice p { font-size: 1.4rem; color: var(--muted); }
+
+/* ---- "Great Job!" celebration ---- */
+.celebrate { position: fixed; inset: 0; z-index: 90; display: grid; place-items: center; background: rgba(20, 16, 40, 0.55); animation: fadeIn 0.2s ease; }
+.celebrate[hidden] { display: none; }
+.celebrate-card { background: #fff; border-radius: 32px; padding: 40px 64px; text-align: center; box-shadow: 0 30px 80px rgba(0,0,0,0.4); animation: pop 0.5s cubic-bezier(0.2, 1.4, 0.4, 1); position: relative; z-index: 2; }
+.celebrate .big { font-size: 4.2rem; font-weight: 900; letter-spacing: -0.02em; background: linear-gradient(90deg, #f59e0b, #ef4444, #8b5cf6, #2f6fed); -webkit-background-clip: text; background-clip: text; color: transparent; line-height: 1.1; }
+.celebrate .name { font-size: 2.2rem; font-weight: 800; margin-top: 6px; color: var(--ink); }
+.celebrate .msg { font-size: 1.3rem; color: var(--muted); margin-top: 14px; }
+.celebrate .stars { position: absolute; inset: 0; overflow: hidden; pointer-events: none; }
+.celebrate .star { position: absolute; font-size: 2.6rem; animation: burst 1.6s ease-out forwards; will-change: transform, opacity; }
+@keyframes pop { 0% { transform: scale(0.4); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+@keyframes burst {
+  0% { transform: translate(-50%, -50%) scale(0.2) rotate(0deg); opacity: 0; }
+  15% { opacity: 1; }
+  100% { transform: translate(calc(-50% + var(--dx)), calc(-50% + var(--dy))) scale(1.4) rotate(var(--rot)); opacity: 0; }
+}
 
 /* ---- Screensaver ---- */
 .screensaver { position: fixed; inset: 0; background: #000; z-index: 100; }
