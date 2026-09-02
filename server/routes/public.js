@@ -263,6 +263,37 @@ router.get('/google/callback', wrap(async (req, res) => {
   }
 }));
 
+// ---- Games: coins per minute of play ---------------------------------------
+const GAME_NAMES = { pacman: 'Pac-Man', snake: 'Snake', frogger: 'Frogger', asteroids: 'Asteroids' };
+const coinTx = db.prepare('SELECT * FROM coin_transactions WHERE id = ?');
+
+router.post('/games/session', (req, res) => {
+  const memberId = toInt(req.body.member_id);
+  if (!memberId || !db.prepare('SELECT 1 FROM members WHERE id = ? AND active = 1').get(memberId)) throw new HttpError(404, 'Member not found');
+  const label = GAME_NAMES[req.body.game] || 'Game';
+  const rate = Math.max(0, Number(settings.get('game_coins_per_minute')) || 0);
+  const coins = chores.coinBalance(memberId);
+  if (rate > 0 && coins <= 0) throw new HttpError(402, `Out of ${settings.get('coin_name') || 'coins'}`);
+  let id = null;
+  if (rate > 0) {
+    id = db.prepare('INSERT INTO coin_transactions(member_id, amount, note) VALUES(?, 0, ?)').run(memberId, `🎮 ${label} · 0 min`).lastInsertRowid;
+  }
+  res.json({ id, rate, coins });
+});
+
+// The display reports total seconds played; the one session row is updated in place.
+router.post('/games/session/:id/tick', (req, res) => {
+  const tx = coinTx.get(toInt(req.params.id));
+  if (!tx) throw new HttpError(404, 'Session not found');
+  const seconds = Math.max(0, Number(req.body.seconds) || 0);
+  const rate = Math.max(0, Number(settings.get('game_coins_per_minute')) || 0);
+  const amount = -Math.round((rate * seconds / 60) * 100) / 100;
+  const minutes = Math.round(seconds / 6) / 10;
+  db.prepare('UPDATE coin_transactions SET amount = ?, note = ? WHERE id = ?').run(amount, `${String(tx.note).replace(/ · .*$/, '')} · ${minutes} min`, tx.id);
+  const coins = chores.coinBalance(tx.member_id);
+  res.json({ coins, amount, out: coins <= 0 });
+});
+
 // ---- Weather ---------------------------------------------------------------
 router.get('/weather', wrap(async (req, res) => {
   try {

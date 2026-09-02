@@ -59,6 +59,25 @@
     </div>
   </div>
 
+  <div id="game" class="game" hidden>
+    <div class="game-top">
+      <button class="btn" data-game-close>✕ Close</button>
+      <div id="gameTitle" class="game-title">Pac-Man</div>
+      <div id="gameCoins" class="game-coins"></div>
+      <div class="game-top-actions"><button class="btn" data-game-pause>⏸ Pause</button><button class="btn" data-game-restart>▶ Play again</button></div>
+    </div>
+    <div class="game-stage">
+      <div class="game-canvas-wrap"><canvas id="gameCanvas"></canvas></div>
+      <div class="dpad" aria-label="Direction pad">
+        <button class="dpad-btn up" data-dir="up">▲</button>
+        <button class="dpad-btn left" data-dir="left">◀</button>
+        <button class="dpad-btn right" data-dir="right">▶</button>
+        <button class="dpad-btn down" data-dir="down">▼</button>
+        <button class="dpad-btn fire" data-dir="fire">●</button>
+      </div>
+    </div>
+  </div>
+
   <div id="osk" class="osk" hidden>
     <div class="osk-preview"><span id="oskText"></span><span class="osk-caret"></span></div>
     <div id="oskKeys" class="osk-keys"></div>
@@ -83,6 +102,8 @@
   </div>
 
   <script src="/js/themeArt.js"></script>
+  <script src="/js/pacman.js"></script>
+  <script src="/js/games.js"></script>
   <script src="/js/kiosk.js"></script>
 </body>
 </html>

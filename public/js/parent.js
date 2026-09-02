@@ -546,6 +546,7 @@
         <label class="field"><span>Name of the reward points</span><input type="text" name="coin_name" maxlength="30" value="${esc(settings.coin_name)}" placeholder="Mom Coins"></label>
         <label class="field"><span>Coins per approved chore</span><input type="number" name="coins_per_chore" min="0" max="100" value="${settings.coins_per_chore}"></label>
       </div>
+      <label class="field"><span>🎮 Games on the display cost (coins per minute, 0 = free)</span><input type="number" name="game_coins_per_minute" min="0" max="100" step="0.1" inputmode="decimal" value="${settings.game_coins_per_minute ?? 0.5}"></label>
       <p class="muted small">Every chore a kid taps shows a "Great Job!" and waits for a parent's OK. Regular chores then award coins; Earn Money chores pay cash instead. Spend coins from the Money tab.</p>
       <button class="btn primary" type="submit">Save</button></form>`;
 

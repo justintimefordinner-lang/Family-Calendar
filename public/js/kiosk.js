@@ -123,7 +123,7 @@
     return ev.is_family ? 'Family' : ev.calendar_name;
   }
   function eventsVisible() {
-    if (state.selected == null || state.selected === 'earn') return state.events;
+    if (typeof state.selected !== 'number') return state.events;
     // A person's view shows only their events: calendars mapped to them plus events whose
     // title names them. Family-wide events appear on the Everyone view.
     return state.events.filter((e) => eventMembers(e).some((m) => m.id === state.selected));
@@ -179,7 +179,9 @@
         <span class="avatar">${esc(m.emoji)}</span><span>${esc(m.name)}</span></button>`).join('');
     const earn = `<button class="member-btn earn ${state.selected === 'earn' ? 'active' : ''}" data-member="earn" style="--c:#16a34a">
         <span class="avatar">💵</span><span>Earn Money</span></button>`;
-    $('#members').innerHTML = all + rest + earn;
+    const games = `<button class="member-btn games ${state.selected === 'games' ? 'active' : ''}" data-member="games" style="--c:#111827">
+        <span class="avatar">🎮</span><span>Games</span></button>`;
+    $('#members').innerHTML = all + rest + earn + games;
   }
 
   // ---- Rendering: calendar ---------------------------------------------------
@@ -414,8 +416,122 @@
       <div class="common-grid">${items.map((it) => `<button class="btn ${onList.has(it.toLowerCase()) ? 'added' : ''}" data-common="${esc(it)}">${onList.has(it.toLowerCase()) ? '✓ ' : ''}${esc(it)}</button>`).join('') || '<p class="muted">Nothing yet — items you add with the keyboard show up here.</p>'}</div>`);
   }
 
+  const GAME_LIST = [
+    { key: 'pacman', name: 'Pac-Man', icon: '🟡', sub: 'Swipe or use the arrows', fire: false },
+    { key: 'snake', name: 'Snake', icon: '🐍', sub: 'Eat apples, don’t hit the walls', fire: false },
+    { key: 'frogger', name: 'Frogger', icon: '🐸', sub: 'Hop across the road and river', fire: false },
+    { key: 'asteroids', name: 'Asteroids', icon: '🚀', sub: 'Rotate, thrust and ● to shoot', fire: true },
+  ];
+  const gameRate = () => Number(state.settings.game_coins_per_minute) || 0;
+  const coinName = () => state.settings.coin_name || 'Mom Coins';
+
+  function renderSideGames() {
+    const rate = gameRate();
+    $('#side').innerHTML = `<div class="card accent" style="--c:#111827"><h3>🎮 Games <span class="meta">${rate > 0 ? `🪙 ${rate} ${esc(coinName())} per minute` : 'free play'}</span></h3>
+      ${GAME_LIST.map((g) => `<div class="game-card" data-game="${g.key}"><div class="icon ${g.key}">${g.icon}</div><div><div class="name">${g.name}</div><span class="sub">${g.sub} · High score ${Number(localStorage.getItem(`fc_${g.key}_high`) || 0)}</span></div></div>`).join('')}
+    </div>
+    <p class="muted center">Chores first, then games 😉</p>`;
+  }
+
+  // ---- Play sessions: who is playing, and coins ticking away per minute ----------------
+  const play = { key: null, memberId: null, sessionId: null, startedAt: 0, timer: null, coins: 0 };
+
+  function openGame(key) {
+    const g = GAME_LIST.find((x) => x.key === key);
+    if (!g) return;
+    const kids = state.members.filter((m) => m.role === 'kid');
+    if (!kids.length) return startGame(key, null);
+    const rate = gameRate();
+    openModal(`<h2>${g.icon} ${g.name} — who's playing?</h2>
+      ${rate > 0 ? `<p class="kv">Costs <b>🪙 ${rate} ${esc(coinName())}</b> per minute while the game is open.</p>` : ''}
+      <div class="kid-pick">${kids.map((m) => {
+        const fin = state.finance.find((f) => f.member_id === m.id);
+        const coins = fin ? (fin.coins || 0) : 0;
+        return `<button class="member-btn" data-play="${key}" data-kid="${m.id}" style="--c:${esc(m.color)}"><span class="avatar">${esc(m.emoji)}</span><span>${esc(m.name)}<small class="sub">🪙 ${coins}</small></span></button>`;
+      }).join('')}</div>`);
+  }
+
+  async function startGame(key, memberId) {
+    const g = GAME_LIST.find((x) => x.key === key);
+    let session = { id: null, rate: 0, coins: 0 };
+    if (memberId != null) {
+      try {
+        session = await api('/api/games/session', { method: 'POST', body: { member_id: memberId, game: key } });
+      } catch (err) {
+        openModal(`<h2>🪙 ${esc(err.message)}</h2><p class="kv">Finish some chores to earn ${esc(coinName())}, then come back!</p><div class="kid-pick"><button class="btn" data-close>OK</button></div>`);
+        return;
+      }
+    }
+    closeModal();
+    Object.assign(play, { key, memberId, sessionId: session.id || null, startedAt: Date.now(), coins: Number(session.coins) || 0 });
+    const overlay = $('#game');
+    overlay.hidden = false;
+    overlay.classList.toggle('uses-fire', Boolean(g.fire));
+    $('#gameTitle').textContent = g.name;
+    updateGameCoins();
+    const wrap = $('.game-canvas-wrap');
+    window.Games[key].start($('#gameCanvas'), { height: wrap.clientHeight || (window.innerHeight - 120), width: Math.min(1100, window.innerWidth - 520) });
+    clearInterval(play.timer);
+    if (play.sessionId) play.timer = setInterval(() => gameTick(false), 30_000);
+  }
+
+  function updateGameCoins() {
+    const m = play.memberId != null ? memberById(play.memberId) : null;
+    const mins = Math.floor((Date.now() - play.startedAt) / 60_000);
+    $('#gameCoins').textContent = m ? `${m.emoji} ${m.name} · 🪙 ${play.coins}${play.sessionId ? ` · ${mins} min` : ''}` : '';
+  }
+
+  async function gameTick(final) {
+    if (!play.sessionId) return;
+    try {
+      const r = await api(`/api/games/session/${play.sessionId}/tick`, { method: 'POST', body: { seconds: (Date.now() - play.startedAt) / 1000 } });
+      play.coins = r.coins;
+      updateGameCoins();
+      if (r.out && !final) {
+        await closeGame();
+        openModal(`<h2>🪙 Out of ${esc(coinName())}!</h2><p class="kv">Do some chores to earn more, then play again.</p><div class="kid-pick"><button class="btn" data-close>OK</button></div>`);
+      }
+    } catch { /* keep playing; next tick retries */ }
+  }
+
+  async function closeGame() {
+    clearInterval(play.timer); play.timer = null;
+    if (play.key && window.Games[play.key]) window.Games[play.key].stop();
+    $('#game').hidden = true;
+    if (play.sessionId) { await gameTick(true); play.sessionId = null; }
+    play.key = null;
+    if (state.selected === 'games') renderSideGames();
+    loadSide();
+  }
+
+  const currentGame = () => (play.key ? window.Games[play.key] : null);
+
+  // Swipe on the canvas (a tap fires for Asteroids)
+  let swipe = null;
+  document.addEventListener('pointerdown', (e) => { if (e.target.id === 'gameCanvas') swipe = { x: e.clientX, y: e.clientY }; }, true);
+  document.addEventListener('pointerup', (e) => {
+    if (!swipe) return;
+    const dx = e.clientX - swipe.x; const dy = e.clientY - swipe.y; swipe = null;
+    const game = currentGame(); if (!game) return;
+    if (Math.max(Math.abs(dx), Math.abs(dy)) < 20) { if (play.key === 'asteroids') { game.press('fire'); game.release('fire'); } return; }
+    const dir = Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? 'right' : 'left') : (dy > 0 ? 'down' : 'up');
+    game.press(dir); setTimeout(() => game.release(dir), 120);
+  });
+  // D-pad: hold-to-repeat for games that need it (Asteroids), single presses for the rest
+  document.addEventListener('pointerdown', (e) => { const b = e.target.closest('[data-dir]'); const game = currentGame(); if (b && game) { e.preventDefault(); game.press(b.dataset.dir); } });
+  ['pointerup', 'pointercancel', 'pointerleave'].forEach((ev) => document.addEventListener(ev, (e) => { const b = e.target.closest && e.target.closest('[data-dir]'); const game = currentGame(); if (b && game) game.release(b.dataset.dir); }));
+  const KEYMAP = { ArrowUp: 'up', ArrowDown: 'down', ArrowLeft: 'left', ArrowRight: 'right', w: 'up', s: 'down', a: 'left', d: 'right', ' ': 'fire' };
+  document.addEventListener('keydown', (e) => {
+    const game = currentGame(); if (!game || $('#game').hidden) return;
+    if (KEYMAP[e.key]) { e.preventDefault(); if (!e.repeat) game.press(KEYMAP[e.key]); }
+    if (e.key === 'p') game.togglePause();
+    if (e.key === 'Escape') closeGame();
+  });
+  document.addEventListener('keyup', (e) => { const game = currentGame(); if (game && KEYMAP[e.key]) game.release(KEYMAP[e.key]); });
+
   function renderSide() {
     if (state.selected === 'earn') return renderSideEarn();
+    if (state.selected === 'games') return renderSideGames();
     const m = state.selected != null ? memberById(state.selected) : null;
     if (m) renderSideMember(m); else renderSideEveryone();
   }
@@ -609,7 +725,7 @@
     const memberBtn = t.closest('[data-member]');
     if (memberBtn) {
       const v = memberBtn.dataset.member;
-      state.selected = v === 'earn' ? 'earn' : (v ? Number(v) : null);
+      state.selected = v === 'earn' || v === 'games' ? v : (v ? Number(v) : null);
       renderMembers();
       renderCalendar();
       await loadSide();
@@ -682,6 +798,14 @@
     if (chore) { await toggleChore(chore); return; }
     const moneyCard = t.closest('[data-money]');
     if (moneyCard) { await showMoney(Number(moneyCard.dataset.money)); return; }
+    const gameCard = t.closest('[data-game]');
+    if (gameCard) { openGame(gameCard.dataset.game); return; }
+    const playBtn = t.closest('[data-play]');
+    if (playBtn) { await startGame(playBtn.dataset.play, Number(playBtn.dataset.kid)); return; }
+    if (t.closest('[data-game-close]')) { await closeGame(); return; }
+    if (t.closest('[data-game-pause]')) { const gm = currentGame(); if (gm) gm.togglePause(); return; }
+    if (t.closest('[data-game-restart]')) { const gm = currentGame(); if (gm) gm.restart(); return; }
+    if (t.closest('[data-dir]')) return; // handled by pointer events
     if (t.closest('[data-shop-kb]')) {
       const input = $('#shopInput');
       if (input) { input.value = ''; input.focus(); oskShow(input); }

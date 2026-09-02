@@ -242,6 +242,32 @@ h1, h2, h3 { margin: 0; font-weight: 700; }
 .setup-notice h2 { font-size: 2.4rem; margin-bottom: 16px; }
 .setup-notice p { font-size: 1.4rem; color: var(--muted); }
 
+/* ---- Games ---- */
+.member-btn.games { margin-top: 0; }
+.game-card { display: flex; align-items: center; gap: 16px; padding: 14px 6px; border-top: 1px solid var(--line); cursor: pointer; }
+.game-card:first-of-type { border-top: 0; }
+.game-card .icon { width: 64px; height: 64px; border-radius: 16px; background: #111; display: grid; place-items: center; font-size: 2rem; flex: none; }
+.game-card .name { font-size: 1.2rem; font-weight: 700; }
+.game-card .sub { display: block; font-size: 0.9rem; color: var(--muted); font-weight: 500; }
+.game { position: fixed; inset: 0; background: #000; z-index: 85; display: flex; flex-direction: column; color: #fff; }
+.game[hidden] { display: none; }
+.game-top { display: flex; align-items: center; justify-content: space-between; padding: 12px 20px; gap: 12px; }
+.game-top .btn { color: var(--ink); }
+.game-top-actions { display: flex; gap: 10px; }
+.game-title { font-size: 1.6rem; font-weight: 800; letter-spacing: 0.04em; color: #ffe600; }
+.game-stage { flex: 1; min-height: 0; display: flex; align-items: center; justify-content: center; gap: 60px; padding: 0 20px 16px; }
+.game-canvas-wrap { height: 100%; display: flex; align-items: center; }
+#gameCanvas { display: block; touch-action: none; border-radius: 8px; }
+.dpad { display: grid; grid-template-columns: repeat(3, 120px); grid-template-rows: repeat(3, 120px); gap: 10px; }
+.dpad-btn { border: 0; border-radius: 22px; background: #23262f; color: #fff; font-size: 2.6rem; touch-action: manipulation; }
+.dpad-btn:active { background: #ffe600; color: #000; }
+.dpad-btn.up { grid-column: 2; grid-row: 1; } .dpad-btn.left { grid-column: 1; grid-row: 2; }
+.dpad-btn.right { grid-column: 3; grid-row: 2; } .dpad-btn.down { grid-column: 2; grid-row: 3; }
+.dpad-btn.fire { grid-column: 3; grid-row: 3; background: #7f1d1d; border-radius: 50%; display: none; }
+.game.uses-fire .dpad-btn.fire { display: block; }
+.game-coins { font-size: 1.2rem; font-weight: 700; color: #ffd23f; }
+.game-card .icon.snake { background: #0e2a12; } .game-card .icon.frogger { background: #1d4ed8; } .game-card .icon.asteroids { background: #111; }
+
 /* ---- On-screen keyboard (touch displays have no OS keyboard in kiosk mode) ---- */
 .osk { position: fixed; left: 0; right: 0; bottom: 0; z-index: 80; background: #e9e6df; border-top: 1px solid #cfcabf; box-shadow: 0 -12px 40px rgba(0,0,0,0.18); padding: 10px 16px calc(14px + env(safe-area-inset-bottom)); animation: oskUp 0.18s ease; }
 .osk[hidden] { display: none; }

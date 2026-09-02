@@ -127,6 +127,13 @@ buttons (signed one-time links back to the Pi — the phone must be able to reac
 the home Wi-Fi or VPN) plus an *Open app* button. In the app, approvals are grouped by kid with
 an *Approve all* per kid.
 
+## Games
+
+The display has a **Games** button under Earn Money with Pac-Man, Snake, Frogger and Asteroids
+(touch d-pad or swipe; keyboard works too). A kid picks their name before playing; games cost
+reward coins per minute (Settings › Rewards, default 0.5, 0 = free) and end when the coins run out.
+Each play session is one entry in the kid's coin history.
+
 ## Money model
 
 Each kid has two accounts, each a ledger of signed transactions:

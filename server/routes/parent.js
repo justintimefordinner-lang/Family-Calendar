@@ -277,7 +277,7 @@ router.patch('/settings', (req, res) => {
   db.transaction(() => {
     for (const [key, value] of Object.entries(b)) {
       if (['week_start', 'screensaver_minutes', 'photo_seconds', 'month_themes', 'interest_day', 'coins_per_chore', 'sync_minutes'].includes(key)) settings.set(key, toInt(value, 0));
-      else if (['interest_apr', 'weather_lat', 'weather_lon'].includes(key)) settings.set(key, value === null || value === '' ? null : Number(value));
+      else if (['interest_apr', 'weather_lat', 'weather_lon', 'game_coins_per_minute'].includes(key)) settings.set(key, value === null || value === '' ? null : Number(value));
       else settings.set(key, typeof value === 'string' ? value.trim() : value);
     }
   })();
