@@ -125,6 +125,7 @@
     let text;
     if (!state.google.configured || !accts.length) text = '<span class="dot"></span>Google Calendar not connected';
     else if (err) text = `<span class="dot err"></span>Sync problem: ${esc(err.error)}`;
+    else if (state.google.calendars_enabled === 0) text = '<span class="dot err"></span>No calendars turned on — Parent app › Settings › Google Calendar';
     else text = `<span class="dot ok"></span>Synced ${last ? last.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) : '—'}`;
     $('#syncStatus').innerHTML = text;
   }

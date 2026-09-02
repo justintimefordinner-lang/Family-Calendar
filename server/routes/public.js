@@ -24,6 +24,7 @@ router.get('/state', (req, res) => {
     needs_setup: !settings.get('pin_hash'),
     google: {
       configured: google.isConfigured(),
+      calendars_enabled: db.prepare('SELECT COUNT(*) AS n FROM calendars WHERE enabled = 1').get().n,
       accounts: accounts.map((a) => ({ email: a.email, error: a.last_error, last_sync_at: a.last_sync_at })),
     },
   });
