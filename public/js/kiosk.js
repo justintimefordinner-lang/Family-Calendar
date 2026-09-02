@@ -709,6 +709,9 @@
         await api('/api/shopping', { method: 'POST', body: { text: common.dataset.common, qty: commonQty } });
         common.classList.add('added');
         common.textContent = `✓ ${commonQty ? commonQty + ' × ' : ''}${common.dataset.common}`;
+        // Quantity applies to one item, then snaps back to "no qty".
+        commonQty = null;
+        document.querySelectorAll('[data-qsel]').forEach((b) => b.classList.toggle('on', b.dataset.qsel === ''));
         await loadSide();
       } catch (err) { alert(err.message); }
       return;
