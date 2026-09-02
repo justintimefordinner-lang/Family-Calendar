@@ -275,6 +275,34 @@ router.get('/google/callback', wrap(async (req, res) => {
   }
 }));
 
+// ---- Prizes: kids spend coins on rewards parents set up ---------------------
+router.get('/rewards', (req, res) => {
+  res.json(db.prepare('SELECT id, title, coins, emoji, notes FROM rewards WHERE active = 1 ORDER BY coins, sort_order, id').all());
+});
+
+router.post('/rewards/:id/redeem', (req, res) => {
+  const reward = db.prepare('SELECT * FROM rewards WHERE id = ? AND active = 1').get(toInt(req.params.id));
+  if (!reward) throw new HttpError(404, 'Prize not found');
+  const memberId = toInt(req.body.member_id);
+  const member = db.prepare('SELECT * FROM members WHERE id = ? AND active = 1').get(memberId);
+  if (!member) throw new HttpError(404, 'Member not found');
+  const have = chores.coinBalance(memberId);
+  if (have < reward.coins) throw new HttpError(402, `${member.name} needs ${reward.coins - have} more ${settings.get('coin_name') || 'coins'} for that`);
+  const result = db.transaction(() => {
+    const txId = db.prepare('INSERT INTO coin_transactions(member_id, amount, note) VALUES(?, ?, ?)').run(memberId, -reward.coins, `🎁 ${reward.title}`).lastInsertRowid;
+    const id = db.prepare('INSERT INTO redemptions(reward_id, member_id, title, coins, coin_tx_id) VALUES(?, ?, ?, ?, ?)').run(reward.id, memberId, reward.title, reward.coins, txId).lastInsertRowid;
+    return db.prepare('SELECT * FROM redemptions WHERE id = ?').get(id);
+  })();
+  if (notify.isConfigured()) {
+    notify.send({
+      title: `${member.name} redeemed a prize`,
+      message: `${reward.emoji} ${reward.title} — ${reward.coins} ${settings.get('coin_name') || 'coins'}. Mark it done in the parent app when delivered.`,
+      tags: ['gift'], click: `${notify.baseUrl()}/parent/#money`,
+    }).catch((e) => console.error('[notify]', e.message));
+  }
+  res.json({ redemption: result, coins: chores.coinBalance(memberId) });
+});
+
 // ---- Games: allowed hours, and coins per minute of play --------------------
 const GAME_NAMES = { pacman: 'Pac-Man', snake: 'Snake', frogger: 'Frogger', asteroids: 'Asteroids' };
 const coinTx = db.prepare('SELECT * FROM coin_transactions WHERE id = ?');

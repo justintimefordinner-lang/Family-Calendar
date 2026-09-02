@@ -256,6 +256,16 @@ h1, h2, h3 { margin: 0; font-weight: 700; }
 .av-color.on { border-color: var(--ink); transform: scale(1.12); }
 .primary-btn { background: var(--accent); color: #fff; border-color: var(--accent); }
 
+/* ---- Prizes ---- */
+.pill-row { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 10px; }
+.pill { border-radius: 999px; padding: 6px 12px; background: color-mix(in srgb, var(--c, #999) 14%, white); border: 1px solid var(--c, #999); font-weight: 700; font-size: 0.9rem; }
+.prize { display: flex; align-items: center; gap: 14px; padding: 12px 6px; border-top: 1px solid var(--line); cursor: pointer; }
+.prize:first-of-type { border-top: 0; }
+.prize .prize-icon { width: 56px; height: 56px; border-radius: 16px; background: #fdf2f8; display: grid; place-items: center; font-size: 1.8rem; flex: none; }
+.prize .text { flex: 1; font-size: 1.1rem; }
+.prize .sub { display: block; font-size: 0.85rem; color: var(--muted); font-weight: 500; }
+.prize .prize-cost { font-weight: 800; color: #b45309; background: #fff7d6; padding: 6px 12px; border-radius: 999px; white-space: nowrap; }
+
 /* ---- Games ---- */
 .member-btn.games { margin-top: 0; }
 .game-card { display: flex; align-items: center; gap: 16px; padding: 14px 6px; border-top: 1px solid var(--line); cursor: pointer; }

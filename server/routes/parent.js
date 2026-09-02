@@ -236,6 +236,67 @@ router.post('/local-events', (req, res) => res.json(localEvents.create(req.body 
 router.patch('/local-events/:id', (req, res) => res.json(localEvents.update(toInt(req.params.id), req.body || {})));
 router.delete('/local-events/:id', (req, res) => { localEvents.remove(toInt(req.params.id)); res.json({ ok: true }); });
 
+// ---- Prizes (coin rewards) -------------------------------------------------
+const rewardById = db.prepare('SELECT * FROM rewards WHERE id = ?');
+function rewardFields(b, existing = {}) {
+  const title = b.title !== undefined ? String(b.title).trim().slice(0, 80) : existing.title;
+  if (!title) throw new HttpError(400, 'Title required');
+  const coins = b.coins !== undefined ? toInt(b.coins, 0) : existing.coins;
+  if (!coins || coins < 1) throw new HttpError(400, 'Coins must be at least 1');
+  return {
+    title, coins,
+    emoji: b.emoji !== undefined ? (String(b.emoji).trim().slice(0, 12) || '🎁') : (existing.emoji || '🎁'),
+    notes: b.notes !== undefined ? (String(b.notes).trim().slice(0, 200) || null) : (existing.notes ?? null),
+    sort_order: b.sort_order !== undefined ? toInt(b.sort_order, 0) : (existing.sort_order || 0),
+  };
+}
+
+router.get('/rewards/all', (req, res) => res.json(db.prepare('SELECT * FROM rewards WHERE active = 1 ORDER BY coins, sort_order, id').all()));
+
+router.post('/rewards', (req, res) => {
+  const f = rewardFields(req.body || {});
+  const info = db.prepare('INSERT INTO rewards(title, coins, emoji, notes, sort_order) VALUES(@title, @coins, @emoji, @notes, @sort_order)').run(f);
+  res.json(rewardById.get(info.lastInsertRowid));
+});
+
+router.patch('/rewards/:id', (req, res) => {
+  const r = rewardById.get(toInt(req.params.id));
+  if (!r) throw new HttpError(404, 'Prize not found');
+  const f = rewardFields(req.body || {}, r);
+  db.prepare('UPDATE rewards SET title = @title, coins = @coins, emoji = @emoji, notes = @notes, sort_order = @sort_order WHERE id = @id').run({ ...f, id: r.id });
+  res.json(rewardById.get(r.id));
+});
+
+router.delete('/rewards/:id', (req, res) => {
+  db.prepare('UPDATE rewards SET active = 0 WHERE id = ?').run(toInt(req.params.id));
+  res.json({ ok: true });
+});
+
+router.get('/redemptions', (req, res) => {
+  res.json(db.prepare(`
+    SELECT r.*, m.name AS member_name, m.emoji AS member_emoji, m.color FROM redemptions r JOIN members m ON m.id = r.member_id
+    WHERE r.status = 'pending' OR r.created_at > datetime('now', '-30 days') ORDER BY r.status = 'pending' DESC, r.created_at DESC LIMIT 60
+  `).all());
+});
+
+router.post('/redemptions/:id/done', (req, res) => {
+  const r = db.prepare('SELECT * FROM redemptions WHERE id = ?').get(toInt(req.params.id));
+  if (!r) throw new HttpError(404, 'Not found');
+  db.prepare(`UPDATE redemptions SET status = 'done', done_at = datetime('now') WHERE id = ?`).run(r.id);
+  res.json({ ok: true });
+});
+
+// Refund: coins go back, prize is marked cancelled.
+router.post('/redemptions/:id/cancel', (req, res) => {
+  const r = db.prepare('SELECT * FROM redemptions WHERE id = ?').get(toInt(req.params.id));
+  if (!r) throw new HttpError(404, 'Not found');
+  db.transaction(() => {
+    if (r.coin_tx_id) db.prepare('DELETE FROM coin_transactions WHERE id = ?').run(r.coin_tx_id);
+    db.prepare(`UPDATE redemptions SET status = 'cancelled', done_at = datetime('now') WHERE id = ?`).run(r.id);
+  })();
+  res.json({ ok: true, coins: chores.coinBalance(r.member_id) });
+});
+
 // ---- Meals -----------------------------------------------------------------
 router.put('/meals/:date', (req, res) => {
   const { date } = req.params;

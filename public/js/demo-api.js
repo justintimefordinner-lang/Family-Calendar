@@ -57,7 +57,7 @@
     { id: nextId++, member_id: 5, type: 'deposit', account: 'invested', amount_cents: 2025, note: 'Grandma', created_at: '2026-08-15 09:00:00' },
   ];
   const coins = [
-    { id: nextId++, member_id: 1, amount: 14, note: 'Chores', created_at: '2026-08-30 08:00:00' },
+    { id: nextId++, member_id: 1, amount: 64, note: 'Chores', created_at: '2026-08-30 08:00:00' },
     { id: nextId++, member_id: 2, amount: 6, note: 'Chores', created_at: '2026-08-30 08:00:00' },
     { id: nextId++, member_id: 3, amount: 9, note: 'Chores', created_at: '2026-08-30 08:00:00' },
     { id: nextId++, member_id: 4, amount: 2, note: 'Chores', created_at: '2026-08-30 08:00:00' },
@@ -71,6 +71,13 @@
     { id: 3, kind: 'event', title: 'School play', date: ymd(day(9)), end_date: null, time: '18:30', end_time: null, yearly: 0, show_age: 1, member_id: 3, notes: 'Bring camera' },
   ].map((e) => ({ ...e, member_name: e.member_id ? members.find((m) => m.id === e.member_id).name : null }));
 
+  const rewards = [
+    { id: 1, title: 'Date with Mom', coins: 50, emoji: '🍦', notes: 'Ice cream or a movie', active: 1, sort_order: 0 },
+    { id: 2, title: 'Date with Dad', coins: 55, emoji: '🎣', notes: null, active: 1, sort_order: 0 },
+    { id: 3, title: 'Pick dinner', coins: 20, emoji: '🍕', notes: null, active: 1, sort_order: 0 },
+    { id: 4, title: 'Stay up 30 min later', coins: 15, emoji: '🌙', notes: 'School nights excluded', active: 1, sort_order: 0 },
+  ];
+  const redemptions = [];
   const evId = { n: 1 };
   const ev = (title, start, hours, memberId, isFamily, allDay = false, location = null, description = null) => {
     const end = allDay ? day(0) : null;
@@ -228,6 +235,15 @@
     if (p === '/local-events' && method === 'POST') { const e = { id: nextId++, ...body, yearly: body.kind === 'birthday' ? 1 : (body.yearly ? 1 : 0), show_age: body.show_age === false ? 0 : 1, member_name: body.member_id ? findMember(body.member_id).name : null }; localEvents.push(e); return e; }
     if (seg[0] === 'local-events' && method === 'PATCH') { const e = localEvents.find((x) => x.id === num(seg[1])); Object.assign(e, body, { yearly: body.kind === 'birthday' ? 1 : (body.yearly ? 1 : 0), show_age: body.show_age === false ? 0 : 1 }); return e; }
     if (seg[0] === 'local-events' && method === 'DELETE') { const i = localEvents.findIndex((x) => x.id === num(seg[1])); if (i >= 0) localEvents.splice(i, 1); return { ok: true }; }
+    if (p === '/rewards' && method === 'GET') return rewards.filter((r) => r.active);
+    if (p === '/rewards/all') return rewards.filter((r) => r.active);
+    if (p === '/rewards' && method === 'POST') { const r = { id: nextId++, title: body.title, coins: num(body.coins), emoji: body.emoji || '🎁', notes: body.notes || null, active: 1, sort_order: 0 }; rewards.push(r); return r; }
+    if (seg[0] === 'rewards' && seg[2] === 'redeem') { const r = rewards.find((x) => x.id === num(seg[1])); const memberId = num(body.member_id); const have = coinBalance(memberId); if (have < r.coins) return { status: 402, body: { error: `Needs ${r.coins - have} more coins for that` } }; const t = { id: nextId++, member_id: memberId, amount: -r.coins, note: `🎁 ${r.title}`, created_at: nowIso() }; coins.push(t); const m = findMember(memberId); const red = { id: nextId++, reward_id: r.id, member_id: memberId, title: r.title, coins: r.coins, status: 'pending', coin_tx_id: t.id, created_at: nowIso(), member_name: m.name, member_emoji: m.emoji, color: m.color }; redemptions.unshift(red); return { redemption: red, coins: coinBalance(memberId) }; }
+    if (seg[0] === 'rewards' && method === 'PATCH') { const r = rewards.find((x) => x.id === num(seg[1])); Object.assign(r, { title: body.title ?? r.title, coins: body.coins ?? r.coins, emoji: body.emoji || r.emoji, notes: body.notes === undefined ? r.notes : (body.notes || null) }); return r; }
+    if (seg[0] === 'rewards' && method === 'DELETE') { const r = rewards.find((x) => x.id === num(seg[1])); if (r) r.active = 0; return { ok: true }; }
+    if (p === '/redemptions') return redemptions;
+    if (seg[0] === 'redemptions' && seg[2] === 'done') { const r = redemptions.find((x) => x.id === num(seg[1])); if (r) r.status = 'done'; return { ok: true }; }
+    if (seg[0] === 'redemptions' && seg[2] === 'cancel') { const r = redemptions.find((x) => x.id === num(seg[1])); if (r) { r.status = 'cancelled'; const i = coins.findIndex((c) => c.id === r.coin_tx_id); if (i >= 0) coins.splice(i, 1); } return { ok: true }; }
     if (p === '/games/window') return gamesWindow();
     if (p === '/games/ready') return { window: gamesWindow(), kids: active().filter((m) => m.role === 'kid').map((m) => choreGate(m.id)) };
     if (p === '/games/session') { const memberId = num(body.member_id); const gate = choreGate(memberId); if (!gate.ok) return { status: 403, body: { error: `Finish your ${gate.period} chores first: ${gate.missing.join(', ')}` } }; const bal = coinBalance(memberId); if (bal <= 0) return { status: 402, body: { error: `Out of ${settings.coin_name}` } }; const id = nextId++; const row = { id, member_id: memberId, amount: 0, note: `🎮 ${body.game} · 0 min`, created_at: nowIso() }; coins.push(row); sessions.set(id, row); return { id, rate: settings.game_coins_per_minute, coins: bal }; }

@@ -113,6 +113,29 @@ CREATE TABLE IF NOT EXISTS coin_transactions (
 );
 CREATE INDEX IF NOT EXISTS idx_coins_member ON coin_transactions(member_id, created_at);
 
+CREATE TABLE IF NOT EXISTS rewards (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  title TEXT NOT NULL,
+  coins INTEGER NOT NULL,
+  emoji TEXT NOT NULL DEFAULT '🎁',
+  notes TEXT,
+  active INTEGER NOT NULL DEFAULT 1,
+  sort_order INTEGER NOT NULL DEFAULT 0,
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE TABLE IF NOT EXISTS redemptions (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  reward_id INTEGER REFERENCES rewards(id) ON DELETE SET NULL,
+  member_id INTEGER NOT NULL REFERENCES members(id) ON DELETE CASCADE,
+  title TEXT NOT NULL,
+  coins INTEGER NOT NULL,
+  status TEXT NOT NULL DEFAULT 'pending',   -- 'pending' (to deliver) | 'done' | 'cancelled' (refunded)
+  coin_tx_id INTEGER REFERENCES coin_transactions(id) ON DELETE SET NULL,
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  done_at TEXT
+);
+
 CREATE TABLE IF NOT EXISTS meals (
   date TEXT PRIMARY KEY,
   title TEXT NOT NULL,

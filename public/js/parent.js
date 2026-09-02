@@ -298,7 +298,8 @@
 
   // ---- Money -----------------------------------------------------------------
   async function renderMoney() {
-    const [summary, settings] = await Promise.all([api('/api/finance/summary'), api('/api/settings')]);
+    const [summary, settings, rewards, redemptions] = await Promise.all([api('/api/finance/summary'), api('/api/settings'), api('/api/rewards/all'), api('/api/redemptions')]);
+    S.rewards = Array.isArray(rewards) ? rewards : []; S.settings = settings;
     const apr = Number(settings.interest_apr) || 0;
     const cards = kids().map((m) => {
       const f = summary.find((s) => s.member_id === m.id) || { cash_cents: 0, invested_cents: 0, pending_cents: 0 };
@@ -308,7 +309,7 @@
         <div class="bal" style="text-align:right;font-size:1.05rem;line-height:1.35">💵 ${money(f.cash_cents || 0)}<br>📈 ${money(f.invested_cents || 0)}<br>🪙 ${f.coins || 0}</div></div>`;
     }).join('');
     shell('Money', `<p class="muted small">Each kid has <b>Cash</b> (pocket money you keep track of; chore earnings land here) and <b>Invested with Dad</b>${apr > 0 ? `, which earns ${apr}% per year credited on day ${settings.interest_day} of each month.` : ' (no interest set — see Settings › Interest).'}</p>
-      ${cards || '<div class="card"><p class="muted">Add kids in Settings › Family to start tracking money.</p></div>'}`);
+      ${cards || '<div class="card"><p class="muted">Add kids in Settings › Family to start tracking money.</p></div>'}${prizesHtml(S.rewards, Array.isArray(redemptions) ? redemptions : [])}`);
   }
 
   async function renderMoneyDetail(id) {
@@ -361,6 +362,51 @@
         <p class="muted small mt">Records an adjustment for the difference, so the history stays honest.</p></div>
       <div class="card"><h2>History</h2>${rows || '<p class="muted">Nothing yet.</p>'}</div>`,
     `<a class="btn small" href="#money">‹ All kids</a>`);
+  }
+
+  // ---- Prizes (coin rewards) ---------------------------------------------------
+  const PRIZE_IDEAS = [
+    ['🍦', 'Date with Mom', 50], ['🎣', 'Date with Dad', 55], ['🌙', 'Stay up 30 min later', 15], ['🍕', 'Pick dinner', 20],
+    ['🎬', 'Pick the family movie', 25], ['📱', 'Extra 30 min screen time', 10], ['🎟️', 'Skip one chore', 20], ['🍨', 'Ice cream run', 25],
+    ['🛏️', 'Friend sleepover', 60], ['🛝', 'Trip to the park', 15], ['🍰', 'Dessert first', 12], ['🎲', 'Pick game night', 20],
+    ['💵', '$5 cash', 50], ['📚', 'New book', 40], ['⛺', 'Camp in the living room', 35], ['🥞', 'Breakfast in bed', 30],
+    ['👑', 'Boss for a day', 45], ['🎨', 'Craft afternoon', 20], ['🚗', 'Front seat for a week', 25], ['🧁', 'Bake something together', 30],
+  ];
+
+  function prizesHtml(rewards, redemptions) {
+    const coin = S.settings ? (S.settings.coin_name || 'Mom Coins') : 'Mom Coins';
+    const pending = (redemptions || []).filter((r) => r.status === 'pending');
+    const recent = (redemptions || []).filter((r) => r.status !== 'pending').slice(0, 8);
+    const row = (r) => `<div class="list-item">
+      <div class="avatar" style="--c:${esc(r.color)}">${esc(r.member_emoji)}</div>
+      <div class="grow"><div class="title">${esc(r.title)}</div><div class="sub">${esc(r.member_name)} · 🪙 ${r.coins} · ${fmtWhen(r.created_at)}${r.status !== 'pending' ? ` · ${r.status === 'done' ? 'delivered' : 'refunded'}` : ''}</div></div>
+      ${r.status === 'pending' ? `<button class="btn small good" data-action="redeem-done" data-id="${r.id}">Done</button><button class="btn small danger" data-action="redeem-cancel" data-id="${r.id}">Refund</button>` : ''}
+    </div>`;
+    return `
+      <div class="card"><h2>🎁 Prizes to deliver <span class="meta">${pending.length}</span></h2>
+        ${pending.map(row).join('') || '<p class="muted">Nothing waiting. Redeemed prizes show up here until you mark them done.</p>'}
+        ${recent.length ? `<details class="section" style="box-shadow:none;border:1px solid var(--line);margin-top:8px"><summary>Recent</summary><div class="body">${recent.map(row).join('')}</div></details>` : ''}
+      </div>
+      <div class="card"><h2>🎁 Prizes <span class="meta">${coin}</span></h2>
+        ${(rewards || []).map((p) => `<div class="list-item tappable" data-edit-reward="${p.id}">
+          <div class="avatar" style="--c:#db2777">${esc(p.emoji || '🎁')}</div>
+          <div class="grow"><div class="title">${esc(p.title)}</div>${p.notes ? `<div class="sub">${esc(p.notes)}</div>` : ''}</div>
+          <div class="amt" style="color:#b45309">🪙 ${p.coins}</div></div>`).join('') || '<p class="muted">Add prizes the kids can spend their coins on — a date with Mom, picking dinner, a sleepover…</p>'}
+        <div class="actions"><button class="btn" data-action="new-reward">+ Add prize</button></div>
+      </div>`;
+  }
+
+  function rewardForm(r = {}) {
+    return `<form data-form="reward" data-id="${r.id || ''}"><h2>${r.id ? 'Edit prize' : 'New prize'}</h2>
+      ${r.id ? '' : `<div class="muted small">Tap an idea to fill it in:</div><div class="chips" style="padding-bottom:8px">${PRIZE_IDEAS.map(([e, t, c]) => `<button type="button" class="chip" data-reward-suggest="${esc(t)}" data-emoji="${e}" data-coins="${c}">${e} ${esc(t)} · ${c}</button>`).join('')}</div>`}
+      <div class="row2">
+        <label class="field"><span>Emoji</span><input type="text" name="emoji" maxlength="4" value="${esc(r.emoji || '🎁')}"></label>
+        <label class="field"><span>Coins</span><input type="number" name="coins" min="1" max="9999" inputmode="numeric" required value="${r.coins || ''}"></label>
+      </div>
+      <label class="field"><span>Prize</span><input type="text" name="title" required maxlength="80" value="${esc(r.title || '')}" placeholder="Date with Mom"></label>
+      <label class="field"><span>Details (optional)</span><input type="text" name="notes" maxlength="200" value="${esc(r.notes || '')}" placeholder="Ice cream or a movie, your pick"></label>
+      <div class="actions"><button class="btn primary grow" type="submit">Save</button>${r.id ? `<button type="button" class="btn danger" data-action="delete-reward" data-id="${r.id}">Delete</button>` : ''}</div>
+    </form>`;
   }
 
   // ---- Birthdays & events ----------------------------------------------------
@@ -656,6 +702,14 @@
     if (editChore) { openSheet(choreForm(S.allChores.find((c) => c.id === Number(editChore.dataset.editChore)))); return; }
     const editLevent = t.closest('[data-edit-levent]');
     if (editLevent) { openSheet(leventForm((S.levents || []).find((x) => x.id === Number(editLevent.dataset.editLevent)))); return; }
+    const editReward = t.closest('[data-edit-reward]');
+    if (editReward) { openSheet(rewardForm((S.rewards || []).find((x) => x.id === Number(editReward.dataset.editReward)))); return; }
+    const suggest = t.closest('[data-reward-suggest]');
+    if (suggest) {
+      const form = suggest.closest('form');
+      form.title.value = suggest.dataset.rewardSuggest; form.coins.value = suggest.dataset.coins; form.emoji.value = suggest.dataset.emoji;
+      return;
+    }
     const editMember = t.closest('[data-edit-member]');
     if (editMember) {
       const all = await api('/api/members/all');
@@ -725,6 +779,10 @@
         case 'shop-delete': await api(`/api/shopping/${id}`, { method: 'DELETE' }); render(); break;
         case 'shop-clear': await api('/api/shopping/checked', { method: 'DELETE' }); render(); break;
         case 'new-member': openSheet(memberForm()); break;
+        case 'new-reward': openSheet(rewardForm()); break;
+        case 'delete-reward': await api(`/api/rewards/${id}`, { method: 'DELETE' }); closeSheet(); toast('Prize removed'); render(); break;
+        case 'redeem-done': await api(`/api/redemptions/${id}/done`, { method: 'POST' }); toast('Delivered 🎉'); render(); break;
+        case 'redeem-cancel': await api(`/api/redemptions/${id}/cancel`, { method: 'POST' }); toast('Coins refunded'); render(); break;
         case 'google-connect': {
           const { url } = await api('/api/google/auth-url');
           window.open(url, '_blank');
@@ -870,6 +928,12 @@
           };
           if (form.dataset.id) await api(`/api/local-events/${form.dataset.id}`, { method: 'PATCH', body });
           else await api('/api/local-events', { method: 'POST', body });
+          closeSheet(); toast('Saved'); render(); break;
+        }
+        case 'reward': {
+          const body = { title: fd.get('title'), coins: parseInt(fd.get('coins'), 10), emoji: fd.get('emoji'), notes: fd.get('notes') };
+          if (form.dataset.id) await api(`/api/rewards/${form.dataset.id}`, { method: 'PATCH', body });
+          else await api('/api/rewards', { method: 'POST', body });
           closeSheet(); toast('Saved'); render(); break;
         }
         case 'member': {

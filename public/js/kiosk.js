@@ -181,7 +181,9 @@
         <span class="avatar">💵</span><span>Earn Money</span></button>`;
     const games = `<button class="member-btn games ${state.selected === 'games' ? 'active' : ''}" data-member="games" style="--c:#111827">
         <span class="avatar">🎮</span><span>Games</span></button>`;
-    $('#members').innerHTML = all + rest + earn + games;
+    const prizes = `<button class="member-btn games ${state.selected === 'prizes' ? 'active' : ''}" data-member="prizes" style="--c:#db2777">
+        <span class="avatar">🎁</span><span>Prizes</span></button>`;
+    $('#members').innerHTML = all + rest + earn + games + prizes;
   }
 
   // ---- Rendering: calendar ---------------------------------------------------
@@ -574,9 +576,48 @@
   });
   document.addEventListener('keyup', (e) => { const game = currentGame(); if (game && KEYMAP[e.key]) game.release(KEYMAP[e.key]); });
 
+  // ---- Prizes: spend coins -----------------------------------------------------
+  async function renderSidePrizes() {
+    let prizes = [];
+    try { prizes = await api('/api/rewards'); } catch { prizes = []; }
+    if (!Array.isArray(prizes)) prizes = [];
+    state.prizes = prizes;
+    const kids = state.members.filter((m) => m.role === 'kid');
+    const balances = kids.map((m) => { const f = state.finance.find((x) => x.member_id === m.id); return `<span class="pill" style="--c:${esc(m.color)}">${esc(m.emoji)} ${esc(m.name)} 🪙 ${f ? (f.coins || 0) : 0}</span>`; }).join('');
+    $('#side').innerHTML = `<div class="card accent" style="--c:#db2777"><h3>🎁 Prizes <span class="meta">spend your ${esc(coinName())}</span></h3>
+      <div class="pill-row">${balances}</div>
+      ${prizes.length ? prizes.map((p) => `<div class="prize" data-prize="${p.id}">
+        <div class="prize-icon">${esc(p.emoji || '🎁')}</div>
+        <div class="text"><b>${esc(p.title)}</b>${p.notes ? `<span class="sub">${esc(p.notes)}</span>` : ''}</div>
+        <div class="prize-cost">🪙 ${p.coins}</div></div>`).join('') : '<p class="muted center">No prizes yet — parents add them in the app under Money.</p>'}
+    </div>`;
+  }
+
+  function openPrize(id) {
+    const p = (state.prizes || []).find((x) => x.id === id);
+    if (!p) return;
+    const kids = state.members.filter((m) => m.role === 'kid');
+    openModal(`<h2>${esc(p.emoji || '🎁')} ${esc(p.title)} <span class="muted">🪙 ${p.coins}</span></h2>
+      ${p.notes ? `<p class="kv">${esc(p.notes)}</p>` : ''}
+      <p class="kv"><b>Who's redeeming it?</b></p>
+      <div class="kid-pick">${kids.map((m) => {
+        const f = state.finance.find((x) => x.member_id === m.id); const have = f ? (f.coins || 0) : 0; const ok = have >= p.coins;
+        return `<button class="member-btn ${ok ? '' : 'locked'}" data-redeem="${p.id}" data-kid="${m.id}" data-have="${have}" style="--c:${esc(m.color)}"><span class="avatar">${ok ? esc(m.emoji) : '🔒'}</span><span>${esc(m.name)}<small class="sub">🪙 ${have}${ok ? '' : ` · needs ${p.coins - have} more`}</small></span></button>`;
+      }).join('')}</div>`);
+  }
+
+  async function redeemPrize(prizeId, memberId) {
+    const p = (state.prizes || []).find((x) => x.id === prizeId); const m = memberById(memberId);
+    if (!p || !m) return;
+    openModal(`<h2>${esc(p.emoji || '🎁')} ${esc(p.title)}</h2>
+      <p class="kv">Spend <b>🪙 ${p.coins} ${esc(coinName())}</b> of ${esc(m.name)}'s? Mom & Dad will get a message.</p>
+      <div class="kid-pick"><button class="btn primary-btn" data-redeem-go="${p.id}" data-kid="${m.id}">Yes, redeem it!</button><button class="btn" data-close>Not now</button></div>`);
+  }
+
   function renderSide() {
     if (state.selected === 'earn') return renderSideEarn();
     if (state.selected === 'games') return renderSideGames();
+    if (state.selected === 'prizes') return renderSidePrizes();
     const m = state.selected != null ? memberById(state.selected) : null;
     if (m) renderSideMember(m); else renderSideEveryone();
   }
@@ -806,7 +847,7 @@
     const memberBtn = t.closest('[data-member]');
     if (memberBtn) {
       const v = memberBtn.dataset.member;
-      state.selected = v === 'earn' || v === 'games' ? v : (v ? Number(v) : null);
+      state.selected = ['earn', 'games', 'prizes'].includes(v) ? v : (v ? Number(v) : null);
       renderMembers();
       renderCalendar();
       await loadSide();
@@ -879,6 +920,27 @@
     if (chore) { await toggleChore(chore); return; }
     const moneyCard = t.closest('[data-money]');
     if (moneyCard) { await showMoney(Number(moneyCard.dataset.money)); return; }
+    const prizeCard = t.closest('[data-prize]');
+    if (prizeCard) { openPrize(Number(prizeCard.dataset.prize)); return; }
+    const redeemPick = t.closest('[data-redeem]');
+    if (redeemPick) {
+      if (redeemPick.classList.contains('locked')) return;
+      await redeemPrize(Number(redeemPick.dataset.redeem), Number(redeemPick.dataset.kid));
+      return;
+    }
+    const redeemGo = t.closest('[data-redeem-go]');
+    if (redeemGo) {
+      try {
+        await api(`/api/rewards/${redeemGo.dataset.redeemGo}/redeem`, { method: 'POST', body: { member_id: Number(redeemGo.dataset.kid) } });
+        closeModal();
+        const p = (state.prizes || []).find((x) => x.id === Number(redeemGo.dataset.redeemGo)); const m = memberById(Number(redeemGo.dataset.kid));
+        celebrate(m ? m.name : '', p ? `Enjoy your ${p.title}! Mom & Dad have been told.` : 'Enjoy!');
+        await loadSide();
+      } catch (err) {
+        openModal(`<h2>🪙 ${esc(err.message)}</h2><div class="kid-pick"><button class="btn" data-close>OK</button></div>`);
+      }
+      return;
+    }
     const avEdit = t.closest('[data-avatar-edit]');
     if (avEdit) {
       const m = memberById(Number(avEdit.dataset.avatarEdit));
