@@ -211,6 +211,7 @@
     html += `<button class="fab" data-action="new-chore" aria-label="Add chore">+</button>`;
     shell('Chores', html);
     S.allChores = all;
+    S.pending = pending;
   }
 
   function choreForm(c = {}) {
@@ -397,6 +398,19 @@
       <label class="btn block" style="text-align:center">Upload photos<input type="file" accept="image/*" multiple data-upload hidden></label>
       <div class="photo-grid mt">${photos.map((p) => `<div class="ph"><img src="${p.url}" loading="lazy" alt=""><button data-action="delete-photo" data-name="${esc(p.name)}">✕</button></div>`).join('')}</div>`;
 
+    const notifications = `<p class="muted small">Get a phone notification when a kid finishes an Earn Money chore, with <b>Pay</b> / <b>Reject</b> buttons right in the notification. Uses the free <a href="https://ntfy.sh" target="_blank" rel="noopener">ntfy</a> app.</p>
+      <ol class="muted small" style="padding-left:18px;margin:6px 0 10px">
+        <li>Install <b>ntfy</b> from the App Store / Play Store on each parent's phone.</li>
+        <li>Save a secret topic name below (tap Generate), then in the ntfy app tap <b>+</b> and subscribe to that exact topic.</li>
+        <li>Tap <b>Send test</b>.</li></ol>
+      <form data-form="settings">
+        <label class="field"><span>Topic (keep it private — anyone who knows it can see the notifications)</span>
+          <div class="actions" style="margin:0"><input type="text" name="ntfy_topic" class="input grow" value="${esc(settings.ntfy_topic)}" autocomplete="off" placeholder="family-a8f3k2q9"><button type="button" class="btn" data-action="gen-topic">Generate</button></div></label>
+        <label class="field"><span>Server</span><input type="text" name="ntfy_server" value="${esc(settings.ntfy_server)}"></label>
+        <label class="field"><span>Address phones use for this app (blank = auto-detect)</span><input type="text" name="app_url" value="${esc(settings.app_url)}" placeholder="http://${location.host}"></label>
+        <div class="actions"><button class="btn primary" type="submit">Save</button><button class="btn" type="button" data-action="notify-test" ${settings.ntfy_topic ? '' : 'disabled'}>Send test</button></div>
+      </form>`;
+
     const pin = `<form data-form="pin">
       <label class="field"><span>Current PIN</span><input type="password" name="current" inputmode="numeric" required></label>
       <div class="row2"><label class="field"><span>New PIN</span><input type="password" name="pin" inputmode="numeric" pattern="\\d{4,8}" required></label>
@@ -409,6 +423,7 @@
       section('🌤️ Weather', weather),
       section('🖥️ Display', display),
       section('📈 Interest', interest),
+      section(`🔔 Notifications${settings.ntfy_topic ? '' : ' (off)'}`, notifications),
       section(`🖼️ Screensaver photos (${photos.length})`, photosHtml),
       section('🔒 Parent PIN', pin),
       `<div class="actions"><button class="btn block" data-action="logout">Log out</button></div>
@@ -496,7 +511,21 @@
         case 'delete-chore':
           if (!confirm('Delete this chore? History is kept.')) return;
           await api(`/api/chores/${id}`, { method: 'DELETE' }); closeSheet(); toast('Chore deleted'); render(); break;
-        case 'approve': await api(`/api/chores/completions/${id}/approve`, { method: 'POST' }); toast('Paid!'); render(); break;
+        case 'approve': {
+          const p = (S.pending || []).find((x) => x.id === Number(id));
+          await api(`/api/chores/completions/${id}/approve`, { method: 'POST' });
+          toast('Paid!');
+          await render();
+          if (p && p.schedule !== 'once') {
+            openSheet(`<h2>Keep “${esc(p.title)}” on the list?</h2>
+              <p class="muted">It repeats (${p.schedule === 'daily' ? 'every day' : 'certain days'}). Keep it so ${esc(p.member_name)} can earn again, or remove it now.</p>
+              <div class="actions"><button class="btn primary grow" data-action="close-sheet">Keep on list</button>
+              <button class="btn danger" data-action="remove-chore-quiet" data-id="${p.chore_id}">Remove chore</button></div>`);
+          }
+          break;
+        }
+        case 'close-sheet': closeSheet(); break;
+        case 'remove-chore-quiet': await api(`/api/chores/${id}`, { method: 'DELETE' }); closeSheet(); toast('Chore removed'); render(); break;
         case 'reject': await api(`/api/chores/completions/${id}/reject`, { method: 'POST' }); toast('Rejected'); render(); break;
         case 'delete-tx':
           if (!confirm('Remove this transaction?')) return;
@@ -524,6 +553,16 @@
         case 'geo-pick':
           await api('/api/settings', { method: 'PATCH', body: { weather_lat: Number(act.dataset.lat), weather_lon: Number(act.dataset.lon), weather_label: act.dataset.label } });
           toast('Weather location saved'); render(); break;
+        case 'gen-topic': {
+          const input = act.closest('form').querySelector('[name=ntfy_topic]');
+          const rand = Array.from(crypto.getRandomValues(new Uint8Array(6)), (b) => 'abcdefghjkmnpqrstuvwxyz23456789'[b % 31]).join('');
+          input.value = `family-${rand}`;
+          break;
+        }
+        case 'notify-test': {
+          const r = await api('/api/notify/test', { method: 'POST' });
+          toast(`Sent. Buttons in notifications will open ${r.app_url}`); break;
+        }
         case 'apply-interest': {
           const r = await api('/api/finance/apply-interest', { method: 'POST' });
           toast(r.credited ? `Credited ${r.credited} account(s)` : 'Nothing to credit (rate is 0, day not reached, or already paid this month)'); break;

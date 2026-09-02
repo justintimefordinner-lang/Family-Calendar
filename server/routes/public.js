@@ -8,6 +8,7 @@ const chores = require('../chores');
 const interest = require('../interest');
 const weather = require('../weather');
 const google = require('../google');
+const notify = require('../notify');
 const { PHOTO_DIR } = require('../config');
 const { HttpError, wrap, localDate, isDateStr, toInt } = require('../util');
 
@@ -15,9 +16,13 @@ const router = express.Router();
 
 const activeMembers = db.prepare('SELECT id, name, role, color, emoji, sort_order FROM members WHERE active = 1 ORDER BY sort_order, id');
 
+// Changes whenever the server (re)starts, so the wall display reloads itself after an update.
+const SERVER_BUILD = `${require('../../package.json').version}-${Date.now()}`;
+
 router.get('/state', (req, res) => {
   const accounts = db.prepare('SELECT email, last_error, last_sync_at FROM google_accounts').all();
   res.json({
+    build: SERVER_BUILD,
     settings: settings.publicSettings(),
     members: activeMembers.all(),
     today: localDate(),
@@ -101,7 +106,24 @@ router.post('/chores/:id/complete', (req, res) => {
   const memberId = toInt(req.body.member_id);
   if (!memberId) throw new HttpError(400, 'member_id required');
   const date = isDateStr(req.body.date) ? req.body.date : localDate();
-  res.json(chores.complete(toInt(req.params.id), memberId, date));
+  const completion = chores.complete(toInt(req.params.id), memberId, date);
+  if (completion.status === 'pending' && notify.isConfigured()) {
+    const chore = db.prepare('SELECT * FROM chores WHERE id = ?').get(completion.chore_id);
+    const member = db.prepare('SELECT * FROM members WHERE id = ?').get(completion.member_id);
+    notify.choreCompleted(completion, chore, member).catch((e) => console.error('[notify]', e.message));
+  }
+  res.json(completion);
+});
+
+// Pay / Reject buttons inside an ntfy notification hit this with a signed token.
+router.post('/chores/completions/:id/action', (req, res) => {
+  const id = toInt(req.params.id);
+  const action = String(req.query.do || '');
+  if (!['approve', 'reject'].includes(action) || !notify.verifyActionToken(id, action, String(req.query.t || ''))) {
+    throw new HttpError(403, 'Invalid or expired action link');
+  }
+  if (action === 'approve') chores.approve(id); else chores.reject(id);
+  res.type('text/plain').send(action === 'approve' ? 'Paid!' : 'Rejected');
 });
 
 router.delete('/chores/completions/:id', (req, res) => {

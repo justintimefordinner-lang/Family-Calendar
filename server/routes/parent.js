@@ -10,6 +10,7 @@ const chores = require('../chores');
 const google = require('../google');
 const weather = require('../weather');
 const interest = require('../interest');
+const notify = require('../notify');
 const { PHOTO_DIR } = require('../config');
 const { HttpError, wrap, isDateStr, toInt, requireFields } = require('../util');
 const { validPin } = require('./auth');
@@ -207,6 +208,12 @@ router.post('/settings/pin', (req, res) => {
   settings.set('pin_hash', auth.hashPin(pin));
   res.json({ ok: true });
 });
+
+router.post('/notify/test', wrap(async (req, res) => {
+  if (!notify.isConfigured()) throw new HttpError(400, 'Enter an ntfy topic and save first');
+  await notify.test();
+  res.json({ ok: true, app_url: notify.baseUrl() });
+}));
 
 router.get('/weather/geocode', wrap(async (req, res) => {
   const q = String(req.query.q || '').trim();

@@ -111,7 +111,7 @@ function uncomplete(completionId) {
 }
 
 const pendingList = db.prepare(`
-  SELECT cc.*, c.title, c.amount_cents, m.name AS member_name, m.color, m.emoji
+  SELECT cc.*, c.title, c.amount_cents, c.schedule, m.name AS member_name, m.color, m.emoji
   FROM chore_completions cc
   JOIN chores c ON c.id = cc.chore_id
   JOIN members m ON m.id = cc.member_id

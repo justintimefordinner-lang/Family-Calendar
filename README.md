@@ -112,6 +112,20 @@ Open `http://<pi-ip>:3100/parent` in Chrome (Android) or Safari (iPhone) and cho
 Deleting a chore hides it but keeps history. Removing a payout transaction under *Money* marks
 the completion as rejected so it can be redone.
 
+### Parent notifications
+
+The parent app cannot use browser push notifications on a plain-HTTP home network, so
+notifications go through [ntfy](https://ntfy.sh) (free, open source):
+
+1. Install the ntfy app on each parent's phone.
+2. Parent app → Settings → Notifications → *Generate* a secret topic → Save.
+3. In the ntfy app subscribe to that topic. Tap *Send test*.
+
+When a kid finishes an Earn Money chore, parents get a notification with **Pay** and **Reject**
+buttons (signed one-time links back to the Pi — the phone must be able to reach the Pi, i.e. be on
+the home Wi-Fi or VPN) plus an *Open app* button. Approving a repeating chore in the app asks
+whether to keep it on the list or remove it.
+
 ## Money model
 
 Each kid has a ledger of signed transactions: deposits, withdrawals, chore payouts, interest, and

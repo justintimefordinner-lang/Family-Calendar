@@ -369,8 +369,12 @@
   }
 
   // ---- Data loading ---------------------------------------------------------
+  let serverBuild = null;
   async function loadState() {
     const s = await api('/api/state');
+    // The server restarted (probably an update): reload so new JS/CSS is picked up.
+    if (serverBuild && s.build && s.build !== serverBuild) { location.reload(); return; }
+    serverBuild = s.build || serverBuild;
     state.settings = s.settings;
     state.members = s.members;
     state.today = s.today;

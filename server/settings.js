@@ -15,6 +15,9 @@ const DEFAULTS = {
   interest_apr: 0,           // percent per year, credited monthly
   interest_day: 1,           // day of month interest is credited
   sync_minutes: 5,
+  ntfy_topic: '',            // parents subscribe to this topic in the ntfy app
+  ntfy_server: 'https://ntfy.sh',
+  app_url: '',               // how phones reach this server, e.g. http://192.168.1.20:3100 (auto-detected if blank)
   google_client_id: '',
   google_client_secret: '',
   pin_hash: '',
@@ -31,7 +34,7 @@ const PUBLIC_KEYS = [
 const EDITABLE_KEYS = [
   'family_name', 'timezone', 'week_start', 'screensaver_minutes', 'photo_seconds', 'month_themes',
   'temp_unit', 'weather_lat', 'weather_lon', 'weather_label', 'interest_apr',
-  'interest_day', 'sync_minutes', 'google_client_id', 'google_client_secret',
+  'interest_day', 'sync_minutes', 'ntfy_topic', 'ntfy_server', 'app_url', 'google_client_id', 'google_client_secret',
 ];
 const SECRET_KEYS = ['pin_hash', 'session_secret', 'google_client_secret'];
 
