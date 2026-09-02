@@ -306,7 +306,7 @@
       return `<div class="card balance-card tappable" data-href="#money/${m.id}">
         <div class="avatar" style="--c:${esc(m.color)}">${esc(m.emoji)}</div>
         <div><div class="title" style="font-weight:600">${esc(m.name)}</div>${f.pending_cents ? `<div class="sub muted small">+${money(f.pending_cents)} awaiting approval</div>` : ''}</div>
-        <div class="bal" style="text-align:right;font-size:1.05rem;line-height:1.35">💵 ${money(f.cash_cents || 0)}<br>📈 ${money(f.invested_cents || 0)}<br>🪙 ${f.coins || 0}</div></div>`;
+        <div class="bal" style="text-align:right;font-size:1.05rem;line-height:1.35">💵 ${money(f.cash_cents || 0)}<br>📈 ${money(f.invested_cents || 0)}<br>🪙 ${Math.floor(Number(f.coins) || 0)}</div></div>`;
     }).join('');
     shell('Money', `<p class="muted small">Each kid has <b>Cash</b> (pocket money you keep track of; chore earnings land here) and <b>Invested with Dad</b>${apr > 0 ? `, which earns ${apr}% per year credited on day ${settings.interest_day} of each month.` : ' (no interest set — see Settings › Interest).'}</p>
       ${cards || '<div class="card"><p class="muted">Add kids in Settings › Family to start tracking money.</p></div>'}${prizesHtml(S.rewards, Array.isArray(redemptions) ? redemptions : [])}`);
@@ -343,7 +343,7 @@
           </div>
           <button class="btn primary block" type="submit">Save</button>
         </form></div>
-      <div class="card"><h2>🪙 ${esc(f.coin_name || 'Mom Coins')} <span class="meta">${f.coins || 0}</span></h2>
+      <div class="card"><h2>🪙 ${esc(f.coin_name || 'Mom Coins')} <span class="meta">${Math.floor(Number(f.coins) || 0)}</span></h2>
         <form data-form="coins" data-member="${m.id}">
           <div class="row2">
             <label class="field"><span>Coins (negative to spend)</span><input type="number" name="amount" step="1" inputmode="numeric" required placeholder="-10"></label>

@@ -9,6 +9,7 @@
   const parseYmd = (s) => { const [y, m, d] = s.split('-').map(Number); return new Date(y, m - 1, d); };
   const addDays = (d, n) => { const x = new Date(d); x.setDate(x.getDate() + n); return x; };
   const money = (cents) => (cents < 0 ? '-' : '') + '$' + (Math.abs(cents) / 100).toFixed(2);
+  const wholeCoins = (n) => Math.floor(Number(n) || 0); // coins show as whole numbers
   const fmtTime = (ts) => new Date(ts).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
   const DOW = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
   const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
@@ -322,7 +323,7 @@
         <div class="money2">
           <div><div class="lbl">💵 Cash</div><div class="balance">${money(cash)}</div></div>
           <div><div class="lbl">📈 Invested with Dad</div><div class="balance">${money(invested)}</div>${apr > 0 ? `<div class="lbl">earning ${apr}% a year</div>` : ''}</div>
-          <div class="coins"><div class="lbl">🪙 ${esc(state.settings.coin_name || 'Mom Coins')}</div><div class="balance">${fin ? (fin.coins || 0) : 0}</div></div>
+          <div class="coins"><div class="lbl">🪙 ${esc(state.settings.coin_name || 'Mom Coins')}</div><div class="balance">${wholeCoins(fin ? fin.coins : 0)}</div></div>
         </div>
         ${fin && fin.pending_cents ? `<div class="hint center"><b>+${money(fin.pending_cents)}</b> waiting for a parent to approve</div>` : ''}
       </div>`;
@@ -345,7 +346,7 @@
       const fin = state.finance.find((f) => f.member_id === m.id);
       const pct = regular.length ? Math.round((done / regular.length) * 100) : 0;
       const pending = fin && fin.pending_cents ? `<small>${money(fin.pending_cents)} waiting for approval</small>` : '';
-      const coins = fin && m.role === 'kid' ? ` · 🪙 ${fin.coins || 0}` : '';
+      const coins = fin && m.role === 'kid' ? ` · 🪙 ${wholeCoins(fin.coins)}` : '';
       return `<div class="row" data-member-row="${m.id}" style="--c:${esc(m.color)}">
         <div class="avatar">${esc(m.emoji)}</div>
         <div class="grow">${esc(m.name)}<small>${regular.length ? `${done} of ${regular.length} chores done` : 'no chores today'}${coins}</small>${pending}</div>
@@ -521,12 +522,12 @@
     const m = play.memberId != null ? memberById(play.memberId) : null;
     if (!m) { $('#gameCoins').textContent = ''; return; }
     const rate = gameRate();
-    if (!play.sessionId || rate <= 0) { $('#gameCoins').textContent = `${m.emoji} ${m.name} · 🪙 ${play.coins}`; return; }
+    if (!play.sessionId || rate <= 0) { $('#gameCoins').textContent = `${m.emoji} ${m.name} · 🪙 ${wholeCoins(play.coins)}`; return; }
     const spentSince = rate * (Date.now() - play.syncedAt) / 60_000;
     const live = Math.max(0, play.coins - spentSince);
     const minsLeft = live / rate;
     const left = minsLeft >= 1 ? `${Math.floor(minsLeft)} min left` : `${Math.max(0, Math.round(minsLeft * 60))} sec left`;
-    $('#gameCoins').textContent = `${m.emoji} ${m.name} · 🪙 ${live.toFixed(1)} · ${left}`;
+    $('#gameCoins').textContent = `${m.emoji} ${m.name} · 🪙 ${wholeCoins(live)} · ${left}`;
   }
 
   async function gameTick(final) {
@@ -589,7 +590,7 @@
     if (!Array.isArray(prizes)) prizes = [];
     state.prizes = prizes;
     const kids = state.members.filter((m) => m.role === 'kid');
-    const balances = kids.map((m) => { const f = state.finance.find((x) => x.member_id === m.id); return `<span class="pill" style="--c:${esc(m.color)}">${esc(m.emoji)} ${esc(m.name)} 🪙 ${f ? (f.coins || 0) : 0}</span>`; }).join('');
+    const balances = kids.map((m) => { const f = state.finance.find((x) => x.member_id === m.id); return `<span class="pill" style="--c:${esc(m.color)}">${esc(m.emoji)} ${esc(m.name)} 🪙 ${wholeCoins(f ? f.coins : 0)}</span>`; }).join('');
     $('#side').innerHTML = `<div class="card accent" style="--c:#db2777"><h3>🎁 Prizes <span class="meta">spend your ${esc(coinName())}</span></h3>
       <div class="pill-row">${balances}</div>
       ${prizes.length ? prizes.map((p) => `<div class="prize" data-prize="${p.id}">
@@ -608,7 +609,7 @@
       <p class="kv"><b>Who's redeeming it?</b></p>
       <div class="kid-pick">${kids.map((m) => {
         const f = state.finance.find((x) => x.member_id === m.id); const have = f ? (f.coins || 0) : 0; const ok = have >= p.coins;
-        return `<button class="member-btn ${ok ? '' : 'locked'}" data-redeem="${p.id}" data-kid="${m.id}" data-have="${have}" style="--c:${esc(m.color)}"><span class="avatar">${ok ? esc(m.emoji) : '🔒'}</span><span>${esc(m.name)}<small class="sub">🪙 ${have}${ok ? '' : ` · needs ${p.coins - have} more`}</small></span></button>`;
+        return `<button class="member-btn ${ok ? '' : 'locked'}" data-redeem="${p.id}" data-kid="${m.id}" data-have="${have}" style="--c:${esc(m.color)}"><span class="avatar">${ok ? esc(m.emoji) : '🔒'}</span><span>${esc(m.name)}<small class="sub">🪙 ${wholeCoins(have)}${ok ? '' : ` · needs ${p.coins - have} more`}</small></span></button>`;
       }).join('')}</div>`);
   }
 
@@ -798,7 +799,7 @@
         <div><div class="lbl">💵 Cash</div><div class="balance">${money(f.cash_cents || 0)}</div></div>
         <div><div class="lbl">📈 Invested with Dad</div><div class="balance">${money(f.invested_cents || 0)}</div>
           <div class="lbl">${f.interest_apr > 0 ? `${f.interest_apr}% a year, paid on day ${f.interest_day} of each month` : 'no interest yet'}</div></div>
-        <div class="coins"><div class="lbl">🪙 ${esc(f.coin_name || 'Mom Coins')}</div><div class="balance">${f.coins || 0}</div></div>
+        <div class="coins"><div class="lbl">🪙 ${esc(f.coin_name || 'Mom Coins')}</div><div class="balance">${wholeCoins(f.coins)}</div></div>
       </div>
       <div style="margin-top:16px">${rows || '<p class="muted center">No activity yet</p>'}</div>
       ${coinRows ? `<h3 style="margin-top:18px">🪙 ${esc(f.coin_name || 'Mom Coins')}</h3>${coinRows}` : ''}`);
