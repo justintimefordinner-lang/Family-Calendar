@@ -17,7 +17,8 @@ Built for a Raspberry Pi and a 1080p landscape display, but it is plain Node.js 
 - Money: deposits, withdrawals, adjustments, and a monthly interest rate you control
 - Birthdays & events kept in the app itself (birthdays repeat yearly and show the age)
 - Meals for the week, the shared shopping list
-- Family members, Google accounts and calendar mapping, weather location, display options, photos
+- Family members (Kid = chores, coins and money; Parent = chores only; Calendar only = just events,
+  e.g. a work calendar), Google accounts and calendar mapping, weather location, display options, photos
 
 Nothing about your family lives in this repository: the family name, kids, PIN, and Google
 connection are all entered on the device during first-run setup and stored in a local SQLite file.

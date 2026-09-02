@@ -32,7 +32,7 @@ router.post('/members', (req, res) => {
   const { name, role = 'kid', color = '#4f86f7', emoji = '🙂', aliases = '' } = req.body;
   const next = db.prepare('SELECT COALESCE(MAX(sort_order), -1) + 1 AS n FROM members').get().n;
   const info = db.prepare('INSERT INTO members(name, role, color, emoji, aliases, sort_order) VALUES(?, ?, ?, ?, ?, ?)')
-    .run(String(name).trim(), role === 'parent' ? 'parent' : 'kid', color, emoji, cleanAliases(aliases), next);
+    .run(String(name).trim(), ['parent', 'calendar'].includes(role) ? role : 'kid', color, emoji, cleanAliases(aliases), next);
   res.json(memberById.get(info.lastInsertRowid));
 });
 
@@ -42,7 +42,7 @@ router.patch('/members/:id', (req, res) => {
   const b = req.body;
   db.prepare('UPDATE members SET name = ?, role = ?, color = ?, emoji = ?, aliases = ?, sort_order = ?, active = ? WHERE id = ?').run(
     b.name !== undefined ? String(b.name).trim() : m.name,
-    b.role !== undefined ? (b.role === 'parent' ? 'parent' : 'kid') : m.role,
+    b.role !== undefined ? (['parent', 'calendar'].includes(b.role) ? b.role : 'kid') : m.role,
     b.color ?? m.color,
     b.emoji ?? m.emoji,
     b.aliases !== undefined ? cleanAliases(b.aliases) : m.aliases,

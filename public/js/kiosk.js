@@ -284,6 +284,12 @@
   }
 
   function renderSideMember(m) {
+    if (m.role === 'calendar') {
+      // Calendar-only members (a work calendar, grandparents...) just show their events.
+      $('#side').innerHTML = `<div class="card accent" style="--c:${esc(m.color)}"><h3>${esc(m.emoji)} ${esc(m.name)} <span class="meta"><button class="linkish" data-avatar-edit="${m.id}">🎨 change look</button></span></h3>
+        <p class="muted">Calendar only — no chores, coins or money for this one.</p></div>`;
+      return;
+    }
     const regular = state.chores.filter((c) => !c.paid);
     const paid = state.chores.filter((c) => c.paid);
     const done = regular.filter((c) => c.status && c.status !== 'rejected').length;
@@ -332,7 +338,7 @@
         ${dinner && dinner.notes ? `<small>${esc(dinner.notes)}</small>` : ''}
         ${tomorrow ? `<small>Tomorrow: ${esc(tomorrow.title)}</small>` : ''}</div></div>`;
 
-    const rows = state.members.map((m) => {
+    const rows = state.members.filter((m) => m.role !== 'calendar').map((m) => {
       const mine = state.chores.filter((c) => c.member_id === m.id || (c.member_id == null && c.completed_by === m.id));
       const regular = mine.filter((c) => !c.paid);
       const done = regular.filter((c) => c.status && c.status !== 'rejected').length;

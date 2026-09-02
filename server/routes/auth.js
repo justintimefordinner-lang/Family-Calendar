@@ -32,7 +32,7 @@ router.post('/setup', wrap(async (req, res) => {
     const ins = db.prepare('INSERT INTO members(name, role, color, emoji, sort_order) VALUES(?, ?, ?, ?, ?)');
     members.forEach((m, i) => {
       if (!m.name || !String(m.name).trim()) return;
-      ins.run(String(m.name).trim(), m.role === 'parent' ? 'parent' : 'kid', m.color || '#4f86f7', m.emoji || '🙂', i);
+      ins.run(String(m.name).trim(), ['parent', 'calendar'].includes(m.role) ? m.role : 'kid', m.color || '#4f86f7', m.emoji || '🙂', i);
     });
     require('../prizes').seedDefaults(); // starter coin prizes
   })();

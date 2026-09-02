@@ -114,7 +114,7 @@
       <select name="emoji" class="input" style="width:70px;padding:8px">${EMOJIS.map((e) => `<option ${e === emoji ? 'selected' : ''}>${e}</option>`).join('')}</select>
       <input type="text" name="name" class="input" placeholder="Name" value="${esc(m.name || '')}" required>
       <input type="color" name="color" class="color-input" value="${color}">
-      <select name="role" class="input" style="width:92px;padding:8px"><option value="kid" ${m.role !== 'parent' ? 'selected' : ''}>Kid</option><option value="parent" ${m.role === 'parent' ? 'selected' : ''}>Parent</option></select>
+      <select name="role" class="input" style="width:110px;padding:8px"><option value="kid" ${!m.role || m.role === 'kid' ? 'selected' : ''}>Kid</option><option value="parent" ${m.role === 'parent' ? 'selected' : ''}>Parent</option><option value="calendar" ${m.role === 'calendar' ? 'selected' : ''}>Calendar only</option></select>
     </div>`;
   }
 
@@ -239,7 +239,7 @@
     const filt = S.choreFilter ?? null;
     const chips = `<div class="chips">
       <button class="chip ${filt == null ? 'active' : ''}" data-chore-filter="">All</button>
-      ${S.members.map((m) => `<button class="chip ${filt === m.id ? 'active' : ''}" data-chore-filter="${m.id}" style="--c:${esc(m.color)}">${esc(m.emoji)} ${esc(m.name)}</button>`).join('')}
+      ${S.members.filter((m) => m.role !== 'calendar').map((m) => `<button class="chip ${filt === m.id ? 'active' : ''}" data-chore-filter="${m.id}" style="--c:${esc(m.color)}">${esc(m.emoji)} ${esc(m.name)}</button>`).join('')}
     </div>`;
     const visible = (c) => filt == null || c.member_id === filt || c.member_id == null;
     const regular = all.filter((c) => !c.paid && visible(c));
@@ -275,7 +275,7 @@
       <div data-unpaid-only ${paid ? 'hidden' : ''}><label class="field"><span>🪙 Coins when approved (blank = default ${Number(S.settings?.coins_per_chore ?? 2)})</span><input type="number" name="coins" step="1" min="0" inputmode="numeric" value="${c.coins != null ? c.coins : ''}" placeholder="${Number(S.settings?.coins_per_chore ?? 2)}"></label></div>
       <label class="field"><span>Who</span><select name="member_id">
         <option value="" ${c.id && c.member_id == null ? 'selected' : ''} ${paid ? '' : 'disabled'}>Anyone — first kid to claim it</option>
-        ${S.members.map((m) => `<option value="${m.id}" ${c.member_id === m.id ? 'selected' : ''}>${esc(m.emoji)} ${esc(m.name)}</option>`).join('')}
+        ${S.members.filter((m) => m.role !== 'calendar').map((m) => `<option value="${m.id}" ${c.member_id === m.id ? 'selected' : ''}>${esc(m.emoji)} ${esc(m.name)}</option>`).join('')}
       </select></label>
       <div class="field"><span>When</span>
         <div class="seg" data-seg="schedule">
@@ -537,7 +537,7 @@
       <h2 class="mt">Members</h2>
       ${allMembers.map((m) => `<div class="list-item tappable" data-edit-member="${m.id}">
         <div class="avatar" style="--c:${esc(m.color)}">${esc(m.emoji)}</div>
-        <div class="grow"><div class="title ${m.active ? '' : 'strike'}">${esc(m.name)}</div><div class="sub">${m.role === 'parent' ? 'Parent' : 'Kid'}${m.active ? '' : ' · hidden'}</div></div></div>`).join('')}
+        <div class="grow"><div class="title ${m.active ? '' : 'strike'}">${esc(m.name)}</div><div class="sub">${m.role === 'parent' ? 'Parent' : m.role === 'calendar' ? 'Calendar only' : 'Kid'}${m.active ? '' : ' · hidden'}</div></div></div>`).join('')}
       <div class="actions"><button class="btn" data-action="new-member">+ Add member</button></div>`;
 
     const accountsHtml = accounts.map((a) => `<div class="card" style="box-shadow:none;border:1px solid var(--line)">
@@ -655,7 +655,7 @@
         <label class="field"><span>Emoji</span><select name="emoji">${EMOJIS.map((e) => `<option ${e === (m.emoji || EMOJIS[i % EMOJIS.length]) ? 'selected' : ''}>${e}</option>`).join('')}</select></label>
         <label class="field"><span>Color</span><input type="color" name="color" class="color-input" value="${m.color || PALETTE[i % PALETTE.length]}"></label>
       </div>
-      <label class="field"><span>Role</span><select name="role"><option value="kid" ${m.role !== 'parent' ? 'selected' : ''}>Kid (has chores and money)</option><option value="parent" ${m.role === 'parent' ? 'selected' : ''}>Parent</option></select></label>
+      <label class="field"><span>Role</span><select name="role"><option value="kid" ${!m.role || m.role === 'kid' ? 'selected' : ''}>Kid (chores, coins and money)</option><option value="parent" ${m.role === 'parent' ? 'selected' : ''}>Parent (chores, no money)</option><option value="calendar" ${m.role === 'calendar' ? 'selected' : ''}>Calendar only (no chores, coins or money)</option></select></label>
       <label class="field"><span>Nicknames / abbreviations for calendar matching (comma-separated)</span><input type="text" name="aliases" maxlength="200" value="${esc(m.aliases || '')}" placeholder="e.g. Pip, Pipes"></label>
       <p class="muted small">Events show for this member when the title contains their name or a nickname, or starts with their initial (“${esc((m.name || 'P').charAt(0).toUpperCase())} soccer”, “${esc((m.name || 'P').charAt(0).toUpperCase())} - dentist”).</p>
       ${m.id ? `<label class="field inline"><span>Show on the display</span><input type="checkbox" name="active" ${m.active ? 'checked' : ''}></label>` : ''}
