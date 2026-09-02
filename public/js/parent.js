@@ -697,7 +697,6 @@
           toast(`Approved ${r.approved}`); render(); break;
         }
         case 'reset-day': {
-          if (!confirm(`Reset ${act.dataset.name}'s regular chores for today? Ticks come off and today's coins are refunded. Earn Money chores are not affected.`)) return;
           const r = await api('/api/chores/reset-day', { method: 'POST', body: { member_id: Number(act.dataset.member) } });
           toast(`Reset ${r.reset} chore${r.reset === 1 ? '' : 's'}`); render(); break;
         }
