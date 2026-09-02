@@ -322,10 +322,10 @@
         <h3>💰 My Money <span class="meta">tap for history</span></h3>
         <div class="money2">
           <div><div class="lbl">💵 Cash</div><div class="balance">${money(cash)}</div></div>
-          <div><div class="lbl">📈 Invested with Dad</div><div class="balance">${money(invested)}</div>${apr > 0 ? `<div class="lbl">earning ${apr}% a year</div>` : ''}</div>
+          <div><div class="lbl">📈 Invested</div><div class="balance">${money(invested)}</div></div>
           <div class="coins"><div class="lbl">🪙 ${esc(state.settings.coin_name || 'Mom Coins')}</div><div class="balance">${wholeCoins(fin ? fin.coins : 0)}</div></div>
         </div>
-        ${fin && fin.pending_cents ? `<div class="hint center"><b>+${money(fin.pending_cents)}</b> waiting for a parent to approve</div>` : ''}
+        <div class="hint center">${apr > 0 ? `Invested with Dad earns ${apr}% a year` : 'Invested with Dad'}${fin && fin.pending_cents ? ` · <b>+${money(fin.pending_cents)}</b> waiting for approval` : ''}</div>
       </div>`;
     }
     $('#side').innerHTML = html;
@@ -797,10 +797,10 @@
     openModal(`<h2>${esc(m.emoji)} ${esc(m.name)}'s Money</h2>
       <div class="money2">
         <div><div class="lbl">💵 Cash</div><div class="balance">${money(f.cash_cents || 0)}</div></div>
-        <div><div class="lbl">📈 Invested with Dad</div><div class="balance">${money(f.invested_cents || 0)}</div>
-          <div class="lbl">${f.interest_apr > 0 ? `${f.interest_apr}% a year, paid on day ${f.interest_day} of each month` : 'no interest yet'}</div></div>
+        <div><div class="lbl">📈 Invested</div><div class="balance">${money(f.invested_cents || 0)}</div></div>
         <div class="coins"><div class="lbl">🪙 ${esc(f.coin_name || 'Mom Coins')}</div><div class="balance">${wholeCoins(f.coins)}</div></div>
       </div>
+      <div class="hint center">${f.interest_apr > 0 ? `Invested with Dad earns ${f.interest_apr}% a year, paid on day ${f.interest_day} of each month` : 'Invested with Dad'}</div>
       <div style="margin-top:16px">${rows || '<p class="muted center">No activity yet</p>'}</div>
       ${coinRows ? `<h3 style="margin-top:18px">🪙 ${esc(f.coin_name || 'Mom Coins')}</h3>${coinRows}` : ''}`);
   }
