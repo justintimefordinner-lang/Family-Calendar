@@ -290,10 +290,13 @@ h1, h2, h3 { margin: 0; font-weight: 700; }
 .top { grid-template-columns: minmax(320px, 1.3fr) auto minmax(200px, 1fr); }
 .brand h1 { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .theme-banner img { object-fit: cover; }
-body { background-repeat: repeat; background-size: 64px 64px; }
-/* faint doodle tiles: draw the tinted page over them */
-body::before { content: ""; position: fixed; inset: 0; background: var(--bg); opacity: 0.88; z-index: -1; pointer-events: none; }
-body { position: relative; z-index: 0; }
+/* Uploaded month artwork fills the page; a light veil keeps text readable. */
+body { position: relative; z-index: 0; background-repeat: no-repeat; background-size: cover; background-position: center; }
+body::before { content: ""; position: fixed; inset: 0; background: var(--bg); z-index: -1; pointer-events: none; }
+body.has-art::before { background: rgba(255, 255, 255, 0.22); }
+.has-art .top { background: rgba(255, 255, 255, 0.72); border-radius: 0 0 22px 22px; backdrop-filter: blur(6px); }
+.has-art .cal-toolbar .range-label { background: rgba(255, 255, 255, 0.72); padding: 6px 14px; border-radius: 12px; }
+.has-art .m-head { background: rgba(255, 255, 255, 0.6); border-radius: 8px; }
 .brand h1::after { content: var(--deco, ""); margin-left: 0.4em; }
 .empty-day { font-size: 2.4rem; opacity: 0.16; color: var(--ink); }
 .empty-day::before { content: var(--deco, "·"); }

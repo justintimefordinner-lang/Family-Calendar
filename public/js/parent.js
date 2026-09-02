@@ -533,7 +533,7 @@
       <label class="field"><span>Timezone (restart required)</span><input type="text" name="timezone" value="${esc(settings.timezone)}" placeholder="America/Chicago"></label>
       <button class="btn primary" type="submit">Save</button></form>
       <h2 class="mt">Month artwork</h2>
-      <p class="muted small">Each month has a built-in drawing on the display. Replace any of them with a photo of the kids' own drawing — a wide picture (about 6:1, landscape) fits the header best.</p>
+      <p class="muted small">Each month has a built-in drawing in the display's header. Upload a photo of the kids' own drawing for a month and it becomes the <b>whole background</b> of the display that month (landscape photos fill the 16:9 screen best).</p>
       ${['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'].map((name, i) => `
         <div class="list-item"><div class="grow"><div class="title">${name}</div><div class="sub">${themeArt[i] ? 'Custom drawing' : 'Built-in drawing'}</div></div>
           ${themeArt[i] ? `<img src="${esc(themeArt[i])}" alt="" style="height:40px;width:80px;object-fit:cover;border-radius:8px">` : ''}

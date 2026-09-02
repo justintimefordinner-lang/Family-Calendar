@@ -140,8 +140,9 @@ Each kid has two accounts, each a ledger of signed transactions:
 
 ## Month artwork
 
-Each month restyles the display (colors, a hand-drawn scene in the header, a faint doodle pattern).
-Replace any month's scene with a photo of the kids' own drawing in Settings › Display › Month artwork.
+Each month restyles the display with a soft pastel color and a hand-drawn scene in the header.
+Upload a photo of the kids' own drawing for a month (Settings › Display › Month artwork) and it
+becomes the full-screen background for that month.
 
 ---
 

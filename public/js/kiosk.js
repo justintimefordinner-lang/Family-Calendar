@@ -13,20 +13,21 @@
   const DOW = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
   const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 
-  // Seasonal styling per month (index = month). `ink`/`muted` only for dark backgrounds.
+  // Seasonal styling per month (index = month): a soft pastel page color, an accent, and a
+  // small emoji next to the family name. The header scene comes from themeArt.js.
   const THEMES = [
-    { deco: '❄️', strip: '❄️ ⛄ 🧣 ❄️ ☃️ 🧤', bg: '#e6f0fb', accent: '#2563eb' },
-    { deco: '💗', strip: '💗 💌 🍫 💘 🌹 💗', bg: '#fde8ef', accent: '#e11d48' },
-    { deco: '🍀', strip: '🍀 🌈 🪙 🍀 🎩 🌈', bg: '#e6f6ea', accent: '#15803d' },
-    { deco: '🌷', strip: '🌷 🐣 🌧️ 🐰 🌱 🦋', bg: '#f1eefb', accent: '#7c3aed' },
-    { deco: '🌸', strip: '🌸 🐝 🌼 🌸 🐞 🌻', bg: '#fff0f6', accent: '#db2777' },
-    { deco: '☀️', strip: '☀️ 🏖️ 🍉 🌊 🕶️ 🍦', bg: '#fff8d6', accent: '#d97706' },
-    { deco: '🎆', strip: '🎆 🇺🇸 🎇 ⭐ 🍔 🎆', bg: '#eef2ff', accent: '#dc2626' },
-    { deco: '✏️', strip: '✏️ 🚌 📚 🍎 🎒 🖍️', bg: '#fff4e0', accent: '#ea580c' },
-    { deco: '🍂', strip: '🍂 🍎 🌽 🍁 🐿️ 🍂', bg: '#fbeedd', accent: '#c2410c' },
-    { deco: '🎃', strip: '🎃 👻 🦇 🍬 🕸️ 🎃', bg: '#2b1a47', accent: '#ff7a1a', ink: '#ffffff', muted: '#c9bde3' },
-    { deco: '🦃', strip: '🦃 🍁 🥧 🌽 🍗 🍁', bg: '#f3e4cf', accent: '#b45309' },
-    { deco: '🎄', strip: '🎄 ⛄ 🎁 ❄️ 🦌 🎅', bg: '#e8f4ea', accent: '#c81e1e' },
+    { deco: '❄️', strip: '❄️ ⛄ 🧣 ❄️ ☃️ 🧤', bg: '#e6eef8', accent: '#5b8def' },
+    { deco: '💗', strip: '💗 💌 🍫 💘 🌹 💗', bg: '#fae6ec', accent: '#e4708f' },
+    { deco: '🍀', strip: '🍀 🌈 🪙 🍀 🎩 🌈', bg: '#e4f2e7', accent: '#4caf7a' },
+    { deco: '🌷', strip: '🌷 🐣 🌧️ 🐰 🌱 🦋', bg: '#ece8f8', accent: '#9b7fe0' },
+    { deco: '🌸', strip: '🌸 🐝 🌼 🌸 🐞 🌻', bg: '#fbe9f0', accent: '#e57aa6' },
+    { deco: '☀️', strip: '☀️ 🏖️ 🍉 🌊 🕶️ 🍦', bg: '#fbf4d9', accent: '#e0a930' },
+    { deco: '🎆', strip: '🎆 🇺🇸 🎇 ⭐ 🍔 🎆', bg: '#e7ecfa', accent: '#e06a6a' },
+    { deco: '✏️', strip: '✏️ 🚌 📚 🍎 🎒 🖍️', bg: '#fbeedd', accent: '#e58a3c' },
+    { deco: '🍂', strip: '🍂 🍎 🌽 🍁 🐿️ 🍂', bg: '#f8e7d5', accent: '#d97b4a' },
+    { deco: '🎃', strip: '🎃 👻 🦇 🍬 🕸️ 🎃', bg: '#f1e6f6', accent: '#e8843a' },
+    { deco: '🦃', strip: '🦃 🍁 🥧 🌽 🍗 🍁', bg: '#f4ead9', accent: '#c48a4a' },
+    { deco: '🎄', strip: '🎄 ⛄ 🎁 ❄️ 🦌 🎅', bg: '#e4f1e7', accent: '#d45f5f' },
   ];
 
   function applyTheme() {
@@ -35,9 +36,12 @@
     const t = enabled ? THEMES[month] : null;
     const s = document.body.style;
     const banner = $('#themeBanner');
+    // A family upload for this month becomes the whole page background.
+    const custom = state.themeArt[month];
+    document.body.classList.toggle('has-art', Boolean(custom));
+    if (custom) s.setProperty('background-image', `url("${custom}")`); else s.removeProperty('background-image');
     if (!t) {
       ['--bg', '--accent', '--page-ink', '--page-muted', '--deco'].forEach((v) => s.removeProperty(v));
-      s.removeProperty('background-image');
       banner.textContent = '';
       return;
     }
@@ -47,13 +51,9 @@
     if (t.muted) s.setProperty('--page-muted', t.muted); else s.removeProperty('--page-muted');
     s.setProperty('--deco', JSON.stringify(t.deco));
     const art = window.THEME_ART;
-    const custom = state.themeArt[month];
-    if (custom) banner.innerHTML = `<img src="${esc(custom)}" alt="">`;
+    if (custom) banner.textContent = '';                       // the drawing is the backdrop
     else if (art && art.scenes[month]) banner.innerHTML = art.scenes[month];
     else banner.textContent = t.strip;
-    if (art && art.tiles[month]) {
-      s.setProperty('background-image', `url("data:image/svg+xml;utf8,${encodeURIComponent(art.tiles[month])}")`);
-    }
   }
 
   const state = {
