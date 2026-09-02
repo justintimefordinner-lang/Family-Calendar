@@ -484,7 +484,7 @@
         const coins = fin ? (fin.coins || 0) : 0;
         const gate = gateFor(m.id);
         const lock = gate.ok ? '' : `data-locked="${esc(`Finish your ${gate.period} chores first: ${gate.missing.join(', ')}`)}"`;
-        return `<button class="member-btn ${gate.ok ? '' : 'locked'}" data-play="${key}" data-kid="${m.id}" ${lock} style="--c:${esc(m.color)}"><span class="avatar">${gate.ok ? esc(m.emoji) : '🔒'}</span><span>${esc(m.name)}<small class="sub">${gate.ok ? `🪙 ${coins}` : `${gate.missing.length} ${gate.period} chore${gate.missing.length === 1 ? '' : 's'} left`}</small></span></button>`;
+        return `<button class="member-btn ${gate.ok ? '' : 'locked'}" data-play="${key}" data-kid="${m.id}" ${lock} style="--c:${esc(m.color)}"><span class="avatar">${gate.ok ? esc(m.emoji) : '🔒'}</span><span>${esc(m.name)}<small class="sub">${gate.ok ? `🪙 ${wholeCoins(coins)}` : `${gate.missing.length} ${gate.period} chore${gate.missing.length === 1 ? '' : 's'} left`}</small></span></button>`;
       }).join('')}</div>`);
   }
 
