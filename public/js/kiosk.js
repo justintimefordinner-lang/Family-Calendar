@@ -114,12 +114,9 @@
   }
   function eventsVisible() {
     if (state.selected == null) return state.events;
-    return state.events.filter((e) => {
-      const ids = eventMembers(e).map((m) => m.id);
-      if (ids.includes(state.selected)) return true;
-      // Family-calendar events that name specific kids are only shown to those kids.
-      return Boolean(e.is_family) && ids.length === 0;
-    });
+    // A person's view shows only their events: calendars mapped to them plus events whose
+    // title names them. Family-wide events appear on the Everyone view.
+    return state.events.filter((e) => eventMembers(e).some((m) => m.id === state.selected));
   }
   function eventsOnDay(list, date) {
     const dayStart = date.getTime();

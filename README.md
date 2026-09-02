@@ -39,7 +39,8 @@ the same way.
 and just put the kid's name in the event title ("Owen soccer practice", "Piper's dentist",
 "Ava & Kai swim lessons"). The display matches family-member names (whole words, any case) and
 shows the event in that kid's view with their color; an event naming two kids shows for both, and
-a title with no names is treated as a family event for everyone. Both approaches can be mixed.
+a title with no names is a family event that appears on the *Everyone* view only. Selecting a
+person on the display shows just their events, chores and money. Both approaches can be mixed.
 
 Shorthand works too: a title that *starts* with an initial or abbreviation followed by a space or
 punctuation is matched ("O soccer", "P - dentist", "O/P carpool", "J: piano"). Add nicknames or
