@@ -665,7 +665,6 @@
           if (!confirm('Delete this?')) return;
           await api(`/api/local-events/${id}`, { method: 'DELETE' }); closeSheet(); toast('Deleted'); render(); break;
         case 'delete-chore':
-          if (!confirm('Delete this chore? History is kept.')) return;
           await api(`/api/chores/${id}`, { method: 'DELETE' }); closeSheet(); toast('Chore deleted'); render(); break;
         case 'approve-all': {
           const body = act.dataset.member ? { member_id: Number(act.dataset.member) } : {};
@@ -679,10 +678,8 @@
         }
         case 'reject': await api(`/api/chores/completions/${id}/reject`, { method: 'POST' }); toast('Rejected'); render(); break;
         case 'delete-coins':
-          if (!confirm('Remove this coin entry? If it came from a chore, the chore goes back to not approved.')) return;
           await api(`/api/coins/transactions/${id}`, { method: 'DELETE' }); toast('Removed'); render(); break;
         case 'delete-tx':
-          if (!confirm('Remove this transaction?')) return;
           await api(`/api/finance/transactions/${id}`, { method: 'DELETE' }); toast('Removed'); render(); break;
         case 'meal-week': S.mealWeek = act.dataset.n === '0' ? 0 : S.mealWeek + Number(act.dataset.n); render(); break;
         case 'shop-delete': await api(`/api/shopping/${id}`, { method: 'DELETE' }); render(); break;
