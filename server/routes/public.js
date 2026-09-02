@@ -43,12 +43,25 @@ const eventsInRange = db.prepare(`
   ORDER BY e.all_day DESC, e.start_ts
 `);
 
+// Match family-member names in event titles ("Owen soccer", "Piper's dentist") so a
+// single shared calendar can still be sorted per kid. Whole words only, case-insensitive.
+const escapeRe = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+function nameMatchers() {
+  return activeMembers.all()
+    .filter((m) => m.name.trim().length >= 2)
+    .map((m) => ({ id: m.id, re: new RegExp(`(?<![\\p{L}\\p{N}])${escapeRe(m.name.trim())}(?![\\p{L}\\p{N}])`, 'iu') }));
+}
+
 router.get('/events', (req, res) => {
   const from = isDateStr(req.query.from) ? req.query.from : localDate();
   const to = isDateStr(req.query.to) ? req.query.to : from;
   const fromTs = new Date(`${from}T00:00:00`).getTime();
   const toTs = new Date(`${to}T00:00:00`).getTime() + 86_400_000;
-  res.json(eventsInRange.all(fromTs, toTs));
+  const matchers = nameMatchers();
+  res.json(eventsInRange.all(fromTs, toTs).map((e) => ({
+    ...e,
+    member_ids: matchers.filter((m) => m.re.test(e.title)).map((m) => m.id),
+  })));
 });
 
 // ---- Chores ----------------------------------------------------------------

@@ -95,18 +95,31 @@
 
   // ---- Member helpers --------------------------------------------------------
   const memberById = (id) => state.members.find((m) => m.id === id);
+  // Members an event belongs to: the calendar's owner plus any names found in the title.
+  function eventMembers(ev) {
+    const ids = [];
+    if (ev.member_id != null) ids.push(ev.member_id);
+    for (const id of ev.member_ids || []) if (!ids.includes(id)) ids.push(id);
+    return ids.map(memberById).filter(Boolean);
+  }
   function eventColor(ev) {
-    const m = ev.member_id != null ? memberById(ev.member_id) : null;
+    const [m] = eventMembers(ev);
     if (m) return m.color;
     return ev.calendar_color || getComputedStyle(document.documentElement).getPropertyValue('--family').trim();
   }
   function eventWho(ev) {
-    const m = ev.member_id != null ? memberById(ev.member_id) : null;
-    return m ? m.name : (ev.is_family ? 'Family' : ev.calendar_name);
+    const names = eventMembers(ev).map((m) => m.name);
+    if (names.length) return names.join(' & ');
+    return ev.is_family ? 'Family' : ev.calendar_name;
   }
   function eventsVisible() {
     if (state.selected == null) return state.events;
-    return state.events.filter((e) => e.member_id === state.selected || e.is_family);
+    return state.events.filter((e) => {
+      const ids = eventMembers(e).map((m) => m.id);
+      if (ids.includes(state.selected)) return true;
+      // Family-calendar events that name specific kids are only shown to those kids.
+      return Boolean(e.is_family) && ids.length === 0;
+    });
   }
   function eventsOnDay(list, date) {
     const dayStart = date.getTime();

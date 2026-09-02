@@ -35,6 +35,12 @@ their phones to add, change, and remove events. The recommended layout:
 You can connect more than one Google account (for example, your spouse's) and map its calendars
 the same way.
 
+**Simpler alternative — one calendar, names in the titles.** Map your main calendar as *Family*
+and just put the kid's name in the event title ("Owen soccer practice", "Piper's dentist",
+"Ava & Kai swim lessons"). The display matches family-member names (whole words, any case) and
+shows the event in that kid's view with their color; an event naming two kids shows for both, and
+a title with no names is treated as a family event for everyone. Both approaches can be mixed.
+
 ---
 
 ## Install on a Raspberry Pi
