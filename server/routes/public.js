@@ -405,7 +405,9 @@ router.post('/games/session/:id/tick', (req, res) => {
   if (!tx) throw new HttpError(404, 'Session not found');
   const seconds = Math.max(0, Number(req.body.seconds) || 0);
   const rate = Math.max(0, Number(settings.get('game_coins_per_minute')) || 0);
-  const amount = -Math.round((rate * seconds / 60) * 100) / 100;
+  // Never charge past zero: cap at what the kid had before this session.
+  const before = chores.coinBalance(tx.member_id) - tx.amount;
+  const amount = -Math.min(Math.round((rate * seconds / 60) * 100) / 100, Math.max(0, before));
   const minutes = Math.round(seconds / 6) / 10;
   db.prepare('UPDATE coin_transactions SET amount = ?, note = ? WHERE id = ?').run(amount, `${String(tx.note).replace(/ · .*$/, '')} · ${minutes} min`, tx.id);
   const coins = chores.coinBalance(tx.member_id);

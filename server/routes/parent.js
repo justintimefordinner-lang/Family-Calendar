@@ -148,8 +148,8 @@ router.post('/chores/reset-day', (req, res) => {
 router.post('/coins/:memberId', (req, res) => {
   const memberId = toInt(req.params.memberId);
   if (!memberById.get(memberId)) throw new HttpError(404, 'Member not found');
-  const amount = toInt(req.body.amount);
-  if (!amount) throw new HttpError(400, 'amount required (whole coins, negative to spend)');
+  const amount = Math.round((Number(req.body.amount) || 0) * 100) / 100;
+  if (!amount) throw new HttpError(400, 'amount required (negative to spend)');
   db.prepare('INSERT INTO coin_transactions(member_id, amount, note) VALUES(?, ?, ?)')
     .run(memberId, amount, String(req.body.note || '').trim().slice(0, 200) || null);
   res.json({ coins: chores.coinBalance(memberId) });
