@@ -1,9 +1,11 @@
 // Google Calendar integration: OAuth for one or more Google accounts, calendar
 // list discovery, and a periodic read-only event sync into SQLite.
+const fs = require('fs');
+const path = require('path');
 const { OAuth2Client } = require('google-auth-library');
 const db = require('./db');
 const settings = require('./settings');
-const { PORT } = require('./config');
+const { PORT, DATA_DIR } = require('./config');
 const { HttpError } = require('./util');
 
 const SCOPES = [
@@ -15,10 +17,24 @@ const REDIRECT_URI = `http://localhost:${PORT}/api/google/callback`;
 const PAST_DAYS = 21;
 const FUTURE_DAYS = 90;
 
+// Google's downloaded OAuth client file, if the user dropped it in the data directory.
+// Format: { "installed": { "client_id": "...", "client_secret": "..." } }
+function clientFile() {
+  try {
+    const raw = JSON.parse(fs.readFileSync(path.join(DATA_DIR, 'google-client.json'), 'utf8'));
+    const c = raw.installed || raw.web || raw;
+    return c.client_id && c.client_secret ? { clientId: c.client_id, clientSecret: c.client_secret } : null;
+  } catch {
+    return null;
+  }
+}
+
+// Precedence: environment > parent-app settings > data/google-client.json
 function clientConfig() {
+  const file = clientFile();
   return {
-    clientId: process.env.GOOGLE_CLIENT_ID || settings.get('google_client_id'),
-    clientSecret: process.env.GOOGLE_CLIENT_SECRET || settings.get('google_client_secret'),
+    clientId: process.env.GOOGLE_CLIENT_ID || settings.get('google_client_id') || (file && file.clientId) || '',
+    clientSecret: process.env.GOOGLE_CLIENT_SECRET || settings.get('google_client_secret') || (file && file.clientSecret) || '',
   };
 }
 
