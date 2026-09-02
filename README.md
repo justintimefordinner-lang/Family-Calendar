@@ -51,6 +51,20 @@ A lone leading "A" or "I" only counts when followed by punctuation ("A - dentist
 
 ---
 
+## Try it: example mode (no Pi needed)
+
+The whole front end can run as a static site against an in-browser fake backend with sample data
+— tick chores, approve them, add shopping items, play the games. Nothing is saved.
+
+- Locally: serve the `public/` folder with any static server and open `/?demo=1` (and `/parent/?demo=1`). The flag sticks in that browser; open `/?demo=0` to leave example mode.
+- On Vercel: import this repository; `vercel.json` already sets the output directory to `public`
+  with no build step. Example mode switches on automatically on `*.vercel.app` hosts.
+
+A real install never enters example mode: it is keyed to the hostname / `?demo=1`, and the Pi
+serves its own API.
+
+---
+
 ## Install on a Raspberry Pi
 
 Requirements: Raspberry Pi OS (64-bit recommended), Node.js 20+, git.
