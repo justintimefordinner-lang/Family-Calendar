@@ -390,5 +390,63 @@ body.has-art::before { background: rgba(255, 255, 255, 0.22); }
 .m-cell .num { display: flex; justify-content: space-between; align-items: baseline; gap: 4px; }
 .m-wx { font-size: 0.78rem; font-weight: 500; color: var(--muted); white-space: nowrap; }
 
+/* ---- Phone layout (body.mobile): everything stacks, Day / Week agenda views ---- */
+body.mobile { display: block; height: auto; min-height: 100%; overflow: auto; font-size: 15px; }
+body.mobile .top { display: flex; justify-content: space-between; align-items: center; padding: 10px 14px 4px; gap: 10px; }
+body.mobile .brand h1 { font-size: 1.2rem; }
+body.mobile .today-label { font-size: 0.8rem; }
+body.mobile .header-mid { display: none; }
+body.mobile .clock { font-size: 1.5rem; }
+body.mobile .sync { display: none; }
+body.mobile .gear { font-size: 1.2rem; }
+body.mobile .layout { display: flex; flex-direction: column; gap: 10px; padding: 6px 12px 24px; }
+body.mobile .members { flex-direction: row; overflow-x: auto; gap: 8px; padding: 4px 2px 6px; scrollbar-width: none; }
+body.mobile .members::-webkit-scrollbar { display: none; }
+body.mobile .member-btn { min-height: 44px; padding: 6px 12px 6px 6px; font-size: 0.95rem; flex: none; border-radius: 999px; gap: 8px; }
+body.mobile .member-btn .avatar { width: 32px; height: 32px; font-size: 1.1rem; }
+body.mobile .member-btn.earn, body.mobile .member-btn.games { margin-top: 0; }
+body.mobile .cal-toolbar { flex-wrap: wrap; gap: 8px; margin-bottom: 8px; }
+body.mobile .range-label { font-size: 1.05rem; margin-left: 4px; }
+body.mobile .btn { min-height: 40px; padding: 6px 12px; font-size: 0.95rem; min-width: 40px; }
+body.mobile .seg-btn { min-height: 40px; padding: 6px 16px; }
+body.mobile .cal-grid { display: block; flex: none; }
+.day-list .day-row { background: var(--panel); border-radius: 14px; padding: 10px 12px; margin-bottom: 8px; box-shadow: var(--shadow); }
+.day-list .day-row.today { outline: 2px solid var(--accent); }
+.day-list h4 { margin: 0 0 6px; font-size: 0.85rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; display: flex; justify-content: space-between; }
+.day-list h4 .wx { text-transform: none; letter-spacing: 0; }
+.day-list .ev { margin-bottom: 6px; font-size: 1rem; }
+.day-list .day-foot { border-top: 1px dashed var(--line); padding: 8px 0 0; margin-top: 4px; font-size: 0.9rem; color: var(--muted); }
+.day-list .wx-line { font-size: 0.95rem; color: var(--muted); margin: 0 4px 8px; }
+body.mobile .side { display: flex; flex-direction: column; gap: 10px; overflow: visible; }
+body.mobile .card { padding: 12px 14px; }
+body.mobile .money2 .balance { font-size: 1.25rem; }
+body.mobile .osk { display: none !important; }
+body.mobile .shop-hidden { position: static; width: auto; height: auto; opacity: 1; pointer-events: auto; display: flex; gap: 8px; margin-top: 10px; }
+body.mobile .shop-hidden input#shopInput { flex: 1; font: inherit; padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px; min-height: 44px; }
+body.mobile .shop-actions .btn { min-height: 48px; font-size: 1.3rem; }
+body.mobile .modal-card { width: 94vw; padding: 20px 18px; max-height: 88vh; }
+body.mobile .modal h2 { font-size: 1.25rem; }
+body.mobile .kid-pick { grid-template-columns: 1fr 1fr; gap: 8px; }
+body.mobile .av-grid { grid-template-columns: repeat(6, 1fr); max-height: 40vh; }
+body.mobile .av-btn { height: 48px; font-size: 1.5rem; }
+body.mobile .common-grid { grid-template-columns: repeat(3, 1fr); }
+body.mobile .celebrate-card { padding: 24px 28px; }
+body.mobile .celebrate .big { font-size: 2.4rem; }
+body.mobile .celebrate .name { font-size: 1.3rem; }
+body.mobile .game-top { padding: 8px 10px; flex-wrap: wrap; }
+body.mobile .game-title { font-size: 1.1rem; }
+body.mobile .game-stage { flex-direction: column; gap: 12px; padding: 0 8px 12px; }
+body.mobile .game-canvas-wrap { height: auto; }
+body.mobile .dpad { grid-template-columns: repeat(3, 70px); grid-template-rows: repeat(3, 70px); gap: 8px; }
+body.mobile .dpad-btn { font-size: 1.8rem; border-radius: 16px; }
+body.mobile .game.uses-fire .game-stage { flex-direction: column; }
+body.mobile .game.uses-fire .dpad { grid-template-columns: 70px; }
+body.mobile .game.uses-fire .dpad-btn.fire { width: 70px; height: 70px; }
+body.mobile .pad-left .dpad-btn { width: 90px; height: 90px; font-size: 2rem; }
+body.mobile .pad-left { gap: 30px; }
+body.mobile .setup-notice p { font-size: 1.1rem; }
+body.mobile .has-art .top { border-radius: 0 0 14px 14px; }
+body.mobile .qty-row .btn.on { background: var(--accent); color: #fff; border-color: var(--accent); }
+
 ::-webkit-scrollbar { width: 8px; }
 ::-webkit-scrollbar-thumb { background: #d4cfc4; border-radius: 4px; }

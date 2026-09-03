@@ -94,7 +94,34 @@
     const x = new Date(d.getFullYear(), d.getMonth(), d.getDate());
     return addDays(x, -((x.getDay() - weekStart() + 7) % 7));
   }
+  // ---- Layout: wall display vs phone -------------------------------------------
+  // Auto on narrow screens; the gear menu can force one or the other (stored per browser).
+  function layoutPref() { try { return localStorage.getItem('fc_layout') || 'auto'; } catch { return 'auto'; } }
+  function isMobile() {
+    const p = layoutPref();
+    if (p === 'mobile') return true;
+    if (p === 'desktop') return false;
+    return window.innerWidth < 900;
+  }
+  let mobileNow = null;
+  function applyLayout(force = false) {
+    const mobile = isMobile();
+    if (!force && mobile === mobileNow) return false;
+    mobileNow = mobile;
+    document.body.classList.toggle('mobile', mobile);
+    const views = mobile ? [['day', 'Day'], ['week', 'Week']] : [['week', 'Week'], ['month', 'Month']];
+    state.view = mobile ? 'day' : 'week'; // each layout opens on its natural view
+    $('.seg').innerHTML = views.map(([v, l]) => `<button class="seg-btn ${state.view === v ? 'active' : ''}" data-view="${v}">${l}</button>`).join('');
+    return true;
+  }
+  let resizeTimer = null;
+  window.addEventListener('resize', () => { clearTimeout(resizeTimer); resizeTimer = setTimeout(() => { if (applyLayout()) loadEvents(); }, 200); });
+
   function visibleRange() {
+    if (state.view === 'day') {
+      const d = new Date(state.anchor.getFullYear(), state.anchor.getMonth(), state.anchor.getDate());
+      return { from: d, to: d };
+    }
     if (state.view === 'week') {
       const s = startOfWeek(state.anchor);
       return { from: s, to: addDays(s, 6) };
@@ -252,9 +279,43 @@
     $('#rangeLabel').textContent = `${MONTHS[month]} ${state.anchor.getFullYear()}`;
   }
 
+  // Phone layouts: one day as an agenda, or the week as seven stacked days.
+  function dayRow(d, opts = {}) {
+    const key = ymd(d);
+    const evs = eventsOnDay(eventsVisible(), d);
+    const meal = state.meals[key];
+    const wx = wxFor(key);
+    const head = opts.head === false ? '' : `<h4>${DOW[d.getDay()]} ${d.getDate()}${wx ? `<span class="wx">${wx.emoji} ${wx.hi}°/${wx.lo}°</span>` : ''}</h4>`;
+    return `<div class="day-row ${key === state.today ? 'today' : ''}">${head}
+      ${evs.length ? evs.map((e) => eventHtml(e, d)).join('') : '<p class="muted small">Nothing on the calendar</p>'}
+      ${meal ? `<div class="day-foot">🍽️ <b>${esc(meal.title)}</b></div>` : ''}</div>`;
+  }
+
+  function renderDay() {
+    const grid = $('#calGrid');
+    grid.className = 'cal-grid day';
+    const d = new Date(state.anchor.getFullYear(), state.anchor.getMonth(), state.anchor.getDate());
+    const wx = wxFor(ymd(d));
+    grid.innerHTML = `<div class="day-list">${wx ? `<div class="wx-line">${wx.emoji} ${wx.hi}° / ${wx.lo}° · ${esc(wx.label)}</div>` : ''}${dayRow(d, { head: false })}</div>`;
+    $('#rangeLabel').textContent = ymd(d) === state.today ? `Today · ${d.toLocaleDateString([], { month: 'short', day: 'numeric' })}` : d.toLocaleDateString([], { weekday: 'long', month: 'short', day: 'numeric' });
+  }
+
+  function renderWeekList() {
+    const grid = $('#calGrid');
+    grid.className = 'cal-grid weeklist';
+    const { from, to } = visibleRange();
+    const rows = [];
+    for (let d = from; d <= to; d = addDays(d, 1)) rows.push(dayRow(d));
+    grid.innerHTML = `<div class="day-list">${rows.join('')}</div>`;
+    $('#rangeLabel').textContent = `${from.toLocaleDateString([], { month: 'short', day: 'numeric' })} – ${to.toLocaleDateString([], { month: 'short', day: 'numeric' })}`;
+  }
+
   function renderCalendar() {
     applyTheme();
-    if (state.view === 'week') renderWeek(); else renderMonth();
+    if (state.view === 'day') renderDay();
+    else if (state.view === 'week' && mobileNow) renderWeekList();
+    else if (state.view === 'week') renderWeek();
+    else renderMonth();
   }
 
   // ---- Rendering: side panel -------------------------------------------------
@@ -507,7 +568,10 @@
     $('#gameTitle').textContent = g.name;
     updateGameCoins();
     const wrap = $('.game-canvas-wrap');
-    window.Games[key].start($('#gameCanvas'), { height: wrap.clientHeight || (window.innerHeight - 120), width: Math.min(1100, window.innerWidth - 520) });
+    const size = mobileNow
+      ? { width: window.innerWidth - 24, height: Math.floor(window.innerHeight * 0.55) }
+      : { height: wrap.clientHeight || (window.innerHeight - 120), width: Math.min(1100, window.innerWidth - 520) };
+    window.Games[key].start($('#gameCanvas'), size);
     clearInterval(play.timer); clearInterval(play.hudTimer);
     if (play.sessionId) play.timer = setInterval(() => gameTick(false), 30_000);
     play.hudTimer = setInterval(() => {
@@ -728,9 +792,13 @@
     let v = null;
     try { v = await api('/api/system/version'); } catch { v = null; }
     const line = v && v.rev && v.rev !== '?' ? `Version <b>${esc(v.rev)}</b>${v.date ? ` · ${esc(v.date)}` : ''}<br><span class="muted">${esc(v.subject || '')}</span>` : 'Version unknown';
+    const pref = layoutPref();
+    const lay = (v, l) => `<button class="btn ${pref === v ? 'on' : ''}" data-layout="${v}">${l}</button>`;
     openModal(`<h2>⚙️ Display</h2><p class="kv">${line}</p>
       <div class="kid-pick"><button class="btn primary-btn" data-update>⬇️ Pull Updates &amp; Restart</button><button class="btn" data-close>Close</button></div>
-      <p class="kv muted" id="updateStatus"></p>`);
+      <p class="kv muted" id="updateStatus"></p>
+      <p class="kv"><b>Layout</b> <span class="muted">— currently ${mobileNow ? 'mobile (Day / Week)' : 'wall display (Week / Month)'}</span></p>
+      <div class="qty-row">${lay('auto', 'Auto')}${lay('desktop', '🖥️ Wall display')}${lay('mobile', '📱 Mobile')}</div>`);
   }
 
   async function runUpdate(btn) {
@@ -871,6 +939,7 @@
 
   async function refreshAll() {
     try {
+      applyLayout(); // in case the window changed size without a resize event
       await loadState();
       await Promise.all([loadEvents(), loadSide()]);
     } catch (e) {
@@ -931,6 +1000,7 @@
     if (nav) {
       const n = Number(nav.dataset.nav);
       if (n === 0) state.anchor = new Date();
+      else if (state.view === 'day') state.anchor = addDays(state.anchor, n);
       else if (state.view === 'week') state.anchor = addDays(state.anchor, 7 * n);
       else state.anchor = new Date(state.anchor.getFullYear(), state.anchor.getMonth() + n, 1);
       await loadEvents();
@@ -948,9 +1018,16 @@
     const dayCell = t.closest('[data-day]');
     if (dayCell) {
       state.anchor = parseYmd(dayCell.dataset.day);
-      state.view = 'week';
-      document.querySelectorAll('.seg-btn').forEach((b) => b.classList.toggle('active', b.dataset.view === 'week'));
+      state.view = mobileNow ? 'day' : 'week';
+      document.querySelectorAll('.seg-btn').forEach((b) => b.classList.toggle('active', b.dataset.view === state.view));
       await loadEvents();
+      return;
+    }
+    const layoutBtn = t.closest('[data-layout]');
+    if (layoutBtn) {
+      try { localStorage.setItem('fc_layout', layoutBtn.dataset.layout); } catch { /* ignore */ }
+      closeModal();
+      if (applyLayout()) await loadEvents();
       return;
     }
     const chore = t.closest('[data-chore]');
@@ -1013,7 +1090,7 @@
     if (t.closest('[data-dir]')) return; // handled by pointer events
     if (t.closest('[data-shop-kb]')) {
       const input = $('#shopInput');
-      if (input) { input.value = ''; input.focus(); oskShow(input); }
+      if (input) { input.value = ''; input.focus(); if (!mobileNow) oskShow(input); }
       return;
     }
     if (t.closest('[data-shop-common]')) { await showCommonItems(); return; }
@@ -1168,7 +1245,8 @@
     t.dispatchEvent(new Event('input', { bubbles: true }));
   }
 
-  const isTextInput = (t) => t && t.matches && t.matches('input[type="text"], input:not([type])');
+  // Phones have their own keyboard; the on-screen one is for the touch display only.
+  const isTextInput = (t) => !mobileNow && t && t.matches && t.matches('input[type="text"], input:not([type])');
   document.addEventListener('focusin', (e) => { if (isTextInput(e.target)) oskShow(e.target); });
   document.addEventListener('click', (e) => { if (isTextInput(e.target) && $('#osk').hidden) oskShow(e.target); });
   $('#osk').addEventListener('pointerdown', (e) => e.preventDefault()); // keep the input focused
@@ -1231,10 +1309,11 @@
 
   setInterval(() => {
     const mins = Number(state.settings.screensaver_minutes);
-    if (mins > 0 && Date.now() - lastActivity > mins * 60_000) startScreensaver();
+    if (!mobileNow && mins > 0 && Date.now() - lastActivity > mins * 60_000) startScreensaver();
   }, 5000);
 
   // ---- Boot -----------------------------------------------------------------
+  applyLayout(true);
   tickClock();
   setInterval(tickClock, 1000);
   refreshAll().then(() => { loadWeather(); loadPhotos(); });

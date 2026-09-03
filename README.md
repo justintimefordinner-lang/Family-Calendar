@@ -125,7 +125,13 @@ Open `http://<pi-ip>:3100/parent` in Chrome (Android) or Safari (iPhone) and cho
 | Regular chore | one member | every day, certain weekdays, or one time | marked done immediately; tap again to undo |
 | Earn Money chore | one member or *Anyone* | same options | goes to *Waiting for approval*; a parent taps **Pay** in the parent app and the amount is credited |
 
-Deleting a chore hides it but keeps history. Removing a payout transaction under *Money* marks
+Deleting a chore hides it but keeps history.
+
+### Phone layout for the display
+
+Opening the display URL on a phone (or any window under 900 px wide) switches to a stacked
+mobile layout with **Day / Week** agenda views instead of Week / Month; the phone's own keyboard
+is used for the shopping list. Force it either way from the ⚙ menu (Auto / Wall display / Mobile). Removing a payout transaction under *Money* marks
 the completion as rejected so it can be redone.
 
 ### Parent notifications
