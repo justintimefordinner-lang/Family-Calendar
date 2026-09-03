@@ -167,6 +167,8 @@ h1, h2, h3 { margin: 0; font-weight: 700; }
 
 .chore { display: flex; align-items: center; gap: 14px; padding: 10px 6px; border-top: 1px solid var(--line); min-height: 60px; }
 .chore:first-of-type { border-top: 0; }
+.card.preview .chore { pointer-events: none; }
+.card.preview .chore .check { border-style: dashed; }
 .period-head { font-size: 0.85rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); padding: 12px 6px 4px; }
 .period-head + .chore { border-top: 0; }
 .chore .check {

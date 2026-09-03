@@ -367,8 +367,8 @@
         return items.length ? `<div class="period-head">${label}</div>${items.map((c) => choreRow(c, false)).join('')}` : '';
       }).join('')
       : regular.map((c) => choreRow(c, false)).join('');
-    let html = `<div class="card accent" style="--c:${esc(m.color)}">
-      <h3>${esc(m.emoji)} ${esc(m.name)}'s Chores <span class="meta">${done}/${regular.length} done · <button class="linkish" data-avatar-edit="${m.id}">🎨 change my look</button></span></h3>
+    let html = `<div class="card accent ${choresPreview() ? 'preview' : ''}" style="--c:${esc(m.color)}">
+      <h3>${esc(m.emoji)} ${esc(m.name)}'s Chores <span class="meta">${choresPreview() ? `${parseYmd(state.choresDate).toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' })} · preview` : `${done}/${regular.length} done · <button class="linkish" data-avatar-edit="${m.id}">🎨 change my look</button>`}</span></h3>
       ${regular.length ? list : '<p class="muted center">No chores today 🎉</p>'}
     </div>`;
     const mine = paid.filter((c) => c.member_id === m.id || c.completed_by === m.id);
@@ -907,10 +907,15 @@
     renderCalendar();
   }
 
+  // Which day the chores panel describes: the day being viewed in Day view, otherwise today.
+  const choresDate = () => (state.view === 'day' ? ymd(state.anchor) : state.today);
+  const choresPreview = () => state.choresDate !== state.today;
+
   async function loadSide() {
+    state.choresDate = choresDate();
     const member = typeof state.selected === 'number' ? `&member=${state.selected}` : '';
     const [chores, finance, shopping] = await Promise.all([
-      api(`/api/chores/day?date=${state.today}${member}`),
+      api(`/api/chores/day?date=${state.choresDate}${member}`),
       api('/api/finance/summary'),
       state.selected == null ? api('/api/shopping') : Promise.resolve(state.shopping),
     ]);
@@ -1005,6 +1010,7 @@
       else if (state.view === 'week') state.anchor = addDays(state.anchor, 7 * n);
       else state.anchor = new Date(state.anchor.getFullYear(), state.anchor.getMonth() + n, 1);
       await loadEvents();
+      if (choresDate() !== state.choresDate) await loadSide();
       return;
     }
     const view = t.closest('[data-view]');
@@ -1012,6 +1018,7 @@
       state.view = view.dataset.view;
       document.querySelectorAll('.seg-btn').forEach((b) => b.classList.toggle('active', b === view));
       await loadEvents();
+      if (choresDate() !== state.choresDate) await loadSide();
       return;
     }
     const evEl = t.closest('[data-event]');
@@ -1022,6 +1029,7 @@
       state.view = mobileNow ? 'day' : 'week';
       document.querySelectorAll('.seg-btn').forEach((b) => b.classList.toggle('active', b.dataset.view === state.view));
       await loadEvents();
+      if (choresDate() !== state.choresDate) await loadSide();
       return;
     }
     const layoutBtn = t.closest('[data-layout]');
@@ -1141,6 +1149,7 @@
   });
 
   async function toggleChore(el) {
+    if (choresPreview()) return; // other days are read-only previews
     const memberId = typeof state.selected === 'number' ? state.selected : (el.dataset.owner ? Number(el.dataset.owner) : null);
     if (memberId == null) return; // open Earn Money chores are claimed from a kid's own view
     try {
