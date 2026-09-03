@@ -109,6 +109,7 @@
     if (!force && mobile === mobileNow) return false;
     mobileNow = mobile;
     document.body.classList.toggle('mobile', mobile);
+    document.documentElement.classList.toggle('mobile', mobile);
     const views = mobile ? [['day', 'Day'], ['week', 'Week']] : [['week', 'Week'], ['month', 'Month']];
     state.view = mobile ? 'day' : 'week'; // each layout opens on its natural view
     $('.seg').innerHTML = views.map(([v, l]) => `<button class="seg-btn ${state.view === v ? 'active' : ''}" data-view="${v}">${l}</button>`).join('');

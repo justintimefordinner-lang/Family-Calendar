@@ -391,7 +391,8 @@ body.has-art::before { background: rgba(255, 255, 255, 0.22); }
 .m-wx { font-size: 0.78rem; font-weight: 500; color: var(--muted); white-space: nowrap; }
 
 /* ---- Phone layout (body.mobile): everything stacks, Day / Week agenda views ---- */
-body.mobile { display: block; height: auto; min-height: 100%; overflow: auto; font-size: 15px; }
+html.mobile { height: auto; overflow: auto; -webkit-overflow-scrolling: touch; }
+body.mobile { display: block; height: auto; min-height: 100%; overflow: visible; font-size: 15px; }
 body.mobile .top { display: flex; justify-content: space-between; align-items: center; padding: 10px 14px 4px; gap: 10px; }
 body.mobile .brand h1 { font-size: 1.2rem; }
 body.mobile .today-label { font-size: 0.8rem; }
