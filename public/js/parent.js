@@ -194,6 +194,13 @@
     ]);
     if (!S.settings) S.settings = await api('/api/settings');
     let html = '';
+    {
+      // Quick override for the games on the display: a one-off unlock that ignores the allowed hours.
+      const unlocked = Number(S.settings.games_unlocked) === 1;
+      html += `<div class="card"><div class="list-item" style="border-top:0"><div class="grow"><div class="title">${unlocked ? '🔓 Games unlocked' : '🎮 Games follow the schedule'}</div>
+        <div class="sub">${unlocked ? 'Playable any time until you lock them again. Chores and coins still apply.' : 'Only during the hours in Settings. Unlock for a one-off; chores and coins still apply.'}</div></div>
+        <button class="btn small ${unlocked ? '' : 'primary'}" data-action="toggle-games" data-on="${unlocked ? 1 : 0}">${unlocked ? 'Lock' : 'Unlock games'}</button></div></div>`;
+    }
     if (pending.length) {
       // Grouped by kid, each with its own Approve all.
       const byKid = [];
@@ -598,6 +605,7 @@
         <label class="field"><span>…and again from</span><input type="time" name="games_weekday_from" value="${esc(settings.games_weekday_from || '16:00')}"></label>
       </div>
       <label class="field"><span>Weekends</span><select name="games_weekends"><option value="1" ${Number(settings.games_weekends ?? 1) !== 0 ? 'selected' : ''}>Games allowed all day</option><option value="0" ${Number(settings.games_weekends ?? 1) === 0 ? 'selected' : ''}>Games closed</option></select></label>
+      <p class="muted small">Need a one-off exception? The Chores tab has an <b>Unlock games</b> button that ignores these hours until you lock them again.</p>
       <p class="muted small">Every chore a kid taps shows a "Great Job!" and waits for a parent's OK. Regular chores then award coins; Earn Money chores pay cash instead. Spend coins from the Money tab.</p>
       <button class="btn primary" type="submit">Save</button></form>`;
 
@@ -817,6 +825,11 @@
         case 'notify-test': {
           const r = await api('/api/notify/test', { method: 'POST' });
           toast(`Sent. Buttons in notifications will open ${r.app_url}`); break;
+        }
+        case 'toggle-games': {
+          const on = act.dataset.on === '1' ? 0 : 1; // read the button, not cached settings, so a quick double-tap cannot flip it back
+          await api('/api/settings', { method: 'PATCH', body: { games_unlocked: on } });
+          S.settings = null; toast(on ? 'Games unlocked' : 'Games back on the schedule'); render(); break;
         }
         case 'apply-interest': {
           const r = await api('/api/finance/apply-interest', { method: 'POST' });

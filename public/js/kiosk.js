@@ -111,9 +111,10 @@
     mobileNow = mobile;
     document.body.classList.toggle('mobile', mobile);
     document.documentElement.classList.toggle('mobile', mobile);
-    const views = mobile ? [["day", "Day"], ["week", "Week"], ["chores", "Chores"]] : [["day", "Day"], ["week", "Week"], ["month", "Month"], ["chores", "Chores"]];
+    const views = mobile ? [["day", "Day"], ["week", "Week"]] : [["day", "Day"], ["week", "Week"], ["month", "Month"]]; // the Chores button is separate, in the HTML
     state.view = mobile ? 'day' : 'week'; // each layout opens on its natural view
     $('.seg').innerHTML = views.map(([v, l]) => `<button class="seg-btn ${state.view === v ? 'active' : ''}" data-view="${v}">${l}</button>`).join('');
+    document.querySelectorAll(".seg-btn.solo").forEach((b) => b.classList.toggle("active", b.dataset.view === state.view));
     return true;
   }
   let resizeTimer = null;
@@ -345,6 +346,7 @@
 
   function renderCalendar() {
     applyTheme();
+    document.body.classList.toggle("chores-view", state.view === "chores"); // full-width board: members column and side panel are hidden
     if (state.view === "day") renderDay();
     else if (state.view === "chores") renderChoresBoard();
     else if (state.view === 'week' && mobileNow) renderWeekList();
@@ -532,6 +534,7 @@
   // Mirrors the server's rule so the panel can show "opens at 4:00 PM" without a round trip.
   function gamesWindow(now = new Date()) {
     const s = state.settings;
+    if (Number(s.games_unlocked)) return { open: true, unlocked: true }; // a parent unlocked games from their phone (chores and coins still apply)
     const parseHM = (v, d) => { const m = /^(\d{1,2}):(\d{2})$/.exec(String(v || '')); return m ? Number(m[1]) * 60 + Number(m[2]) : d; };
     const fmtHM = (mins) => { const h = Math.floor(mins / 60); const m = mins % 60; return `${((h + 11) % 12) + 1}:${String(m).padStart(2, '0')} ${h < 12 ? 'AM' : 'PM'}`; };
     const day = now.getDay();
@@ -547,7 +550,7 @@
     const rate = gameRate();
     const win = gamesWindow();
     $('#side').innerHTML = `<div class="card accent ${win.open ? '' : 'games-closed'}" style="--c:#111827"><h3>🎮 Games <span class="meta">${rate > 0 ? `🪙 ${rate} ${esc(coinName())} per minute` : 'free play'}</span></h3>
-      ${win.open ? '' : `<p class="games-locked">🔒 ${esc(win.reason)}</p>`}
+      ${win.unlocked ? '<p class="games-locked">🔓 Unlocked by a parent</p>' : win.open ? '' : `<p class="games-locked">🔒 ${esc(win.reason)}</p>`}
       ${GAME_LIST.map((g) => `<div class="game-card" data-game="${g.key}"><div class="icon ${g.key}">${win.open ? g.icon : '🔒'}</div><div><div class="name">${g.name}</div><span class="sub">${g.sub} · High score ${Number(localStorage.getItem(`fc_${g.key}_high`) || 0)}</span></div></div>`).join('')}
     </div>
     <p class="muted center">Morning chores done before noon, afternoon chores after — then games 😉</p>`;

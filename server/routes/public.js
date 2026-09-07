@@ -354,6 +354,7 @@ const fmtHM = (mins) => { const h = Math.floor(mins / 60); const m = mins % 60; 
 
 // School days: open before `games_weekday_until` and from `games_weekday_from`; weekends all day if enabled.
 function gamesWindow(now = new Date()) {
+  if (Number(settings.get('games_unlocked'))) return { open: true, unlocked: true }; // parent override from the parent app
   const day = now.getDay();
   if (day === 0 || day === 6) {
     return Number(settings.get('games_weekends')) !== 0 ? { open: true } : { open: false, reason: 'Games are closed on weekends' };

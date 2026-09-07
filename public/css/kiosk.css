@@ -109,6 +109,9 @@ h1, h2, h3 { margin: 0; font-weight: 700; }
 .seg { display: inline-flex; background: var(--panel); border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
 .seg-btn { border: 0; background: transparent; padding: 10px 20px; font-weight: 600; min-height: 48px; }
 .seg-btn.active { background: var(--ink); color: #fff; }
+.views { display: flex; align-items: center; gap: 18px; }
+.seg-btn.solo { border: 1px solid var(--line); background: var(--panel); border-radius: 12px; padding: 10px 22px; }
+.seg-btn.solo.active { background: var(--ink); color: #fff; border-color: var(--ink); }
 
 .cal-grid { flex: 1; min-height: 0; display: grid; gap: 10px; }
 .cal-grid.week { grid-template-columns: repeat(7, 1fr); }
@@ -367,7 +370,7 @@ h1, h2, h3 { margin: 0; font-weight: 700; }
 .top, .cal-toolbar { color: var(--page-ink, var(--ink)); }
 .today-label, .sync, .weather .day, .weather .now small, .m-head { color: var(--page-muted, var(--muted)); }
 .weather .day b { color: var(--page-ink, var(--ink)); }
-.cal-toolbar .btn, .cal-toolbar .seg { color: var(--ink); }
+.cal-toolbar .btn, .cal-toolbar .seg, .cal-toolbar .seg-btn.solo:not(.active) { color: var(--ink); }
 .header-mid { display: flex; align-items: center; gap: 24px; }
 .theme-banner { font-size: 1.5rem; line-height: 1; letter-spacing: 0.3em; white-space: nowrap; display: flex; align-items: center; }
 .theme-banner:empty { display: none; }
@@ -429,7 +432,9 @@ body.mobile .cal-grid { display: block; flex: none; }
 .cal-grid.day .day-list .muted.small { font-size: 1.1rem; text-align: center; padding: 30px 0; }
 /* Chores view: one card per kid for the day being viewed */
 .cal-grid.chores { display: block; overflow: auto; }
-.chores-board { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 12px; align-items: start; }
+.chores-board { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 14px; align-items: start; }
+body.chores-view .members, body.chores-view .side { display: none; } /* the board gets the whole width */
+body.chores-view .layout { grid-template-columns: 1fr; }
 .board h3 .who { display: flex; align-items: center; gap: 8px; }
 .board h3 .avatar { font-size: 1.4rem; }
 .board.finished { opacity: 0.72; }

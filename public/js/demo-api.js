@@ -28,7 +28,7 @@
     family_name: 'The Example Family', timezone: Intl.DateTimeFormat().resolvedOptions().timeZone, week_start: 0,
     screensaver_minutes: 0, photo_seconds: 15, month_themes: 1, temp_unit: 'fahrenheit', weather_lat: 40.76, weather_lon: -111.89,
     weather_label: 'Demo City', interest_apr: 5, interest_day: 1, coin_name: 'Mom Coins', coins_per_chore: 2, game_coins_per_minute: 0.5,
-    games_weekday_until: '07:45', games_weekday_from: '16:00', games_weekends: 1, sync_minutes: 5, ntfy_topic: '', ntfy_server: 'https://ntfy.sh',
+    games_weekday_until: '07:45', games_weekday_from: '16:00', games_weekends: 1, games_unlocked: 0, sync_minutes: 5, ntfy_topic: '', ntfy_server: 'https://ntfy.sh',
     app_url: '', google_client_id: 'demo', google_client_secret: true, pin_hash: true, pin_length: 4, session_secret: true,
     last_sync_at: new Date().toISOString(), google_redirect_uri: 'http://localhost:3100/api/google/callback', google_configured: true, google_env_override: false,
   };
@@ -131,7 +131,7 @@
     else if (coinsFor(c) > 0) coins.push({ id: nextId++, member_id: comp.member_id, amount: coinsFor(c), note: c.title, completion_id: comp.id, created_at: nowIso() });
   }
   const pendingList = () => completions.filter((c) => c.status === 'pending').map((c) => { const ch = chores.find((x) => x.id === c.chore_id); const m = findMember(c.member_id); return { ...c, title: ch.title, amount_cents: ch.amount_cents, schedule: ch.schedule, paid: ch.paid, coins: ch.paid ? 0 : coinsFor(ch), member_name: m.name, color: m.color, emoji: m.emoji }; });
-  const gamesWindow = () => ({ open: true });
+  const gamesWindow = () => (Number(settings.games_unlocked) ? { open: true, unlocked: true } : { open: true });
   function choreGate(memberId) {
     const period = new Date().getHours() < 12 ? 'morning' : 'afternoon';
     const missing = choresForDay(ymd(today), memberId).filter((c) => !c.paid && c.period === period && (!c.status || c.status === 'rejected')).map((c) => c.title);
@@ -139,7 +139,7 @@
   }
   const weather = () => ({ label: settings.weather_label, unit: '°F', current: { temp: 76, label: 'Partly cloudy', emoji: '⛅' },
     daily: Array.from({ length: 7 }, (_, i) => ({ date: ymd(day(i)), hi: 78 + i, lo: 58 + i, precip: 10 * i, label: 'Clear', emoji: ['☀️', '⛅', '🌤️', '☀️', '🌦️', '☀️', '⛅'][i] })) });
-  const publicSettings = () => ({ family_name: settings.family_name, timezone: settings.timezone, week_start: settings.week_start, screensaver_minutes: settings.screensaver_minutes, photo_seconds: settings.photo_seconds, month_themes: settings.month_themes, temp_unit: settings.temp_unit, weather_label: settings.weather_label, interest_apr: settings.interest_apr, interest_day: settings.interest_day, coin_name: settings.coin_name, coins_per_chore: settings.coins_per_chore, game_coins_per_minute: settings.game_coins_per_minute, games_weekday_until: settings.games_weekday_until, games_weekday_from: settings.games_weekday_from, games_weekends: settings.games_weekends, last_sync_at: settings.last_sync_at });
+  const publicSettings = () => ({ family_name: settings.family_name, timezone: settings.timezone, week_start: settings.week_start, screensaver_minutes: settings.screensaver_minutes, photo_seconds: settings.photo_seconds, month_themes: settings.month_themes, temp_unit: settings.temp_unit, weather_label: settings.weather_label, interest_apr: settings.interest_apr, interest_day: settings.interest_day, coin_name: settings.coin_name, coins_per_chore: settings.coins_per_chore, game_coins_per_minute: settings.game_coins_per_minute, games_weekday_until: settings.games_weekday_until, games_weekday_from: settings.games_weekday_from, games_weekends: settings.games_weekends, games_unlocked: settings.games_unlocked, last_sync_at: settings.last_sync_at });
   const localOccurrences = (fromTs, toTs) => {
     const out = [];
     for (const e of localEvents) {
