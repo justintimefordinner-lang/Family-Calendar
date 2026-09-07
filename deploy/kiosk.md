@@ -16,7 +16,7 @@ screen blanking, hides the mouse cursor, and adds an autostart entry. Requires R
 ## Hardware notes
 
 - **Emoji look wrong or show as boxes?** `sudo apt-get install -y fonts-noto-color-emoji` then reboot (kiosk-setup.sh installs it).
-- **Two fingers at once do not work in the games?** Chromium must run natively on Wayland, not through XWayland: the kiosk autostart entry needs `--ozone-platform-hint=auto` (kiosk-setup.sh adds it). Check with the gear menu -> Touch test on the display; "max touch points" should be more than 1.
+- **Two fingers at once do not work in the games?** Raspberry Pi OS sets the touchscreen to `mouseEmulation="yes"` in `~/.config/labwc/rc.xml`, which turns it into a one-finger mouse. Set it to `"no"` and reload labwc (`pkill -HUP -x labwc`); Chromium must also run natively on Wayland (`--ozone-platform=wayland`). kiosk-setup.sh does both. Check with the gear menu -> Touch test: "pointer types seen" should say touch.
 - **HDMI touchscreen** (e.g. a 24" 1080p CUNPU-style monitor): HDMI for the picture plus the
   monitor's USB-B cable into any Pi USB port for touch. It shows up as a standard USB HID
   touch device — no driver. Ignore the "macOS not supported" note; Linux is fine.

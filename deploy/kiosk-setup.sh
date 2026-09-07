@@ -27,6 +27,13 @@ FLAGS="--kiosk --noerrdialogs --disable-infobars --disable-session-crashed-bubbl
 --disable-features=TranslateUI --check-for-update-interval=31536000 --touch-events=enabled --ozone-platform-hint=auto \
 --overscroll-history-navigation=0 --password-store=basic --app=${URL}"
 
+# Raspberry Pi OS (labwc) sets the touchscreen to mouse emulation, which collapses it to a single
+# finger. Turn that off so multi-touch (two-finger game controls) reaches Chromium.
+if [ -f "$HOME/.config/labwc/rc.xml" ] && grep -q 'mouseEmulation="yes"' "$HOME/.config/labwc/rc.xml"; then
+  echo "==> Turning off touchscreen mouse emulation in labwc"
+  sed -i 's/mouseEmulation="yes"/mouseEmulation="no"/' "$HOME/.config/labwc/rc.xml"
+fi
+
 echo "==> Adding the autostart entry"
 mkdir -p "$HOME/.config/autostart"
 cat > "$HOME/.config/autostart/family-calendar-kiosk.desktop" <<EOF
@@ -45,7 +52,7 @@ if command -v labwc >/dev/null 2>&1; then
   grep -q 'family-calendar-kiosk' "$HOME/.config/labwc/autostart" || cat >> "$HOME/.config/labwc/autostart" <<EOF
 # family-calendar-kiosk
 unclutter -idle 1 -root &
-(sleep 6; ${CHROME} ${FLAGS}) &
+(sleep 6; ${CHROME} --ozone-platform=wayland ${FLAGS}) &
 EOF
 fi
 
