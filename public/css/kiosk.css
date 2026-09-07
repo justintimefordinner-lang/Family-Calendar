@@ -287,7 +287,7 @@ h1, h2, h3 { margin: 0; font-weight: 700; }
 .games-locked { background: #fff4e0; color: var(--warn); font-weight: 700; padding: 10px 12px; border-radius: 10px; margin: 0 0 8px; }
 .game-card .name { font-size: 1.2rem; font-weight: 700; }
 .game-card .sub { display: block; font-size: 0.9rem; color: var(--muted); font-weight: 500; }
-.game { position: fixed; inset: 0; background: #000; z-index: 85; display: flex; flex-direction: column; color: #fff; }
+.game { position: fixed; inset: 0; background: #000; z-index: 85; display: flex; flex-direction: column; color: #fff; touch-action: none; } /* no pinch/pan gestures: a second finger must not cancel the first */
 .game[hidden] { display: none; }
 .game-top { display: flex; align-items: center; justify-content: space-between; padding: 12px 20px; gap: 12px; }
 .game-top .btn { color: var(--ink); }
@@ -297,7 +297,7 @@ h1, h2, h3 { margin: 0; font-weight: 700; }
 .game-canvas-wrap { height: 100%; display: flex; align-items: center; }
 #gameCanvas { display: block; touch-action: none; border-radius: 8px; }
 .dpad { display: grid; grid-template-columns: repeat(3, 120px); grid-template-rows: repeat(3, 120px); gap: 10px; }
-.dpad-btn { border: 0; border-radius: 22px; background: #23262f; color: #fff; font-size: 2.6rem; touch-action: manipulation; }
+.dpad-btn { border: 0; border-radius: 22px; background: #23262f; color: #fff; font-size: 2.6rem; touch-action: none; -webkit-user-select: none; user-select: none; }
 .dpad-btn:active { background: #ffe600; color: #000; }
 .dpad-btn.up { grid-column: 2; grid-row: 1; } .dpad-btn.left { grid-column: 1; grid-row: 2; }
 .dpad-btn.right { grid-column: 3; grid-row: 2; } .dpad-btn.down { grid-column: 2; grid-row: 3; }
