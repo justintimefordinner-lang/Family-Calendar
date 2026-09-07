@@ -111,7 +111,7 @@
     mobileNow = mobile;
     document.body.classList.toggle('mobile', mobile);
     document.documentElement.classList.toggle('mobile', mobile);
-    const views = mobile ? [["day", "Day"], ["week", "Week"]] : [["day", "Day"], ["week", "Week"], ["month", "Month"]];
+    const views = mobile ? [["day", "Day"], ["week", "Week"], ["chores", "Chores"]] : [["day", "Day"], ["week", "Week"], ["month", "Month"], ["chores", "Chores"]];
     state.view = mobile ? 'day' : 'week'; // each layout opens on its natural view
     $('.seg').innerHTML = views.map(([v, l]) => `<button class="seg-btn ${state.view === v ? 'active' : ''}" data-view="${v}">${l}</button>`).join('');
     return true;
@@ -120,7 +120,7 @@
   window.addEventListener('resize', () => { clearTimeout(resizeTimer); resizeTimer = setTimeout(() => { if (applyLayout()) loadEvents(); }, 200); });
 
   function visibleRange() {
-    if (state.view === 'day') {
+    if (state.view === "day" || state.view === "chores") {
       const d = new Date(state.anchor.getFullYear(), state.anchor.getMonth(), state.anchor.getDate());
       return { from: d, to: d };
     }
@@ -312,9 +312,41 @@
     $('#rangeLabel').textContent = `${from.toLocaleDateString(LOCALE, { month: 'short', day: 'numeric' })} – ${to.toLocaleDateString(LOCALE, { month: 'short', day: 'numeric' })}`;
   }
 
+  // "Chores" view: every kid's list for the day side by side, so you can see who still has work to do.
+  function renderChoresBoard() {
+    const grid = $('#calGrid');
+    grid.className = 'cal-grid chores';
+    const d = new Date(state.anchor.getFullYear(), state.anchor.getMonth(), state.anchor.getDate());
+    const key = ymd(d);
+    const preview = key !== state.today;
+    const all = state.choresDate === key ? state.boardChores : null; // null until loadSide has fetched this day
+    const PERIODS = [['morning', '☀️ Morning'], ['afternoon', '🌤️ Afternoon'], ['evening', '🌙 Evening'], ['any', '📋 Anytime']];
+    const cards = state.members.filter((m) => m.role !== 'calendar').map((m) => {
+      const mine = (all || []).filter((c) => !c.paid && (c.member_id === m.id || (c.member_id == null && c.completed_by === m.id)));
+      const done = mine.filter((c) => c.status && c.status !== 'rejected').length;
+      const left = mine.length - done;
+      const usesPeriods = mine.some((c) => c.period && c.period !== 'any');
+      const list = usesPeriods
+        ? PERIODS.map(([p, label]) => {
+          const items = mine.filter((c) => (c.period || 'any') === p);
+          return items.length ? `<div class="period-head">${label}</div>${items.map((c) => choreRow(c, false)).join('')}` : '';
+        }).join('')
+        : mine.map((c) => choreRow(c, false)).join('');
+      let status = '';
+      if (all) status = !mine.length ? '<span class="badge">no chores</span>' : left ? `<span class="badge todo">${left} left</span>` : '<span class="badge approved">All done! 🎉</span>';
+      return `<div class="card accent board ${all && mine.length && !left ? 'finished' : ''} ${preview ? 'preview' : ''}" style="--c:${esc(m.color)}">
+        <h3><span class="who"><span class="avatar">${esc(m.emoji)}</span>${esc(m.name)}</span>${status}</h3>
+        ${!all ? '<p class="muted center">Loading…</p>' : mine.length ? list : '<p class="muted center">Nothing to do 🎉</p>'}
+      </div>`;
+    }).join('');
+    grid.innerHTML = `<div class="chores-board">${cards || '<p class="muted center">Add family members in the parent app</p>'}</div>`;
+    $('#rangeLabel').textContent = preview ? `Chores · ${d.toLocaleDateString(LOCALE, { weekday: 'short', month: 'short', day: 'numeric' })}` : 'Chores · Today';
+  }
+
   function renderCalendar() {
     applyTheme();
-    if (state.view === 'day') renderDay();
+    if (state.view === "day") renderDay();
+    else if (state.view === "chores") renderChoresBoard();
     else if (state.view === 'week' && mobileNow) renderWeekList();
     else if (state.view === 'week') renderWeek();
     else renderMonth();
@@ -909,20 +941,24 @@
   }
 
   // Which day the chores panel describes: the day being viewed in Day view, otherwise today.
-  const choresDate = () => (state.view === 'day' ? ymd(state.anchor) : state.today);
+  const choresDate = () => (state.view === "day" || state.view === "chores" ? ymd(state.anchor) : state.today);
   const choresPreview = () => state.choresDate !== state.today;
 
   async function loadSide() {
     state.choresDate = choresDate();
     const member = typeof state.selected === 'number' ? `&member=${state.selected}` : '';
-    const [chores, finance, shopping] = await Promise.all([
+    const wantBoard = state.view === "chores";
+    const [chores, finance, shopping, board] = await Promise.all([
       api(`/api/chores/day?date=${state.choresDate}${member}`),
       api('/api/finance/summary'),
       state.selected == null ? api('/api/shopping') : Promise.resolve(state.shopping),
+      wantBoard && member ? api(`/api/chores/day?date=${state.choresDate}`) : Promise.resolve(null), // the board needs everyone's chores
     ]);
     state.chores = chores.chores;
+    if (board) state.boardChores = board.chores; else if (!member) state.boardChores = chores.chores;
     state.finance = finance;
     state.shopping = shopping;
+    if (wantBoard) renderCalendar(); // the Chores board lives in the calendar area
     renderSide();
   }
 
@@ -1007,11 +1043,11 @@
     if (nav) {
       const n = Number(nav.dataset.nav);
       if (n === 0) state.anchor = new Date();
-      else if (state.view === 'day') state.anchor = addDays(state.anchor, n);
+      else if (state.view === "day" || state.view === "chores") state.anchor = addDays(state.anchor, n);
       else if (state.view === 'week') state.anchor = addDays(state.anchor, 7 * n);
       else state.anchor = new Date(state.anchor.getFullYear(), state.anchor.getMonth() + n, 1);
       await loadEvents();
-      if (choresDate() !== state.choresDate) await loadSide();
+      if (state.view === "chores" || choresDate() !== state.choresDate) await loadSide();
       return;
     }
     const view = t.closest('[data-view]');
@@ -1019,7 +1055,7 @@
       state.view = view.dataset.view;
       document.querySelectorAll('.seg-btn').forEach((b) => b.classList.toggle('active', b === view));
       await loadEvents();
-      if (choresDate() !== state.choresDate) await loadSide();
+      if (state.view === "chores" || choresDate() !== state.choresDate) await loadSide();
       return;
     }
     const evEl = t.closest('[data-event]');
@@ -1030,7 +1066,7 @@
       state.view = (mobileNow || dayCell.hasAttribute("data-open")) ? "day" : "week";
       document.querySelectorAll('.seg-btn').forEach((b) => b.classList.toggle('active', b.dataset.view === state.view));
       await loadEvents();
-      if (choresDate() !== state.choresDate) await loadSide();
+      if (state.view === "chores" || choresDate() !== state.choresDate) await loadSide();
       return;
     }
     const layoutBtn = t.closest('[data-layout]');
@@ -1151,10 +1187,12 @@
 
   async function toggleChore(el) {
     if (choresPreview()) return; // other days are read-only previews
-    const memberId = typeof state.selected === 'number' ? state.selected : (el.dataset.owner ? Number(el.dataset.owner) : null);
+    const onBoard = !!el.closest(".chores-board"); // board cards belong to the kid shown, whoever is selected
+    const owner = el.dataset.owner ? Number(el.dataset.owner) : null;
+    const memberId = onBoard ? owner : (typeof state.selected === "number" ? state.selected : owner);
     if (memberId == null) return; // open Earn Money chores are claimed from a kid's own view
     try {
-      const chore = state.chores.find((c) => c.id === Number(el.dataset.chore));
+      const chore = (onBoard ? (state.boardChores || []) : state.chores).find((c) => c.id === Number(el.dataset.chore));
       if (el.dataset.status && el.dataset.status !== 'rejected') {
         if (el.dataset.status === 'approved') return;
         await api(`/api/chores/completions/${el.dataset.completion}`, { method: 'DELETE' });

@@ -427,6 +427,17 @@ body.mobile .cal-grid { display: block; flex: none; }
 .cal-grid.day .day-list .ev { font-size: 1.2rem; padding: 12px 14px; }
 .cal-grid.day .day-list .ev .time { font-size: 0.95rem; }
 .cal-grid.day .day-list .muted.small { font-size: 1.1rem; text-align: center; padding: 30px 0; }
+/* Chores view: one card per kid for the day being viewed */
+.cal-grid.chores { display: block; overflow: auto; }
+.chores-board { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 12px; align-items: start; }
+.board h3 .who { display: flex; align-items: center; gap: 8px; }
+.board h3 .avatar { font-size: 1.4rem; }
+.board.finished { opacity: 0.72; }
+.board .badge { font-size: 0.85rem; padding: 4px 10px; }
+.board .badge.todo { background: #fff4e0; color: var(--warn); }
+.board .chore { min-height: 52px; padding: 8px 4px; }
+.board .chore .text { font-size: 1rem; }
+body.mobile .chores-board { grid-template-columns: 1fr; }
 body.mobile .side { display: flex; flex-direction: column; gap: 10px; overflow: visible; }
 body.mobile .card { padding: 12px 14px; }
 body.mobile .money2 .balance { font-size: 1.25rem; }
