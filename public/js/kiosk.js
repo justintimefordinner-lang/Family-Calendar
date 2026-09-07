@@ -825,6 +825,29 @@
   }
 
   // ---- Gear menu: pull updates & restart ---------------------------------------
+  // Touch test (⚙ menu): shows how many fingers the browser really sees, to diagnose multi-touch problems.
+  function openTouchTest() {
+    closeModal();
+    const el = document.createElement('div');
+    el.id = 'touchTest';
+    el.innerHTML = '<div class="tt-info"></div><button class="btn" data-tt-close>Close</button>';
+    document.body.appendChild(el);
+    const ptrs = new Map();
+    let touchesNow = 0, maxP = 0, maxT = 0;
+    const draw = () => {
+      for (const d of el.querySelectorAll('.tt-dot')) d.remove();
+      for (const [id, p] of ptrs) { const d = document.createElement('div'); d.className = 'tt-dot'; d.style.left = `${p.x}px`; d.style.top = `${p.y}px`; d.textContent = id; el.appendChild(d); }
+      el.querySelector('.tt-info').innerHTML = `Put two or three fingers on the screen.<br>Pointer events: <b>${ptrs.size}</b> down now · most at once: <b>${maxP}</b><br>Touch events: <b>${touchesNow}</b> down now · most at once: <b>${maxT}</b><br><span class="muted">Games need 2 or more.</span>`;
+    };
+    const isClose = (e) => e.target.closest && e.target.closest('[data-tt-close]');
+    el.addEventListener('pointerdown', (e) => { if (isClose(e)) return; ptrs.set(e.pointerId, { x: e.clientX, y: e.clientY }); maxP = Math.max(maxP, ptrs.size); draw(); });
+    el.addEventListener('pointermove', (e) => { if (ptrs.has(e.pointerId)) { ptrs.set(e.pointerId, { x: e.clientX, y: e.clientY }); draw(); } });
+    ['pointerup', 'pointercancel'].forEach((ev) => el.addEventListener(ev, (e) => { ptrs.delete(e.pointerId); draw(); }));
+    ['touchstart', 'touchmove', 'touchend', 'touchcancel'].forEach((ev) => el.addEventListener(ev, (e) => { touchesNow = e.touches.length; maxT = Math.max(maxT, touchesNow); draw(); if (!isClose(e)) e.preventDefault(); }, { passive: false }));
+    el.querySelector('[data-tt-close]').addEventListener('click', () => el.remove());
+    draw();
+  }
+
   async function openGear() {
     let v = null;
     try { v = await api('/api/system/version'); } catch { v = null; }
@@ -832,7 +855,7 @@
     const pref = layoutPref();
     const lay = (v, l) => `<button class="btn ${pref === v ? 'on' : ''}" data-layout="${v}">${l}</button>`;
     openModal(`<h2>⚙️ Display</h2><p class="kv">${line}</p>
-      <div class="kid-pick"><button class="btn primary-btn" data-update>⬇️ Pull Updates &amp; Restart</button><button class="btn" data-close>Close</button></div>
+      <div class="kid-pick"><button class="btn primary-btn" data-update>⬇️ Pull Updates &amp; Restart</button><button class="btn" data-touchtest>🖐️ Touch test</button><button class="btn" data-close>Close</button></div>
       <p class="kv muted" id="updateStatus"></p>
       <p class="kv"><b>Layout</b> <span class="muted">— currently ${mobileNow ? 'mobile (Day / Week)' : 'wall display (Week / Month)'}</span></p>
       <div class="qty-row">${lay('auto', 'Auto')}${lay('desktop', '🖥️ Wall display')}${lay('mobile', '📱 Mobile')}</div>`);
@@ -1083,7 +1106,8 @@
     if (chore) { await toggleChore(chore); return; }
     const moneyCard = t.closest('[data-money]');
     if (moneyCard) { await showMoney(Number(moneyCard.dataset.money)); return; }
-    if (t.closest('[data-gear]')) { await openGear(); return; }
+    if (t.closest("[data-gear]")) { await openGear(); return; }
+    if (t.closest("[data-touchtest]")) { openTouchTest(); return; }
     const upd = t.closest('[data-update]');
     if (upd) { await runUpdate(upd); return; }
     const prizeCard = t.closest('[data-prize]');
