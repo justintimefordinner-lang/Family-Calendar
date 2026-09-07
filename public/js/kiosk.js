@@ -832,17 +832,18 @@
     el.id = 'touchTest';
     el.innerHTML = '<div class="tt-info"></div><button class="btn" data-tt-close>Close</button>';
     document.body.appendChild(el);
-    const ptrs = new Map();
+    const ptrs = new Map(); const types = new Set(); const log = [];
+    const note = (s) => { log.unshift(s); if (log.length > 6) log.pop(); };
     let touchesNow = 0, maxP = 0, maxT = 0;
     const draw = () => {
       for (const d of el.querySelectorAll('.tt-dot')) d.remove();
       for (const [id, p] of ptrs) { const d = document.createElement('div'); d.className = 'tt-dot'; d.style.left = `${p.x}px`; d.style.top = `${p.y}px`; d.textContent = id; el.appendChild(d); }
-      el.querySelector('.tt-info').innerHTML = `Put two or three fingers on the screen.<br>Pointer events: <b>${ptrs.size}</b> down now · most at once: <b>${maxP}</b><br>Touch events: <b>${touchesNow}</b> down now · most at once: <b>${maxT}</b><br><span class="muted">Games need 2 or more. Browser reports max touch points: <b>${navigator.maxTouchPoints}</b> (1 = Chromium is on XWayland, see deploy/kiosk.md).</span>`;
+      el.querySelector('.tt-info').innerHTML = `Put two or three fingers on the screen.<br>Pointer events: <b>${ptrs.size}</b> down now · most at once: <b>${maxP}</b><br>Touch events: <b>${touchesNow}</b> down now · most at once: <b>${maxT}</b><br><span class="muted">Games need 2 or more. Browser reports max touch points: <b>${navigator.maxTouchPoints}</b> · pointer types seen: <b>${[...types].join(', ') || 'none yet'}</b></span><br><span class="muted">${log.join(' · ')}</span>`;
     };
     const isClose = (e) => e.target.closest && e.target.closest('[data-tt-close]');
-    el.addEventListener('pointerdown', (e) => { if (isClose(e)) return; ptrs.set(e.pointerId, { x: e.clientX, y: e.clientY }); maxP = Math.max(maxP, ptrs.size); draw(); });
+    el.addEventListener('pointerdown', (e) => { if (isClose(e)) return; types.add(e.pointerType || '?'); note(`down ${e.pointerType} #${e.pointerId}`); ptrs.set(e.pointerId, { x: e.clientX, y: e.clientY }); maxP = Math.max(maxP, ptrs.size); draw(); });
     el.addEventListener('pointermove', (e) => { if (ptrs.has(e.pointerId)) { ptrs.set(e.pointerId, { x: e.clientX, y: e.clientY }); draw(); } });
-    ['pointerup', 'pointercancel'].forEach((ev) => el.addEventListener(ev, (e) => { ptrs.delete(e.pointerId); draw(); }));
+    ['pointerup', 'pointercancel'].forEach((ev) => el.addEventListener(ev, (e) => { note(`${ev} ${e.pointerType} #${e.pointerId}`); ptrs.delete(e.pointerId); draw(); }));
     ['touchstart', 'touchmove', 'touchend', 'touchcancel'].forEach((ev) => el.addEventListener(ev, (e) => { touchesNow = e.touches.length; maxT = Math.max(maxT, touchesNow); draw(); if (!isClose(e)) e.preventDefault(); }, { passive: false }));
     el.querySelector('[data-tt-close]').addEventListener('click', () => el.remove());
     draw();
