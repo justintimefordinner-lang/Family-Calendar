@@ -24,7 +24,7 @@ sudo raspi-config nonint do_boot_behaviour B4 || true   # B4 = desktop, auto-log
 sudo raspi-config nonint do_blanking 1 || true          # 1 = screen blanking off
 
 FLAGS="--kiosk --noerrdialogs --disable-infobars --disable-session-crashed-bubble \
---disable-features=TranslateUI --check-for-update-interval=31536000 --touch-events=enabled \
+--disable-features=TranslateUI --check-for-update-interval=31536000 --touch-events=enabled --ozone-platform-hint=auto \
 --overscroll-history-navigation=0 --password-store=basic --app=${URL}"
 
 echo "==> Adding the autostart entry"

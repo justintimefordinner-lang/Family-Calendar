@@ -837,7 +837,7 @@
     const draw = () => {
       for (const d of el.querySelectorAll('.tt-dot')) d.remove();
       for (const [id, p] of ptrs) { const d = document.createElement('div'); d.className = 'tt-dot'; d.style.left = `${p.x}px`; d.style.top = `${p.y}px`; d.textContent = id; el.appendChild(d); }
-      el.querySelector('.tt-info').innerHTML = `Put two or three fingers on the screen.<br>Pointer events: <b>${ptrs.size}</b> down now · most at once: <b>${maxP}</b><br>Touch events: <b>${touchesNow}</b> down now · most at once: <b>${maxT}</b><br><span class="muted">Games need 2 or more.</span>`;
+      el.querySelector('.tt-info').innerHTML = `Put two or three fingers on the screen.<br>Pointer events: <b>${ptrs.size}</b> down now · most at once: <b>${maxP}</b><br>Touch events: <b>${touchesNow}</b> down now · most at once: <b>${maxT}</b><br><span class="muted">Games need 2 or more. Browser reports max touch points: <b>${navigator.maxTouchPoints}</b> (1 = Chromium is on XWayland, see deploy/kiosk.md).</span>`;
     };
     const isClose = (e) => e.target.closest && e.target.closest('[data-tt-close]');
     el.addEventListener('pointerdown', (e) => { if (isClose(e)) return; ptrs.set(e.pointerId, { x: e.clientX, y: e.clientY }); maxP = Math.max(maxP, ptrs.size); draw(); });
