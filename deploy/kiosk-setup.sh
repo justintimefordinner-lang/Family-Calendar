@@ -9,9 +9,9 @@ PORT="${PORT:-3100}"
 URL="http://localhost:${PORT}/"
 USER_NAME="$(id -un)"
 
-echo "==> Installing Chromium and unclutter (hides the mouse cursor)"
+echo "==> Installing Chromium, unclutter (hides the mouse cursor) and a color emoji font"
 sudo apt-get update -qq
-sudo apt-get install -y chromium-browser unclutter 2>/dev/null || sudo apt-get install -y chromium unclutter
+sudo apt-get install -y chromium-browser unclutter fonts-noto-color-emoji 2>/dev/null || sudo apt-get install -y chromium unclutter fonts-noto-color-emoji
 
 CHROME="$(command -v chromium-browser || command -v chromium || true)"
 if [ -z "$CHROME" ]; then

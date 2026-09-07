@@ -15,6 +15,7 @@ screen blanking, hides the mouse cursor, and adds an autostart entry. Requires R
 
 ## Hardware notes
 
+- **Emoji look wrong or show as boxes?** `sudo apt-get install -y fonts-noto-color-emoji` then reboot (kiosk-setup.sh installs it).
 - **HDMI touchscreen** (e.g. a 24" 1080p CUNPU-style monitor): HDMI for the picture plus the
   monitor's USB-B cable into any Pi USB port for touch. It shows up as a standard USB HID
   touch device — no driver. Ignore the "macOS not supported" note; Linux is fine.

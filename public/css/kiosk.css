@@ -120,7 +120,8 @@ h1, h2, h3 { margin: 0; font-weight: 700; }
 }
 .day-col.today { outline: 3px solid var(--accent); }
 .day-col.past { opacity: 0.75; }
-.day-head { padding: 12px 12px 8px; border-bottom: 1px solid var(--line); }
+.day-head { padding: 12px 12px 8px; border-bottom: 1px solid var(--line); cursor: pointer; }
+.day-head:active { background: rgba(0, 0, 0, 0.04); }
 .day-head .dow { font-size: 0.85rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; }
 .day-head .num { font-size: 1.7rem; font-weight: 700; line-height: 1.1; }
 .day-col.today .day-head .num { color: var(--accent); }
@@ -420,6 +421,12 @@ body.mobile .cal-grid { display: block; flex: none; }
 .day-list .ev { margin-bottom: 6px; font-size: 1rem; }
 .day-list .day-foot { border-top: 1px dashed var(--line); padding: 8px 0 0; margin-top: 4px; font-size: 0.9rem; color: var(--muted); }
 .day-list .wx-line { font-size: 0.95rem; color: var(--muted); margin: 0 4px 8px; }
+/* Day view on the big display: one wide agenda column (opened by tapping a day header) */
+.cal-grid.day { display: block; overflow: auto; }
+.cal-grid.day .day-list { max-width: 900px; margin: 0 auto; }
+.cal-grid.day .day-list .ev { font-size: 1.2rem; padding: 12px 14px; }
+.cal-grid.day .day-list .ev .time { font-size: 0.95rem; }
+.cal-grid.day .day-list .muted.small { font-size: 1.1rem; text-align: center; padding: 30px 0; }
 body.mobile .side { display: flex; flex-direction: column; gap: 10px; overflow: visible; }
 body.mobile .card { padding: 12px 14px; }
 body.mobile .money2 .balance { font-size: 1.25rem; }

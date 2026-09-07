@@ -10,7 +10,8 @@
   const addDays = (d, n) => { const x = new Date(d); x.setDate(x.getDate() + n); return x; };
   const money = (cents) => (cents < 0 ? '-' : '') + '$' + (Math.abs(cents) / 100).toFixed(2);
   const wholeCoins = (n) => Math.floor(Number(n) || 0); // coins show as whole numbers
-  const fmtTime = (ts) => new Date(ts).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+  const LOCALE = "en-US"; // fixed so the display reads the same on every Pi (12-hour clock, US dates)
+  const fmtTime = (ts) => new Date(ts).toLocaleTimeString(LOCALE, { hour: 'numeric', minute: '2-digit' });
   const DOW = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
   const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 
@@ -110,7 +111,7 @@
     mobileNow = mobile;
     document.body.classList.toggle('mobile', mobile);
     document.documentElement.classList.toggle('mobile', mobile);
-    const views = mobile ? [['day', 'Day'], ['week', 'Week']] : [['week', 'Week'], ['month', 'Month']];
+    const views = mobile ? [["day", "Day"], ["week", "Week"]] : [["day", "Day"], ["week", "Week"], ["month", "Month"]];
     state.view = mobile ? 'day' : 'week'; // each layout opens on its natural view
     $('.seg').innerHTML = views.map(([v, l]) => `<button class="seg-btn ${state.view === v ? 'active' : ''}" data-view="${v}">${l}</button>`).join('');
     return true;
@@ -167,7 +168,7 @@
   function renderHeader() {
     $('#familyName').textContent = state.settings.family_name || 'Family Calendar';
     const now = new Date();
-    $('#todayLabel').textContent = now.toLocaleDateString([], { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
+    $('#todayLabel').textContent = now.toLocaleDateString(LOCALE, { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
     const accts = state.google.accounts || [];
     const err = accts.find((a) => a.error);
     const last = state.settings.last_sync_at ? new Date(state.settings.last_sync_at) : null;
@@ -175,16 +176,16 @@
     if (!state.google.configured || !accts.length) text = '<span class="dot"></span>Google Calendar not connected';
     else if (err) text = `<span class="dot err"></span>Sync problem: ${esc(err.error)}`;
     else if (state.google.calendars_enabled === 0) text = '<span class="dot err"></span>No calendars turned on — Parent app › Settings › Google Calendar';
-    else text = `<span class="dot ok"></span>Synced ${last ? last.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) : '—'}`;
+    else text = `<span class="dot ok"></span>Synced ${last ? last.toLocaleTimeString(LOCALE, { hour: 'numeric', minute: '2-digit' }) : '—'}`;
     $('#syncStatus').innerHTML = text;
   }
 
   function tickClock() {
     const now = new Date();
-    const t = now.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+    const t = now.toLocaleTimeString(LOCALE, { hour: 'numeric', minute: '2-digit' });
     $('#clock').textContent = t;
     $('#ssClock').textContent = t;
-    $('#ssDate').textContent = now.toLocaleDateString([], { weekday: 'long', month: 'long', day: 'numeric' });
+    $('#ssDate').textContent = now.toLocaleDateString(LOCALE, { weekday: 'long', month: 'long', day: 'numeric' });
     const today = ymd(now);
     if (today !== state.today) { state.today = today; refreshAll(); }
   }
@@ -245,7 +246,7 @@
       const meal = state.meals[key];
       const wx = wxFor(key);
       cols.push(`<div class="${cls}">
-        <div class="day-head"><div><div class="dow">${DOW[d.getDay()]}</div><div class="num">${d.getDate()}</div></div>
+        <div class="day-head" data-day="${key}" data-open="1" title="Open this day"><div><div class="dow">${DOW[d.getDay()]}</div><div class="num">${d.getDate()}</div></div>
           ${wx ? `<div class="day-wx" title="${esc(wx.label)}"><span class="emoji">${wx.emoji}</span>${wx.hi}°<small>/${wx.lo}°</small></div>` : ''}</div>
         <div class="day-body">${evs.length ? evs.map((e) => eventHtml(e, d)).join('') : '<div class="empty-day"></div>'}</div>
         ${meal ? `<div class="day-foot">🍽️ <b>${esc(meal.title)}</b></div>` : ''}
@@ -298,7 +299,7 @@
     const d = new Date(state.anchor.getFullYear(), state.anchor.getMonth(), state.anchor.getDate());
     const wx = wxFor(ymd(d));
     grid.innerHTML = `<div class="day-list">${wx ? `<div class="wx-line">${wx.emoji} ${wx.hi}° / ${wx.lo}° · ${esc(wx.label)}</div>` : ''}${dayRow(d, { head: false })}</div>`;
-    $('#rangeLabel').textContent = ymd(d) === state.today ? `Today · ${d.toLocaleDateString([], { month: 'short', day: 'numeric' })}` : d.toLocaleDateString([], { weekday: 'long', month: 'short', day: 'numeric' });
+    $('#rangeLabel').textContent = ymd(d) === state.today ? `Today · ${d.toLocaleDateString(LOCALE, { month: 'short', day: 'numeric' })}` : d.toLocaleDateString(LOCALE, { weekday: 'long', month: 'short', day: 'numeric' });
   }
 
   function renderWeekList() {
@@ -308,7 +309,7 @@
     const rows = [];
     for (let d = from; d <= to; d = addDays(d, 1)) rows.push(dayRow(d));
     grid.innerHTML = `<div class="day-list">${rows.join('')}</div>`;
-    $('#rangeLabel').textContent = `${from.toLocaleDateString([], { month: 'short', day: 'numeric' })} – ${to.toLocaleDateString([], { month: 'short', day: 'numeric' })}`;
+    $('#rangeLabel').textContent = `${from.toLocaleDateString(LOCALE, { month: 'short', day: 'numeric' })} – ${to.toLocaleDateString(LOCALE, { month: 'short', day: 'numeric' })}`;
   }
 
   function renderCalendar() {
@@ -368,7 +369,7 @@
       }).join('')
       : regular.map((c) => choreRow(c, false)).join('');
     let html = `<div class="card accent ${choresPreview() ? 'preview' : ''}" style="--c:${esc(m.color)}">
-      <h3>${esc(m.emoji)} ${esc(m.name)}'s Chores <span class="meta">${choresPreview() ? `${parseYmd(state.choresDate).toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' })} · preview` : `${done}/${regular.length} done · <button class="linkish" data-avatar-edit="${m.id}">🎨 change my look</button>`}</span></h3>
+      <h3>${esc(m.emoji)} ${esc(m.name)}'s Chores <span class="meta">${choresPreview() ? `${parseYmd(state.choresDate).toLocaleDateString(LOCALE, { weekday: 'short', month: 'short', day: 'numeric' })} · preview` : `${done}/${regular.length} done · <button class="linkish" data-avatar-edit="${m.id}">🎨 change my look</button>`}</span></h3>
       ${regular.length ? list : '<p class="muted center">No chores today 🎉</p>'}
     </div>`;
     const mine = paid.filter((c) => c.member_id === m.id || c.completed_by === m.id);
@@ -416,7 +417,7 @@
       </div>`;
     }).join('');
     const open = state.chores.filter((c) => c.paid && c.member_id == null && !c.status);
-    html += `<div class="card"><h3>✅ Chores Today</h3>${rows || '<p class="muted center">Add family members in the parent app</p>'}
+    html += `<div class="card"><h3>✅ Chores ${choresPreview() ? parseYmd(state.choresDate).toLocaleDateString(LOCALE, { weekday: "short", month: "short", day: "numeric" }) : "Today"}</h3>${rows || '<p class="muted center">Add family members in the parent app</p>'}
       ${open.length ? `<p class="muted" style="margin:10px 0 0" data-member-row="earn">💵 ${open.length} Earn Money chore${open.length > 1 ? 's' : ''} up for grabs — tap here to see them</p>` : ''}</div>`;
 
     const items = state.shopping.map((s) => `<div class="shop-item ${s.checked ? 'checked' : ''}" data-shop="${s.id}" data-checked="${s.checked}">
@@ -837,13 +838,13 @@
       const s = parseYmd(ev.start);
       const e = addDays(parseYmd(ev.end), -1);
       when = s.getTime() === e.getTime()
-        ? s.toLocaleDateString([], { weekday: 'long', month: 'long', day: 'numeric' })
-        : `${s.toLocaleDateString([], { month: 'short', day: 'numeric' })} – ${e.toLocaleDateString([], { month: 'short', day: 'numeric' })} (all day)`;
+        ? s.toLocaleDateString(LOCALE, { weekday: 'long', month: 'long', day: 'numeric' })
+        : `${s.toLocaleDateString(LOCALE, { month: 'short', day: 'numeric' })} – ${e.toLocaleDateString(LOCALE, { month: 'short', day: 'numeric' })} (all day)`;
     } else {
       const s = new Date(ev.start_ts);
       const e = new Date(ev.end_ts);
       const sameDay = ymd(s) === ymd(e);
-      when = `${s.toLocaleDateString([], { weekday: 'long', month: 'long', day: 'numeric' })}, ${fmtTime(s)} – ${sameDay ? '' : e.toLocaleDateString([], { month: 'short', day: 'numeric' }) + ' '}${fmtTime(e)}`;
+      when = `${s.toLocaleDateString(LOCALE, { weekday: 'long', month: 'long', day: 'numeric' })}, ${fmtTime(s)} – ${sameDay ? '' : e.toLocaleDateString(LOCALE, { month: 'short', day: 'numeric' }) + ' '}${fmtTime(e)}`;
     }
     openModal(`<h2>${esc(ev.title)}</h2>
       <div class="kv">🕒 <b>${esc(when)}</b></div>
@@ -858,10 +859,10 @@
     const label = { deposit: 'Deposit', withdrawal: 'Withdrawal', chore: 'Chore', interest: 'Interest', adjustment: 'Adjustment', transfer: 'Moved' };
     const acct = (t) => (t.account === 'cash' ? '💵 Cash' : '📈 Invested');
     const rows = f.transactions.map((t) => `<div class="tx">
-      <div class="n">${esc(t.note || label[t.type] || t.type)}<small>${new Date(t.created_at.replace(' ', 'T') + 'Z').toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' })} · ${label[t.type] || t.type} · ${acct(t)}</small></div>
+      <div class="n">${esc(t.note || label[t.type] || t.type)}<small>${new Date(t.created_at.replace(' ', 'T') + 'Z').toLocaleDateString(LOCALE, { month: 'short', day: 'numeric', year: 'numeric' })} · ${label[t.type] || t.type} · ${acct(t)}</small></div>
       <div class="a ${t.amount_cents < 0 ? 'neg' : 'pos'}">${t.amount_cents < 0 ? '−' : '+'}${money(Math.abs(t.amount_cents))}</div></div>`).join('');
     const coinRows = (f.coin_transactions || []).slice(0, 15).map((t) => `<div class="tx">
-      <div class="n">${esc(t.note || 'Coins')}<small>${new Date(t.created_at.replace(' ', 'T') + 'Z').toLocaleDateString([], { month: 'short', day: 'numeric' })}</small></div>
+      <div class="n">${esc(t.note || 'Coins')}<small>${new Date(t.created_at.replace(' ', 'T') + 'Z').toLocaleDateString(LOCALE, { month: 'short', day: 'numeric' })}</small></div>
       <div class="a ${t.amount < 0 ? 'neg' : 'pos'}">${t.amount < 0 ? '−' : '+'}${Math.abs(t.amount)} 🪙</div></div>`).join('');
     openModal(`<h2>${esc(m.emoji)} ${esc(m.name)}'s Money</h2>
       <div class="money2">
@@ -1026,7 +1027,7 @@
     const dayCell = t.closest('[data-day]');
     if (dayCell) {
       state.anchor = parseYmd(dayCell.dataset.day);
-      state.view = mobileNow ? 'day' : 'week';
+      state.view = (mobileNow || dayCell.hasAttribute("data-open")) ? "day" : "week";
       document.querySelectorAll('.seg-btn').forEach((b) => b.classList.toggle('active', b.dataset.view === state.view));
       await loadEvents();
       if (choresDate() !== state.choresDate) await loadSide();
