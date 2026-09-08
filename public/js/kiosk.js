@@ -392,7 +392,7 @@
     const paid = state.chores.filter((c) => c.paid);
     const done = regular.filter((c) => c.status && c.status !== 'rejected').length;
     const fin = state.finance.find((f) => f.member_id === m.id);
-    const apr = Number(state.settings.interest_apr) || 0;
+    const rate = Number(state.settings.interest_monthly) || 0;
     // Group by time of day like a paper chore chart; headers only when periods are in use.
     const PERIODS = [['morning', '☀️ Morning'], ['afternoon', '🌤️ Afternoon'], ['evening', '🌙 Evening'], ['any', '📋 Anytime']];
     const usesPeriods = regular.some((c) => c.period && c.period !== 'any');
@@ -422,7 +422,7 @@
           <div><div class="lbl">📈 Invested</div><div class="balance">${money(invested)}</div></div>
           <div class="coins"><div class="lbl">🪙 ${esc(state.settings.coin_name || 'Mom Coins')}</div><div class="balance">${wholeCoins(fin ? fin.coins : 0)}</div></div>
         </div>
-        <div class="hint center">${apr > 0 ? `Invested with Dad earns ${apr}% a year` : 'Invested with Dad'}${fin && fin.pending_cents ? ` · <b>+${money(fin.pending_cents)}</b> waiting for approval` : ''}</div>
+        <div class="hint center">${rate > 0 ? `Invested with Dad earns ${rate}% a month` : 'Invested with Dad'}${fin && fin.pending_cents ? ` · <b>+${money(fin.pending_cents)}</b> waiting for approval` : ''}</div>
       </div>`;
     }
     $('#side').innerHTML = html;
@@ -929,7 +929,7 @@
         <div><div class="lbl">📈 Invested</div><div class="balance">${money(f.invested_cents || 0)}</div></div>
         <div class="coins"><div class="lbl">🪙 ${esc(f.coin_name || 'Mom Coins')}</div><div class="balance">${wholeCoins(f.coins)}</div></div>
       </div>
-      <div class="hint center">${f.interest_apr > 0 ? `Invested with Dad earns ${f.interest_apr}% a year, paid on day ${f.interest_day} of each month` : 'Invested with Dad'}</div>
+      <div class="hint center">${f.interest_monthly > 0 ? `Invested with Dad earns ${f.interest_monthly}% a month, paid on day ${f.interest_day} for the days the money was there` : 'Invested with Dad'}</div>
       <div style="margin-top:16px">${rows || '<p class="muted center">No activity yet</p>'}</div>
       ${coinRows ? `<h3 style="margin-top:18px">🪙 ${esc(f.coin_name || 'Mom Coins')}</h3>${coinRows}` : ''}`);
   }

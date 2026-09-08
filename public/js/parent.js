@@ -307,7 +307,7 @@
   async function renderMoney() {
     const [summary, settings, rewards, redemptions] = await Promise.all([api('/api/finance/summary'), api('/api/settings'), api('/api/rewards/all'), api('/api/redemptions')]);
     S.rewards = Array.isArray(rewards) ? rewards : []; S.settings = settings;
-    const apr = Number(settings.interest_apr) || 0;
+    const apr = Number(settings.interest_monthly) || 0;
     const cards = kids().map((m) => {
       const f = summary.find((s) => s.member_id === m.id) || { cash_cents: 0, invested_cents: 0, pending_cents: 0 };
       return `<div class="card balance-card tappable" data-href="#money/${m.id}">
@@ -315,7 +315,7 @@
         <div><div class="title" style="font-weight:600">${esc(m.name)}</div>${f.pending_cents ? `<div class="sub muted small">+${money(f.pending_cents)} awaiting approval</div>` : ''}</div>
         <div class="bal" style="text-align:right;font-size:1.05rem;line-height:1.35">💵 ${money(f.cash_cents || 0)}<br>📈 ${money(f.invested_cents || 0)}<br>🪙 ${Math.floor(Number(f.coins) || 0)}</div></div>`;
     }).join('');
-    shell('Money', `<p class="muted small">Each kid has <b>Cash</b> (pocket money you keep track of; chore earnings land here) and <b>Invested with Dad</b>${apr > 0 ? `, which earns ${apr}% per year credited on day ${settings.interest_day} of each month.` : ' (no interest set — see Settings › Interest).'}</p>
+    shell('Money', `<p class="muted small">Each kid has <b>Cash</b> (pocket money you keep track of; chore earnings land here) and <b>Invested with Dad</b>${apr > 0 ? `, which earns ${apr}% per month, paid on day ${settings.interest_day} for the previous month and pro-rated by the day.` : ' (no interest set — see Settings › Interest).'}</p>
       ${cards || '<div class="card"><p class="muted">Add kids in Settings › Family to start tracking money.</p></div>'}${prizesHtml(S.rewards, Array.isArray(redemptions) ? redemptions : [])}`);
   }
 
@@ -332,7 +332,7 @@
           <div class="center"><div class="muted small">💵 Cash</div><div class="big-balance" style="font-size:1.9rem">${money(f.cash_cents || 0)}</div></div>
           <div class="center"><div class="muted small">📈 Invested with Dad</div><div class="big-balance" style="font-size:1.9rem">${money(f.invested_cents || 0)}</div></div>
         </div>
-        <p class="muted small center">${f.pending_cents ? `+${money(f.pending_cents)} awaiting approval · ` : ''}${f.interest_apr > 0 ? `invested money earns ${f.interest_apr}% per year` : 'no interest set'}</p></div>
+        <p class="muted small center">${f.pending_cents ? `+${money(f.pending_cents)} awaiting approval · ` : ''}${f.interest_monthly > 0 ? `invested money earns ${f.interest_monthly}% per month` : 'no interest set'}</p></div>
       <div class="card"><h2>Add a transaction</h2>
         <form data-form="tx" data-member="${m.id}">
           <div class="field"><div class="seg" data-seg="account">
@@ -611,10 +611,10 @@
 
     const interest = `<form data-form="settings">
       <div class="row2">
-        <label class="field"><span>Interest rate (% per year)</span><input type="number" name="interest_apr" min="0" max="100" step="0.1" value="${settings.interest_apr}"></label>
+        <label class="field"><span>Interest rate (% per month)</span><input type="number" name="interest_monthly" min="0" max="100" step="0.1" inputmode="decimal" value="${settings.interest_monthly ?? 0}"></label>
         <label class="field"><span>Credited on day of month</span><input type="number" name="interest_day" min="1" max="28" value="${settings.interest_day}"></label>
       </div>
-      <p class="muted small">Each month, every kid with a positive balance earns balance × rate ÷ 12.</p>
+      <p class="muted small">On that day each kid is paid interest for the previous month, pro-rated by the day: every day's invested balance earns rate ÷ days in the month, so money added mid-month only earns for the days it was there. Interest already paid earns interest too.</p>
       <div class="actions"><button class="btn primary" type="submit">Save</button><button class="btn" type="button" data-action="apply-interest">Credit this month now</button></div></form>`;
 
     const photosHtml = `<p class="muted small">Photos rotate on the display after it sits idle.</p>

@@ -177,7 +177,7 @@ router.get('/finance/:memberId', (req, res) => {
     invested_cents: invested,
     balance_cents: cash + invested,
     pending_cents: pendingCents.get(id).cents,
-    interest_apr: Number(settings.get('interest_apr')) || 0,
+    interest_monthly: interest.monthlyRate(),
     interest_day: Number(settings.get('interest_day')) || 1,
     coins: chores.coinBalance(id),
     coin_name: settings.get('coin_name'),

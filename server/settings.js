@@ -12,7 +12,8 @@ const DEFAULTS = {
   weather_lat: null,
   weather_lon: null,
   weather_label: '',
-  interest_apr: 0,           // percent per year, credited monthly
+  interest_apr: 0,           // legacy (percent per year); converted to interest_monthly on first use
+  interest_monthly: null,    // percent per month, paid on interest_day for the previous month, pro-rated by day
   interest_day: 1,           // day of month interest is credited
   coin_name: 'Mom Coins',    // reward points for approved chores
   coins_per_chore: 2,
@@ -36,13 +37,13 @@ const DEFAULTS = {
 // Settings safe to expose to the (unauthenticated) kiosk.
 const PUBLIC_KEYS = [
   'family_name', 'timezone', 'week_start', 'screensaver_minutes', 'photo_seconds', 'month_themes',
-  'temp_unit', 'weather_label', 'interest_apr', 'interest_day', 'coin_name', 'coins_per_chore', 'game_coins_per_minute',
+  'temp_unit', 'weather_label', 'interest_monthly', 'interest_day', 'coin_name', 'coins_per_chore', 'game_coins_per_minute',
   'games_weekday_until', 'games_weekday_from', 'games_weekends', 'games_unlocked', 'last_sync_at',
 ];
 // Settings a parent may change through PATCH /api/settings.
 const EDITABLE_KEYS = [
   'family_name', 'timezone', 'week_start', 'screensaver_minutes', 'photo_seconds', 'month_themes',
-  'temp_unit', 'weather_lat', 'weather_lon', 'weather_label', 'interest_apr',
+  'temp_unit', 'weather_lat', 'weather_lon', 'weather_label', 'interest_monthly',
   'interest_day', 'coin_name', 'coins_per_chore', 'game_coins_per_minute', 'games_weekday_until', 'games_weekday_from', 'games_weekends', 'games_unlocked',
   'sync_minutes', 'ntfy_topic', 'ntfy_server', 'app_url',
   'google_client_id', 'google_client_secret',

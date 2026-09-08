@@ -27,7 +27,7 @@
   const settings = {
     family_name: 'The Example Family', timezone: Intl.DateTimeFormat().resolvedOptions().timeZone, week_start: 0,
     screensaver_minutes: 0, photo_seconds: 15, month_themes: 1, temp_unit: 'fahrenheit', weather_lat: 40.76, weather_lon: -111.89,
-    weather_label: 'Demo City', interest_apr: 5, interest_day: 1, coin_name: 'Mom Coins', coins_per_chore: 2, game_coins_per_minute: 0.5,
+    weather_label: 'Demo City', interest_monthly: 0.5, interest_day: 1, coin_name: 'Mom Coins', coins_per_chore: 2, game_coins_per_minute: 0.5,
     games_weekday_until: '07:45', games_weekday_from: '16:00', games_weekends: 1, games_unlocked: 0, sync_minutes: 5, ntfy_topic: '', ntfy_server: 'https://ntfy.sh',
     app_url: '', google_client_id: 'demo', google_client_secret: true, pin_hash: true, pin_length: 4, session_secret: true,
     last_sync_at: new Date().toISOString(), google_redirect_uri: 'http://localhost:3100/api/google/callback', google_configured: true, google_env_override: false,
@@ -139,7 +139,7 @@
   }
   const weather = () => ({ label: settings.weather_label, unit: '°F', current: { temp: 76, label: 'Partly cloudy', emoji: '⛅' },
     daily: Array.from({ length: 7 }, (_, i) => ({ date: ymd(day(i)), hi: 78 + i, lo: 58 + i, precip: 10 * i, label: 'Clear', emoji: ['☀️', '⛅', '🌤️', '☀️', '🌦️', '☀️', '⛅'][i] })) });
-  const publicSettings = () => ({ family_name: settings.family_name, timezone: settings.timezone, week_start: settings.week_start, screensaver_minutes: settings.screensaver_minutes, photo_seconds: settings.photo_seconds, month_themes: settings.month_themes, temp_unit: settings.temp_unit, weather_label: settings.weather_label, interest_apr: settings.interest_apr, interest_day: settings.interest_day, coin_name: settings.coin_name, coins_per_chore: settings.coins_per_chore, game_coins_per_minute: settings.game_coins_per_minute, games_weekday_until: settings.games_weekday_until, games_weekday_from: settings.games_weekday_from, games_weekends: settings.games_weekends, games_unlocked: settings.games_unlocked, last_sync_at: settings.last_sync_at });
+  const publicSettings = () => ({ family_name: settings.family_name, timezone: settings.timezone, week_start: settings.week_start, screensaver_minutes: settings.screensaver_minutes, photo_seconds: settings.photo_seconds, month_themes: settings.month_themes, temp_unit: settings.temp_unit, weather_label: settings.weather_label, interest_monthly: settings.interest_monthly, interest_day: settings.interest_day, coin_name: settings.coin_name, coins_per_chore: settings.coins_per_chore, game_coins_per_minute: settings.game_coins_per_minute, games_weekday_until: settings.games_weekday_until, games_weekday_from: settings.games_weekday_from, games_weekends: settings.games_weekends, games_unlocked: settings.games_unlocked, last_sync_at: settings.last_sync_at });
   const localOccurrences = (fromTs, toTs) => {
     const out = [];
     for (const e of localEvents) {
@@ -205,7 +205,7 @@
     }
     if (seg[0] === 'finance' && seg[1] === 'transactions' && method === 'DELETE') { const i = tx.findIndex((t) => t.id === num(seg[2])); if (i >= 0) { const t = tx[i]; const k = completions.find((x) => x.id === t.completion_id); if (k) k.status = 'rejected'; tx.splice(i, 1); } return { ok: true }; }
     if (p === '/finance/apply-interest') return { credited: 0 };
-    if (seg[0] === 'finance' && seg.length === 2) { const id = num(seg[1]); return { member_id: id, cash_cents: balance(id, 'cash'), invested_cents: balance(id, 'invested'), balance_cents: balance(id, 'cash') + balance(id, 'invested'), pending_cents: pendingCents(id), interest_apr: settings.interest_apr, interest_day: settings.interest_day, coins: coinBalance(id), coin_name: settings.coin_name, transactions: tx.filter((t) => t.member_id === id).slice().reverse(), coin_transactions: coins.filter((c) => c.member_id === id).slice().reverse() }; }
+    if (seg[0] === 'finance' && seg.length === 2) { const id = num(seg[1]); return { member_id: id, cash_cents: balance(id, 'cash'), invested_cents: balance(id, 'invested'), balance_cents: balance(id, 'cash') + balance(id, 'invested'), pending_cents: pendingCents(id), interest_monthly: settings.interest_monthly, interest_day: settings.interest_day, coins: coinBalance(id), coin_name: settings.coin_name, transactions: tx.filter((t) => t.member_id === id).slice().reverse(), coin_transactions: coins.filter((c) => c.member_id === id).slice().reverse() }; }
     if (seg[0] === 'coins' && seg[1] === 'transactions' && method === 'DELETE') { const i = coins.findIndex((c) => c.id === num(seg[2])); if (i >= 0) { const k = completions.find((x) => x.id === coins[i].completion_id); if (k) k.status = 'rejected'; coins.splice(i, 1); } return { ok: true }; }
     if (seg[0] === 'coins' && method === 'POST') { coins.push({ id: nextId++, member_id: num(seg[1]), amount: num(body.amount), note: body.note || null, created_at: nowIso() }); return { coins: coinBalance(num(seg[1])) }; }
     if (p === '/meals' && method === 'GET') { const from = query.get('from') || ymd(today); const to = query.get('to') || from; return meals.filter((m) => m.date >= from && m.date <= to); }
