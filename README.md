@@ -166,8 +166,10 @@ Each kid has two accounts, each a ledger of signed transactions:
 
 - **Cash** — pocket money. Chore payouts land here. Parents can add/withdraw, or simply *set the
   balance* after counting the cash (an adjustment for the difference is recorded).
-- **Invested with Dad** — money handed to a parent to grow. If an interest rate is set, on the
-  chosen day each month every kid with a positive invested balance is credited `balance × rate ÷ 12`.
+- **Invested with Dad** — money handed to a parent to grow. If a monthly rate is set, on the
+  chosen day (the 1st by default) each kid is paid interest for the previous month, pro-rated by the
+  day: each day's balance earns `rate ÷ days in month`, so money added mid-month only earns for the days
+  it was there.
 
 *Move ⇄* transfers between the two. The display shows both balances and the combined history.
 
