@@ -529,7 +529,7 @@
   }
 
   const GAME_LIST = [
-    { key: 'pacman', name: 'Pac-Man', icon: '🟡', sub: 'Swipe or use the arrows', fire: false },
+    { key: 'pacman', name: 'Pac-Man', icon: '🟡', sub: 'Swipe, arrows or a controller', fire: false },
     { key: 'snake', name: 'Snake', icon: '🐍', sub: 'Eat apples, don’t hit the walls', fire: false },
     { key: 'frogger', name: 'Frogger', icon: '🐸', sub: 'Hop across the road and river', fire: false },
     { key: 'asteroids', name: 'Asteroids', icon: '🚀', sub: '◀ ▶ steer · ▲ thrust · ▼ brake · ● shoot', fire: true },
@@ -689,6 +689,32 @@
     if (e.key === 'Escape') closeGame();
   });
   document.addEventListener('keyup', (e) => { const game = currentGame(); if (game && KEYMAP[e.key]) game.release(KEYMAP[e.key]); });
+
+  // Gamepads (USB or 2.4 GHz-dongle pads such as SNES-style controllers): any connected pad drives the
+  // game. Chromium only lists a pad after a button has been pressed on it. Polled while a game is open.
+  const padHeld = new Map(); // gamepad index -> Set of keys currently held
+  function pollGamepads() {
+    const game = currentGame();
+    if (!game || $('#game').hidden || !navigator.getGamepads) { if (padHeld.size) padHeld.clear(); return; }
+    for (const gp of navigator.getGamepads()) {
+      if (!gp) continue;
+      const btn = (i) => !!(gp.buttons[i] && gp.buttons[i].pressed);
+      const ax = gp.axes[0] || 0; const ay = gp.axes[1] || 0; // some pads report the D-pad as axes
+      const held = new Set();
+      if (btn(14) || ax < -0.5) held.add('left');
+      if (btn(15) || ax > 0.5) held.add('right');
+      if (btn(12) || ay < -0.5) held.add('up');
+      if (btn(13) || ay > 0.5) held.add('down');
+      if (btn(0) || btn(1) || btn(2) || btn(3)) held.add('fire'); // A / B / X / Y
+      if (btn(9)) held.add('pause'); // Start
+      const prev = padHeld.get(gp.index) || new Set();
+      for (const k of held) if (!prev.has(k)) { if (k === 'pause') game.togglePause(); else game.press(k); }
+      for (const k of prev) if (!held.has(k) && k !== 'pause') game.release(k);
+      padHeld.set(gp.index, held);
+    }
+  }
+  setInterval(pollGamepads, 16);
+  window.addEventListener('gamepadconnected', (e) => console.log(`[gamepad] connected: ${e.gamepad.id}`));
 
   // ---- Prizes: spend coins -----------------------------------------------------
   async function renderSidePrizes() {
