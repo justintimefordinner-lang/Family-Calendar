@@ -188,7 +188,13 @@
     $('#ssClock').textContent = t;
     $('#ssDate').textContent = now.toLocaleDateString(LOCALE, { weekday: 'long', month: 'long', day: 'numeric' });
     const today = ymd(now);
-    if (today !== state.today) { state.today = today; refreshAll(); }
+    // Day rollover: if the display was left on today (Day or Chores view), follow the calendar to the new day.
+    const knownDay = state.tickDay || state.today;
+    if (today !== knownDay) {
+      if (ymd(state.anchor) === knownDay) state.anchor = new Date();
+      state.tickDay = today; state.today = today;
+      refreshAll();
+    }
   }
 
   function renderWeather(w) {
@@ -455,7 +461,7 @@
       ${open.length ? `<p class="muted" style="margin:10px 0 0" data-member-row="earn">💵 ${open.length} Earn Money chore${open.length > 1 ? 's' : ''} up for grabs — tap here to see them</p>` : ''}</div>`;
 
     const items = state.shopping.map((s) => `<div class="shop-item ${s.checked ? 'checked' : ''}" data-shop="${s.id}" data-checked="${s.checked}">
-        <div class="box">${s.checked ? '✓' : ''}</div>${s.qty ? `<span class="qty">${s.qty}</span>` : ''}<span>${esc(s.text)}</span></div>`).join('');
+        <div class="box">${s.checked ? '✓' : ''}</div>${s.qty ? `<span class="qty">${s.qty}</span>` : ''}<span class="txt">${esc(s.text)}</span><button class="x" data-shop-del="${s.id}" title="Remove from the list" aria-label="Remove">✕</button></div>`).join('');
     html += `<div class="card"><h3>🛒 Shopping List <span class="meta">${state.shopping.filter((s) => !s.checked).length} to get</span></h3>
       ${items || '<p class="muted center">Nothing on the list</p>'}
       <form id="shopForm" class="shop-hidden"><input type="hidden" id="shopQty"><input id="shopInput" data-qty maxlength="200" autocomplete="off" aria-label="New item"></form>
@@ -1199,6 +1205,11 @@
         document.querySelectorAll('[data-qsel]').forEach((b) => b.classList.toggle('on', b.dataset.qsel === ''));
         await loadSide();
       } catch (err) { alert(err.message); }
+      return;
+    }
+    const del = t.closest('[data-shop-del]');
+    if (del) {
+      try { await api(`/api/shopping/${del.dataset.shopDel}`, { method: 'DELETE' }); await loadSide(); } catch (err) { alert(err.message); }
       return;
     }
     const shop = t.closest('[data-shop]');

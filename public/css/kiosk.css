@@ -214,7 +214,10 @@ h1, h2, h3 { margin: 0; font-weight: 700; }
 .shop-item:first-of-type { border-top: 0; }
 .shop-item .box { width: 30px; height: 30px; border: 2px solid var(--line); border-radius: 8px; display: grid; place-items: center; color: #fff; flex: none; }
 .shop-item.checked .box { background: var(--good); border-color: var(--good); }
-.shop-item.checked span { text-decoration: line-through; color: var(--muted); }
+.shop-item.checked .txt { text-decoration: line-through; color: var(--muted); }
+.shop-item .txt { flex: 1; }
+.shop-item .x { border: 0; background: transparent; color: var(--muted); font-size: 1.05rem; width: 44px; height: 44px; border-radius: 10px; flex: none; }
+.shop-item .x:active { background: #eee; color: var(--ink); }
 .shop-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; opacity: 0; pointer-events: none; }
 .shop-actions { display: flex; gap: 10px; margin-top: 12px; }
 .shop-actions .btn { flex: 1; font-size: 1.7rem; min-height: 60px; }
