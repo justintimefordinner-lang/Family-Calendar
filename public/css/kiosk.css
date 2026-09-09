@@ -186,6 +186,7 @@ h1, h2, h3 { margin: 0; font-weight: 700; }
 .chore.done .text .t { text-decoration: line-through; }
 .chore .sub { display: block; font-size: 0.85rem; color: var(--muted); font-weight: 500; }
 .chore .amt { font-weight: 700; color: var(--good); font-size: 1.1rem; }
+.chore .amt.coins { color: var(--warn); font-size: 1rem; white-space: nowrap; }
 .badge { font-size: 0.75rem; padding: 3px 8px; border-radius: 999px; background: #eee; color: var(--muted); font-weight: 600; }
 .badge.pending { background: #fff4e0; color: var(--warn); }
 .badge.approved { background: #e7f8ec; color: var(--good); }

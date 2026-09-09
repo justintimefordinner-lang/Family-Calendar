@@ -382,7 +382,9 @@
       else if (showWho && c.member_name) sub = `<span class="sub">${esc(c.member_name)}</span>`;
     }
     if (c.notes) sub += `<span class="sub">${esc(c.notes)}</span>`;
-    const amt = c.paid ? `<span class="amt">${money(c.amount_cents)}</span>` : '';
+    // What the chore is worth, shown on the right until it is done (paid chores show dollars, regular ones coins).
+    const worth = c.paid ? 0 : (c.coins != null ? Number(c.coins) : (Number(state.settings.coins_per_chore) || 0));
+    const amt = c.paid ? `<span class="amt">${money(c.amount_cents)}</span>` : (worth && (!c.status || c.status === 'rejected') ? `<span class="amt coins">🪙 +${worth}</span>` : '');
     return `<div class="${cls}" data-chore="${c.id}" data-completion="${c.completion_id || ''}" data-status="${c.status || ''}" data-owner="${c.member_id ?? ''}">
       <div class="check">${mark}</div><div class="text"><span class="t">${esc(c.title)}</span>${sub}</div>${amt}</div>`;
   }
