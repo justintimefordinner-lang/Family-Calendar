@@ -609,6 +609,13 @@
     overlay.hidden = false;
     overlay.classList.toggle('uses-fire', Boolean(g.fire));
     $('#gameTitle').textContent = g.name;
+    // Big "Playing as" badge in the kid's colour, plus a matching frame, so nobody plays on someone else's coins by accident.
+    const who = memberById(memberId);
+    const badge = $('#gamePlayer');
+    badge.style.setProperty('--c', who ? who.color : '#444');
+    badge.querySelector('.avatar').textContent = who ? who.emoji : '';
+    badge.querySelector('.who').textContent = who ? who.name : '';
+    overlay.style.setProperty('--player-c', who ? who.color : '#000');
     updateGameCoins();
     const wrap = $('.game-canvas-wrap');
     const size = mobileNow
@@ -629,12 +636,12 @@
     const m = play.memberId != null ? memberById(play.memberId) : null;
     if (!m) { $('#gameCoins').textContent = ''; return; }
     const rate = gameRate();
-    if (!play.sessionId || rate <= 0) { $('#gameCoins').textContent = `${m.emoji} ${m.name} · 🪙 ${wholeCoins(play.coins)}`; return; }
+    if (!play.sessionId || rate <= 0) { $('#gameCoins').textContent = `🪙 ${wholeCoins(play.coins)}`; return; }
     const spentSince = rate * (Date.now() - play.syncedAt) / 60_000;
     const live = Math.max(0, play.coins - spentSince);
     const minsLeft = live / rate;
     const left = minsLeft >= 1 ? `${Math.floor(minsLeft)} min left` : `${Math.max(0, Math.round(minsLeft * 60))} sec left`;
-    $('#gameCoins').textContent = `${m.emoji} ${m.name} · 🪙 ${wholeCoins(live)} · ${left}`;
+    $('#gameCoins').textContent = `🪙 ${wholeCoins(live)} · ${left}`;
   }
 
   async function gameTick(final) {
