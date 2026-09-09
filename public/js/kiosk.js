@@ -1071,7 +1071,7 @@
     if (earn) {
       const c = state.chores.find((x) => x.id === Number(earn.dataset.earn));
       if (!c) return;
-      if (c.status === 'approved') return;
+      if (c.status === 'approved') { lockedNote(c); return; }
       if (c.status === 'pending') {
         const who = memberById(c.completed_by);
         openModal(`<h2>⏳ ${esc(c.title)}</h2><p class="kv">${esc(who ? who.name : 'Someone')} marked this done — a parent still needs to approve it.</p>
@@ -1232,6 +1232,11 @@
     if (t.closest('[data-close]') || t === $('#modal')) closeModal();
   });
 
+  // Approved chores are locked on the display: only a parent can change them.
+  function lockedNote(c) {
+    openModal(`<h2>🔒 Already approved!</h2><p class="kv">${c ? esc(c.title) : 'This chore'} was checked off by a parent. Only a parent can change it now.</p><div class="kid-pick"><button class="btn" data-close>OK</button></div>`);
+  }
+
   async function toggleChore(el) {
     if (choresPreview()) return; // other days are read-only previews
     const onBoard = !!el.closest(".chores-board"); // board cards belong to the kid shown, whoever is selected
@@ -1241,7 +1246,7 @@
     try {
       const chore = (onBoard ? (state.boardChores || []) : state.chores).find((c) => c.id === Number(el.dataset.chore));
       if (el.dataset.status && el.dataset.status !== 'rejected') {
-        if (el.dataset.status === 'approved') return;
+        if (el.dataset.status === 'approved') { lockedNote(chore); return; }
         await api(`/api/chores/completions/${el.dataset.completion}`, { method: 'DELETE' });
         unqueueCelebration(memberId, chore);
       } else {
@@ -1250,7 +1255,7 @@
       }
       await loadSide();
     } catch (err) {
-      alert(err.message);
+      if (/approved/i.test(err.message)) { lockedNote(null); await loadSide(); } else alert(err.message); // the display can lag a parent's approval by up to a minute
     }
   }
 
