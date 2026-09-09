@@ -144,3 +144,10 @@ details.section .body { padding: 0 16px 16px; }
 .toast { position: fixed; left: 50%; bottom: calc(var(--tabbar) + 20px + env(safe-area-inset-bottom)); transform: translateX(-50%); background: var(--ink); color: #fff; padding: 10px 18px; border-radius: 999px; z-index: 50; font-weight: 600; max-width: 90vw; }
 .toast[hidden] { display: none; }
 .toast.err { background: var(--bad); }
+
+/* Coin history */
+.coin-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; text-align: center; }
+.coin-grid small { display: block; color: var(--muted); font-size: 0.75rem; margin-bottom: 2px; }
+.coin-grid b { font-size: 1.15rem; }
+.coin-grid .pos, .meta.pos { color: var(--good, #16a34a); }
+.coin-grid .neg, .meta.neg { color: #dc2626; }

@@ -99,6 +99,7 @@
       if (!S.me.parent) return renderLogin();
       await loadMembers();
       if (route === 'money' && arg) return await renderMoneyDetail(Number(arg));
+      if (route === 'coins') return await renderCoinHistory(Number(arg) || 30);
       const views = { chores: renderChores, money: renderMoney, events: renderEvents, meals: renderMeals, list: renderList, settings: renderSettings };
       await (views[route] || renderChores)();
     } catch (e) {
@@ -316,6 +317,7 @@
         <div class="bal" style="text-align:right;font-size:1.05rem;line-height:1.35">💵 ${money(f.cash_cents || 0)}<br>📈 ${money(f.invested_cents || 0)}<br>🪙 ${Math.floor(Number(f.coins) || 0)}</div></div>`;
     }).join('');
     shell('Money', `<p class="muted small">Each kid has <b>Cash</b> (pocket money you keep track of; chore earnings land here) and <b>Invested with Dad</b>${apr > 0 ? `, which earns ${apr}% per month, paid on day ${settings.interest_day} for the previous month and pro-rated by the day.` : ' (no interest set — see Settings › Interest).'}</p>
+      <div class="actions" style="margin:0 0 12px"><button class="btn" data-href="#coins/30">🪙 Coin history</button></div>
       ${cards || '<div class="card"><p class="muted">Add kids in Settings › Family to start tracking money.</p></div>'}${prizesHtml(S.rewards, Array.isArray(redemptions) ? redemptions : [])}`);
   }
 
@@ -369,6 +371,35 @@
         <p class="muted small mt">Records an adjustment for the difference, so the history stays honest.</p></div>
       <div class="card"><h2>History</h2>${rows || '<p class="muted">Nothing yet.</p>'}</div>`,
     `<a class="btn small" href="#money">‹ All kids</a>`);
+  }
+
+  // ---- Coin history: where the coins came from and went -----------------------
+  async function renderCoinHistory(days) {
+    S.route = 'money';
+    const h = await api(`/api/coins/history?days=${days}`);
+    if (!S.settings) S.settings = await api('/api/settings');
+    const coin = S.settings.coin_name || 'Mom Coins';
+    const n = (v) => String(Math.round(v * 10) / 10);
+    const signed = (v) => (v < 0 ? '−' : '+') + n(Math.abs(v));
+    const chips = [7, 30, 90, 365].map((d) => `<button class="chip ${d === days ? 'active' : ''}" data-href="#coins/${d}">${d === 365 ? 'Past year' : `${d} days`}</button>`).join('');
+    const cards = h.kids.sort((a, b) => a.name.localeCompare(b.name)).map((k) => `<div class="card">
+      <h2><span style="display:flex;align-items:center;gap:10px"><span class="avatar" style="--c:${esc(k.color)}">${esc(k.emoji)}</span>${esc(k.name)}</span><span class="meta ${k.net < 0 ? 'neg' : 'pos'}">${signed(k.net)} net</span></h2>
+      <div class="coin-grid">
+        <div><small>✅ Chores</small><b class="pos">+${n(k.chores)}</b></div>
+        <div><small>🎮 Games</small><b class="${k.games ? 'neg' : ''}">${k.games ? '−' + n(-k.games) : '0'}</b></div>
+        <div><small>🎁 Prizes</small><b class="${k.prizes ? 'neg' : ''}">${k.prizes ? '−' + n(-k.prizes) : '0'}</b></div>
+        <div><small>👩‍👧 Parent</small><b class="${k.parent < 0 ? 'neg' : k.parent > 0 ? 'pos' : ''}">${k.parent ? signed(k.parent) : '0'}</b></div>
+      </div></div>`).join('');
+    const list = h.transactions.map((t) => `<div class="list-item tx">
+      <div class="avatar" style="--c:${esc(t.color)}">${esc(t.emoji)}</div>
+      <div class="grow"><div class="title">${esc(t.note || 'Coins')}</div><div class="sub">${esc(t.member_name)} · ${fmtWhen(t.created_at)}</div></div>
+      <div class="a ${t.amount < 0 ? 'neg' : 'pos'}">${signed(t.amount)}</div>
+      <button class="btn small icon" data-action="delete-coins" data-id="${t.id}" title="Remove">✕</button></div>`).join('');
+    shell(`🪙 ${esc(coin)}`, `<div class="chips">${chips}</div>
+      <p class="muted small">Coins earned from chores, spent on games and prizes, or given/taken by a parent, for the last ${days === 365 ? 'year' : `${days} days`}.</p>
+      ${cards || '<div class="card"><p class="muted">No coin activity in this period.</p></div>'}
+      <div class="card"><h2>All activity <span class="meta">${h.transactions.length}</span></h2>${list || '<p class="muted">Nothing yet.</p>'}</div>`,
+    '<button class="btn small" data-href="#money">‹ Money</button>');
   }
 
   // ---- Prizes (coin rewards) ---------------------------------------------------

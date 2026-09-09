@@ -155,6 +155,23 @@ router.post('/coins/:memberId', (req, res) => {
   res.json({ coins: chores.coinBalance(memberId) });
 });
 
+// Where the coins went: per-kid totals by kind plus every transaction in the period.
+const coinKind = (t) => (t.completion_id ? 'chores' : /^🎮/.test(t.note || '') ? 'games' : /^🎁/.test(t.note || '') ? 'prizes' : 'parent');
+router.get('/coins/history', (req, res) => {
+  const days = Math.min(365, Math.max(1, toInt(req.query.days, 30)));
+  const rows = db.prepare(`
+    SELECT ct.*, m.name AS member_name, m.emoji, m.color FROM coin_transactions ct
+    JOIN members m ON m.id = ct.member_id
+    WHERE ct.created_at >= datetime('now', ?) ORDER BY ct.created_at DESC, ct.id DESC`).all(`-${days} days`);
+  const kids = new Map();
+  for (const t of rows) {
+    if (!kids.has(t.member_id)) kids.set(t.member_id, { member_id: t.member_id, name: t.member_name, emoji: t.emoji, color: t.color, chores: 0, games: 0, prizes: 0, parent: 0, net: 0 });
+    const k = kids.get(t.member_id); const kind = coinKind(t);
+    k[kind] += t.amount; k.net += t.amount;
+  }
+  res.json({ days, kids: [...kids.values()], transactions: rows.map((t) => ({ ...t, kind: coinKind(t) })) });
+});
+
 router.delete('/coins/transactions/:id', (req, res) => {
   const t = db.prepare('SELECT * FROM coin_transactions WHERE id = ?').get(toInt(req.params.id));
   if (!t) throw new HttpError(404, 'Not found');
