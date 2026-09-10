@@ -538,8 +538,8 @@
     { key: 'pacman', name: 'Pac-Man', icon: '🟡', sub: 'Swipe, arrows or a controller', fire: false },
     { key: 'snake', name: 'Snake', icon: '🐍', sub: 'Eat apples, don’t hit the walls', fire: false },
     { key: 'frogger', name: 'Frogger', icon: '🐸', sub: 'Hop across the road and river', fire: false },
-    { key: 'asteroids', name: 'Asteroids', icon: '🚀', sub: '◀ ▶ steer · ▲ thrust · ▼ brake · ● shoot', fire: true },
-    { key: 'tetris', name: 'Tetris', icon: '🧱', sub: '◀ ▶ move · ▲ rotate · ▼ drop · ● slam · 1 or 2 players', fire: true, players: true },
+    { key: 'asteroids', name: 'Asteroids', icon: '🚀', sub: '◀ ▶ steer · ▲ thrust · ▼ brake · ● shoot · 1 or 2 ships', fire: true, players: true },
+    { key: 'tetris', name: 'Tetris', icon: '🧱', sub: '◀ ▶ move · ▲ rotate · ▼ drop · ● slam · B flips · 1 or 2 players', fire: true, players: true },
     { key: 'bump', name: 'Bump Battle', icon: '🥊', sub: 'Knock the other player off the platform · best of 3 · 1 or 2 players', fire: true, players: true },
     { key: 'brawl', name: 'Monster Brawl', icon: '👾', sub: 'Punch the silly monsters · team up with 2 players', fire: true, players: true },
     { key: 'pong', name: 'Pong', icon: '🏓', sub: 'First to 7 · vs the computer or 2 players', fire: false, players: true },
@@ -575,7 +575,8 @@
   // ---- Play sessions: who is playing, and coins ticking away per minute ----------------
   const play = { key: null, memberId: null, sessionId: null, startedAt: 0, timer: null, coins: 0, players: 1 };
 
-  async function openGame(key) {
+  async function openGame(key, p1 = null) {
+    const step2 = p1 != null; if (!step2) play.p1 = null; // 2-player: first pick is player 1, then this runs again for player 2
     const g = GAME_LIST.find((x) => x.key === key);
     if (!g) return;
     const win = gamesWindow();
@@ -591,19 +592,20 @@
     try { ready = await api('/api/games/ready'); } catch { /* server too old: no gate */ }
     const gateFor = (id) => (ready.kids || []).find((k) => k.member_id === id) || { ok: true, missing: [] };
     if ($('#modal').hidden) return;
-    openModal(`<h2>${g.icon} ${g.name} — who's playing?</h2>
+    openModal(`<h2>${g.icon} ${g.name} — ${step2 ? 'Player 2, who are you?' : "who's playing?"}</h2>
       ${rate > 0 ? `<p class="kv">Costs <b>🪙 ${rate} ${esc(coinName())}</b> per minute while the game is open.</p>` : (state.settings.games_free_day === state.today ? '<p class="kv">🎉 Free games today — no coins charged!</p>' : '')}
-      ${g.players ? `<div class="qty-row" data-players-row><button class="btn ${play.players === 2 ? '' : 'on'}" data-players="1">1 player</button><button class="btn ${play.players === 2 ? 'on' : ''}" data-players="2">👥 2 players</button></div><p class="hint">Player 2 uses the second controller, or W A S D + Enter on a keyboard.</p>` : ''}
-      <div class="kid-pick">${kids.map((m) => {
+      ${g.players && !step2 ? `<div class="qty-row" data-players-row><button class="btn ${play.players === 2 ? '' : 'on'}" data-players="1">1 player</button><button class="btn ${play.players === 2 ? 'on' : ''}" data-players="2">👥 2 players</button></div><p class="hint">Player 2 uses the second controller, or W A S D + Enter on a keyboard.</p>` : ''}
+      <div class="kid-pick">${kids.filter((m) => !step2 || m.id !== p1).map((m) => {
         const fin = state.finance.find((f) => f.member_id === m.id);
         const coins = fin ? (fin.coins || 0) : 0;
         const gate = gateFor(m.id);
         const lock = gate.ok ? '' : `data-locked="${esc(`Finish your ${gate.period} chores first: ${gate.missing.join(', ')}`)}"`;
         return `<button class="member-btn ${gate.ok ? '' : 'locked'}" data-play="${key}" data-kid="${m.id}" ${lock} style="--c:${esc(m.color)}"><span class="avatar">${gate.ok ? esc(m.emoji) : '🔒'}</span><span>${esc(m.name)}<small class="sub">${gate.ok ? `🪙 ${wholeCoins(coins)}` : `${gate.missing.length} ${gate.period} chore${gate.missing.length === 1 ? '' : 's'} left`}</small></span></button>`;
-      }).join('')}</div>`);
+      }).join('')}${step2 ? `<button class="member-btn" data-play="${key}" data-kid="guest" style="--c:#6b7280"><span class="avatar">👤</span><span>Guest<small class="sub">no coins, just playing</small></span></button>` : ''}</div>`);
   }
 
-  async function startGame(key, memberId) {
+  async function startGame(key, memberId, p2 = null) {
+    play.p2 = p2;
     const g = GAME_LIST.find((x) => x.key === key);
     let session = { id: null, rate: 0, coins: 0 };
     if (memberId != null) {
@@ -624,8 +626,9 @@
     const who = memberById(memberId);
     const badge = $('#gamePlayer');
     badge.style.setProperty('--c', who ? who.color : '#444');
-    badge.querySelector('.avatar').textContent = who ? who.emoji : '';
-    badge.querySelector('.who').textContent = who ? who.name : '';
+    const two = play.players === 2 && p2 != null ? (p2 === 'guest' ? { name: 'Guest', emoji: '👤' } : memberById(p2)) : null;
+    badge.querySelector('.avatar').textContent = (who ? who.emoji : '') + (two ? ` ${two.emoji}` : '');
+    badge.querySelector('.who').textContent = (who ? who.name : '') + (two ? ` & ${two.name}` : '');
     overlay.style.setProperty('--player-c', who ? who.color : '#000');
     updateGameCoins();
     const wrap = $('.game-canvas-wrap');
@@ -727,7 +730,8 @@
       if (btn(15) || ax > 0.5) held.add(`${pre}right`);
       if (btn(12) || ay < -0.5) held.add(`${pre}up`);
       if (btn(13) || ay > 0.5) held.add(`${pre}down`);
-      if (btn(0) || btn(1) || btn(2) || btn(3)) held.add(`${pre}fire`); // A / B / X / Y
+      if (btn(0)) held.add(`${pre}${play.key === 'tetris' ? 'flip' : 'fire'}`); // B (bottom button): flips the block in Tetris, fires elsewhere
+      if (btn(1) || btn(2) || btn(3)) held.add(`${pre}fire`); // A / X / Y
       if (btn(9)) held.add('pause'); // Start
       const prev = padHeld.get(gp.index) || new Set();
       for (const k of held) if (!prev.has(k)) { if (k === 'pause') game.togglePause(); else game.press(k); }
@@ -1291,7 +1295,12 @@
         openModal(`<h2>🔒 Not yet!</h2><p class="kv">${esc(playBtn.dataset.locked)}</p><div class="kid-pick"><button class="btn" data-close>OK</button></div>`);
         return;
       }
-      await startGame(playBtn.dataset.play, Number(playBtn.dataset.kid));
+      const kidVal = playBtn.dataset.kid;
+      if (play.players === 2 && play.p1 == null && kidVal !== 'guest') { play.p1 = Number(kidVal); await openGame(playBtn.dataset.play, play.p1); return; }
+      const p1 = play.players === 2 ? play.p1 : Number(kidVal);
+      const p2 = play.players === 2 ? (kidVal === 'guest' ? 'guest' : Number(kidVal)) : null;
+      play.p1 = null;
+      await startGame(playBtn.dataset.play, p1, p2);
       return;
     }
     if (t.closest('[data-game-close]')) { await closeGame(); return; }

@@ -190,27 +190,34 @@
     ctx.fillStyle = '#111'; ctx.beginPath(); ctx.arc(x - c * 0.12, y - c * 0.12, c * 0.06, 0, 7); ctx.arc(x + c * 0.12, y - c * 0.12, c * 0.06, 0, 7); ctx.fill();
   }
 
-  // ------------------------------------------------------------ Asteroids
+  // ------------------------------------------------------------ Asteroids (1 or 2 ships)
+  const AS = { players: 1 };
+  const AS_COLORS = ['#fff', '#f87171'];
   Games.asteroids = makeGame({
     key: 'asteroids', aspect: 4 / 3,
     init(g, W, H) {
-      g.score = 0; g.lives = 3; g.level = 1; g.W = W; g.H = H; g.bullets = []; g.cool = 0; g.rocks = [];
-      spawnShip(g); spawnRocks(g, 4);
+      g.score = 0; g.level = 1; g.W = W; g.H = H; g.bullets = []; g.rocks = [];
+      g.ships = Array.from({ length: AS.players }, (_, i) => spawnShip(g, i));
+      spawnRocks(g, 4);
     },
-    press(g, k) { if (k === 'fire') fire(g); },
+    press(g, k) {
+      const p = k.startsWith('p2:') ? 1 : 0; const key = k.replace('p2:', '');
+      const s = g.ships[p]; if (s && key === 'fire') fire(g, s);
+    },
     update(g, dt, held) {
-      const s = g.ship;
-      if (s.dead > 0) { s.dead -= dt; if (s.dead <= 0) { if (g.lives <= 0) { g.gameOver(); return; } spawnShip(g); } }
-      else {
-        if (held.has('left')) s.a -= 3.6 * dt;
-        if (held.has('right')) s.a += 3.6 * dt;
-        if (held.has('up')) { s.vx += Math.cos(s.a) * 260 * dt; s.vy += Math.sin(s.a) * 260 * dt; s.thrust = true; } else s.thrust = false;
-        if (held.has('down')) { s.vx *= 1 - 3 * dt; s.vy *= 1 - 3 * dt; } // brake
-        if (held.has('fire')) { g.cool -= dt; if (g.cool <= 0) { fire(g); } } else g.cool = 0;
+      g.ships.forEach((s, i) => {
+        const has = (k) => held.has(i === 1 ? `p2:${k}` : k);
+        if (s.dead > 0) { s.dead -= dt; if (s.dead <= 0 && s.lives > 0) Object.assign(s, spawnShip(g, i, s)); return; }
+        if (has('left')) s.a -= 3.6 * dt;
+        if (has('right')) s.a += 3.6 * dt;
+        if (has('up')) { s.vx += Math.cos(s.a) * 260 * dt; s.vy += Math.sin(s.a) * 260 * dt; s.thrust = true; } else s.thrust = false;
+        if (has('down')) { s.vx *= 1 - 3 * dt; s.vy *= 1 - 3 * dt; } // brake
+        if (has('fire')) { s.cool -= dt; if (s.cool <= 0) fire(g, s); } else s.cool = 0;
         s.vx *= 1 - 0.6 * dt; s.vy *= 1 - 0.6 * dt;
         s.x = wrap(s.x + s.vx * dt, g.W); s.y = wrap(s.y + s.vy * dt, g.H);
         if (s.inv > 0) s.inv -= dt;
-      }
+      });
+      if (g.ships.every((s) => s.lives <= 0 && s.dead <= 0)) { g.gameOver(); return; }
       for (const b of g.bullets) { b.x = wrap(b.x + b.vx * dt, g.W); b.y = wrap(b.y + b.vy * dt, g.H); b.t -= dt; }
       g.bullets = g.bullets.filter((b) => b.t > 0);
       for (const r of g.rocks) { r.x = wrap(r.x + r.vx * dt, g.W); r.y = wrap(r.y + r.vy * dt, g.H); r.a += r.spin * dt; }
@@ -220,20 +227,23 @@
         const hit = g.rocks.find((r) => (r.x - b.x) ** 2 + (r.y - b.y) ** 2 < (r.r * scale) ** 2);
         if (!hit) continue;
         b.t = 0;
-        g.score += hit.r >= 40 ? 20 : hit.r >= 22 ? 50 : 100;
+        const pts = hit.r >= 40 ? 20 : hit.r >= 22 ? 50 : 100;
+        g.score += pts; if (g.ships[b.owner]) g.ships[b.owner].score += pts;
         g.rocks = g.rocks.filter((r) => r !== hit);
         if (hit.r >= 22) for (let i = 0; i < 2; i++) g.rocks.push(makeRock(g, hit.x, hit.y, hit.r / 2));
       }
       g.bullets = g.bullets.filter((b) => b.t > 0);
       if (!g.rocks.length) { g.level += 1; spawnRocks(g, 3 + g.level); }
-      // ship vs rocks
-      if (s.dead <= 0 && s.inv <= 0) {
+      // ships vs rocks
+      for (const s of g.ships) {
+        if (s.dead > 0 || s.inv > 0 || s.lives <= 0) continue;
         const hit = g.rocks.some((r) => (r.x - s.x) ** 2 + (r.y - s.y) ** 2 < ((r.r + 10) * scale) ** 2);
-        if (hit) { g.lives -= 1; s.dead = 1.5; }
+        if (hit) { s.lives -= 1; s.dead = 1.5; }
       }
     },
     draw(g, ctx, W, H) {
       ctx.fillStyle = '#000'; ctx.fillRect(0, 0, W, H);
+      ctx.strokeStyle = '#fff'; ctx.lineWidth = 3; ctx.strokeRect(1.5, 1.5, W - 3, H - 3); // edge of space: things wrap around here
       const scale = W / 800;
       ctx.strokeStyle = '#fff'; ctx.lineWidth = 2; ctx.lineJoin = 'round';
       for (const r of g.rocks) {
@@ -241,18 +251,24 @@
         r.verts.forEach((v, i) => { const x = Math.cos(v.a) * v.d * r.r * scale; const y = Math.sin(v.a) * v.d * r.r * scale; if (i) ctx.lineTo(x, y); else ctx.moveTo(x, y); });
         ctx.closePath(); ctx.stroke(); ctx.restore();
       }
-      ctx.fillStyle = '#fff';
-      for (const b of g.bullets) { ctx.beginPath(); ctx.arc(b.x, b.y, 2.5 * scale, 0, 7); ctx.fill(); }
-      const s = g.ship;
-      if (s.dead <= 0 && (s.inv <= 0 || Math.floor(s.inv * 10) % 2 === 0)) {
-        ctx.save(); ctx.translate(s.x, s.y); ctx.rotate(s.a); const L = 16 * scale;
+      for (const b of g.bullets) { ctx.fillStyle = AS_COLORS[b.owner] || '#fff'; ctx.beginPath(); ctx.arc(b.x, b.y, 2.5 * scale, 0, 7); ctx.fill(); }
+      g.ships.forEach((s, i) => {
+        if (s.lives <= 0 || s.dead > 0 || (s.inv > 0 && Math.floor(s.inv * 10) % 2 === 1)) return;
+        ctx.save(); ctx.translate(s.x, s.y); ctx.rotate(s.a); const L = 16 * scale; ctx.strokeStyle = AS_COLORS[i];
         ctx.beginPath(); ctx.moveTo(L, 0); ctx.lineTo(-L * 0.8, L * 0.7); ctx.lineTo(-L * 0.4, 0); ctx.lineTo(-L * 0.8, -L * 0.7); ctx.closePath(); ctx.stroke();
-        if (s.thrust) { ctx.strokeStyle = '#ffb347'; ctx.beginPath(); ctx.moveTo(-L * 0.5, L * 0.3); ctx.lineTo(-L * (1.1 + Math.random() * 0.4), 0); ctx.lineTo(-L * 0.5, -L * 0.3); ctx.stroke(); ctx.strokeStyle = '#fff'; }
+        if (s.thrust) { ctx.strokeStyle = '#ffb347'; ctx.beginPath(); ctx.moveTo(-L * 0.5, L * 0.3); ctx.lineTo(-L * (1.1 + Math.random() * 0.4), 0); ctx.lineTo(-L * 0.5, -L * 0.3); ctx.stroke(); }
         ctx.restore();
+      });
+      if (g.ships.length === 1) {
+        const s = g.ships[0];
+        hud(ctx, W, H, `SCORE ${g.score}   ${'▲'.repeat(Math.max(0, s.lives))}`, `LEVEL ${g.level}  HIGH ${Math.max(g.high, g.score)}`);
+      } else {
+        const [a, b] = g.ships;
+        hud(ctx, W, H, `P1 ${a.score}  ${'▲'.repeat(Math.max(0, a.lives))}`, `${'▲'.repeat(Math.max(0, b.lives))}  ${b.score} P2   LEVEL ${g.level}`);
       }
-      hud(ctx, W, H, `SCORE ${g.score}   ${'▲'.repeat(Math.max(0, g.lives))}`, `LEVEL ${g.level}  HIGH ${Math.max(g.high, g.score)}`);
     },
   });
+  Games.asteroids.setPlayers = (p) => { AS.players = p === 2 ? 2 : 1; };
 
   // ---- Tetris (1 or 2 players; player 2 uses the second controller or WASD) ------------------
   const TT = { cols: 10, rows: 20, players: 1 };
@@ -295,7 +311,10 @@
       const c = b.cur;
       if (key === 'left' && ttFits(b, c.cells, c.x - 1, c.y)) c.x -= 1;
       else if (key === 'right' && ttFits(b, c.cells, c.x + 1, c.y)) c.x += 1;
-      else if (key === 'up') { const r = ttRotate(c.cells); for (const dx of [0, -1, 1, -2, 2]) if (ttFits(b, r, c.x + dx, c.y)) { c.cells = r; c.x += dx; break; } }
+      else if (key === 'up' || key === 'flip') { // 'flip' (the B button) turns the other way
+        let r = ttRotate(c.cells); if (key === 'flip') r = ttRotate(ttRotate(r));
+        for (const dx of [0, -1, 1, -2, 2]) if (ttFits(b, r, c.x + dx, c.y)) { c.cells = r; c.x += dx; break; }
+      }
       else if (key === 'fire') { while (ttFits(b, c.cells, c.x, c.y + 1)) { c.y += 1; b.score += 2; } ttLock(g, b); }
     },
     update(g, dt, held) {
@@ -579,7 +598,11 @@
   });
   Games.pong.setPlayers = (p) => { PG.players = p === 2 ? 2 : 1; };
   const wrap = (v, max) => ((v % max) + max) % max;
-  function spawnShip(g) { g.ship = { x: g.W / 2, y: g.H / 2, a: -Math.PI / 2, vx: 0, vy: 0, dead: 0, inv: 2.5, thrust: false }; }
+  // A fresh ship for player i (0 or 1); `prev` keeps lives and score across respawns.
+  function spawnShip(g, i = 0, prev = null) {
+    const n = AS.players; const x = n === 1 ? g.W / 2 : g.W * (i === 0 ? 0.35 : 0.65);
+    return { i, x, y: g.H / 2, a: -Math.PI / 2, vx: 0, vy: 0, dead: 0, inv: 2.5, thrust: false, cool: 0, lives: prev ? prev.lives : 3, score: prev ? prev.score : 0 };
+  }
   function makeRock(g, x, y, r) {
     const sp = (40 + Math.random() * 60) * (g.W / 800) * (1 + g.level * 0.1); const a = Math.random() * Math.PI * 2;
     return { x, y, r, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, a: 0, spin: (Math.random() - 0.5) * 2,
@@ -592,10 +615,10 @@
       g.rocks.push(makeRock(g, x, y, 44));
     }
   }
-  function fire(g) {
-    const s = g.ship; if (s.dead > 0 || g.bullets.length >= 6) return;
+  function fire(g, s) {
+    if (!s || s.dead > 0 || s.lives <= 0 || g.bullets.filter((b) => b.owner === s.i).length >= 6) return;
     const sp = 520 * (g.W / 800);
-    g.bullets.push({ x: s.x + Math.cos(s.a) * 16, y: s.y + Math.sin(s.a) * 16, vx: Math.cos(s.a) * sp + s.vx, vy: Math.sin(s.a) * sp + s.vy, t: 0.9 });
-    g.cool = 0.18;
+    g.bullets.push({ x: s.x + Math.cos(s.a) * 16, y: s.y + Math.sin(s.a) * 16, vx: Math.cos(s.a) * sp + s.vx, vy: Math.sin(s.a) * sp + s.vy, t: 0.9, owner: s.i });
+    s.cool = 0.18;
   }
 })();
