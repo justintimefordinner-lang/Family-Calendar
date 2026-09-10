@@ -1,6 +1,7 @@
 // Parent-app routes. The router is mounted behind requireParent.
 const fs = require('fs');
 const path = require('path');
+const os = require('os');
 const express = require('express');
 const multer = require('multer');
 const db = require('../db');
@@ -253,6 +254,35 @@ router.patch('/members/:id/traffic', (req, res) => {
   if (!m) throw new HttpError(404, 'Member not found');
   db.prepare('UPDATE members SET traffic = ? WHERE id = ?').run(req.body.on ? 1 : 0, m.id);
   res.json({ id: m.id, traffic: req.body.on ? 1 : 0 });
+});
+
+// ---- Pi console: a fixed set of read-only checks a parent can run from the parent app -------
+// Each button maps to one predefined program + arguments (no shell, no typed input).
+const { execFile } = require('child_process');
+const unitName = () => (fs.existsSync('/etc/systemd/system/family-calendar.service') ? 'family-calendar' : `family-calendar@${os.userInfo().username}`);
+const CONSOLE_CHECKS = {
+  status: () => ['systemctl', ['--no-pager', '--lines=5', 'status', unitName()]],
+  logs: () => ['journalctl', ['--no-pager', '-n', '60', '-u', unitName()]],
+  version: () => ['git', ['log', '--oneline', '-5']],
+  disk: () => ['df', ['-h', '/']],
+  memory: () => ['free', ['-h']],
+  uptime: () => ['uptime', []],
+  temp: () => ['cat', ['/sys/class/thermal/thermal_zone0/temp']],
+  network: () => ['hostname', ['-I']],
+  gamepads: () => ['ls', ['-l', '/dev/input']],
+};
+router.post('/console/:check', (req, res) => {
+  const make = CONSOLE_CHECKS[req.params.check];
+  if (!make) throw new HttpError(404, 'Unknown check');
+  const [cmd, args] = make();
+  console.log(`[console] ${req.params.check}`);
+  const started = Date.now();
+  execFile(cmd, args, { cwd: path.join(__dirname, '..', '..'), timeout: 15000, maxBuffer: 256 * 1024 }, (err, stdout, stderr) => {
+    let out = `${stdout || ''}${stderr ? `\n${stderr}` : ''}`;
+    if (req.params.check === 'temp' && /^\d+/.test(out.trim())) out = `${(Number(out.trim()) / 1000).toFixed(1)} °C`;
+    if (req.params.check === 'gamepads') { const js = out.split('\n').filter((l) => /\bjs\d/.test(l)); out = js.length ? js.join('\n') : 'No controllers detected'; }
+    res.json({ check: req.params.check, out: out.trim().slice(-20000), code: err && typeof err.code === 'number' ? err.code : (err ? 1 : 0), ms: Date.now() - started });
+  });
 });
 
 // ---- Traffic places ----------------------------------------------------------

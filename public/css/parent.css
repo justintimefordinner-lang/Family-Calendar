@@ -171,3 +171,8 @@ details.section .body { padding: 0 16px 16px; }
 .matrix .cell .dw { display: flex; gap: 1px; }
 .matrix .cell .dw i { font-style: normal; opacity: 0.35; font-size: 0.62rem; width: 0.7em; }
 .matrix .cell .dw i.on { opacity: 1; }
+
+/* Pi console (Settings) */
+.con-entry { border-top: 1px solid var(--line); padding: 8px 0; }
+.con-cmd { font-size: 0.9rem; font-weight: 700; }
+.con-out { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 0.78rem; line-height: 1.35; white-space: pre-wrap; word-break: break-word; background: #0f172a; color: #e2e8f0; border-radius: 10px; padding: 10px 12px; margin: 6px 0 0; max-height: 40vh; overflow: auto; }

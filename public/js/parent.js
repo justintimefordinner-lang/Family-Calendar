@@ -706,6 +706,25 @@
       <div class="actions" style="margin-top:10px"><button class="btn" type="button" data-action="new-place">+ Add a place</button></div>`;
   }
 
+  // ---- Pi console (Settings › Pi): fixed checks, each one a button --------------------------
+  const CONSOLE_CHECKS = [['status', '🟢 Status'], ['logs', '📜 Logs'], ['version', '🔖 Version'], ['disk', '💾 Disk'], ['memory', '🧠 Memory'], ['uptime', '⏱️ Uptime'], ['temp', '🌡️ Temperature'], ['network', '🌐 Network'], ['gamepads', '🎮 Controllers']];
+  function consoleSettings() {
+    const log = (S.consoleLog || []).map((e) => `<div class="con-entry"><div class="con-cmd">${esc(e.label)} <span class="muted">· ${e.ms} ms${e.code ? ` · exit ${e.code}` : ''}</span></div><pre class="con-out">${esc(e.out || '(no output)')}</pre></div>`).join('');
+    return `<p class="muted small">Quick checks on the Pi, the things you would otherwise SSH in for. Each button runs one fixed, read-only command. To pull an update use ✓ Updates at the top.</p>
+      <div class="chips" style="padding-top:4px">${CONSOLE_CHECKS.map(([k, l]) => `<button class="chip" data-console-check="${k}">${l}</button>`).join('')}</div>
+      <div id="consoleLog">${log || '<p class="muted small">Output shows up here.</p>'}</div>`;
+  }
+  async function runConsoleCheck(key) {
+    const label = (CONSOLE_CHECKS.find(([k]) => k === key) || [key, key])[1];
+    toast('Checking…');
+    let entry;
+    try { entry = { label, ...(await api(`/api/console/${key}`, { method: 'POST' })) }; }
+    catch (err) { entry = { label, out: err.message, code: 1, ms: 0 }; }
+    S.consoleLog = [entry, ...(S.consoleLog || [])].slice(0, 10);
+    const box = document.querySelector('#consoleLog');
+    if (box) box.innerHTML = S.consoleLog.map((e) => `<div class="con-entry"><div class="con-cmd">${esc(e.label)} <span class="muted">· ${e.ms} ms${e.code ? ` · exit ${e.code}` : ''}</span></div><pre class="con-out">${esc(e.out || '(no output)')}</pre></div>`).join('');
+  }
+
   async function renderSettings() {
     const [settings, accounts, allMembers, photos, themeArt, places] = await Promise.all([
       api('/api/settings'), api('/api/google/accounts'), api('/api/members/all'), api('/api/photos'), api('/api/theme-art'), api('/api/places'),
@@ -819,6 +838,7 @@
       section('📅 Google Calendar', google, accounts.length === 0),
       section('🌤️ Weather', weather),
       section('🚗 Traffic', trafficSettings(settings, Array.isArray(places) ? places : [])),
+      section('🖥️ Pi', consoleSettings()),
       section('🖥️ Display', display),
       section('🪙 Rewards', rewards),
       section('📈 Interest', interest),
@@ -905,6 +925,8 @@
       } catch (err) { toast(err.message, true); }
       return;
     }
+    const conCheck = t.closest('[data-console-check]');
+    if (conCheck) { await runConsoleCheck(conCheck.dataset.consoleCheck); return; }
     const editPlace = t.closest('[data-edit-place]');
     if (editPlace) { openSheet(placeForm((S.places || []).find((p) => p.id === Number(editPlace.dataset.editPlace)))); return; }
     const editChore = t.closest('[data-edit-chore]');
