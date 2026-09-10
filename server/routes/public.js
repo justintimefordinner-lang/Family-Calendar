@@ -52,6 +52,34 @@ router.patch('/members/:id/avatar', (req, res) => {
   res.json(db.prepare('SELECT id, name, role, color, emoji, sort_order FROM members WHERE id = ?').get(m.id));
 });
 
+// ---- Traffic: saved places (parents add them) and each kid's routes between them ----
+const traffic = require('../traffic');
+const placeById = db.prepare('SELECT * FROM places WHERE id = ?');
+const routeRows = db.prepare(`
+  SELECT r.*, f.name AS from_name, f.emoji AS from_emoji, t.name AS to_name, t.emoji AS to_emoji
+  FROM traffic_routes r JOIN places f ON f.id = r.from_place JOIN places t ON t.id = r.to_place
+  WHERE r.member_id = ? ORDER BY r.id`);
+
+router.get('/places', (req, res) => res.json(db.prepare('SELECT id, name, address, emoji, sort_order FROM places ORDER BY sort_order, id').all()));
+router.get('/traffic/routes', (req, res) => res.json(routeRows.all(toInt(req.query.member))));
+router.post('/traffic/routes', (req, res) => {
+  const memberId = toInt(req.body.member_id); const from = toInt(req.body.from_place); const to = toInt(req.body.to_place);
+  if (!db.prepare('SELECT 1 FROM members WHERE id = ? AND active = 1').get(memberId)) throw new HttpError(404, 'Member not found');
+  if (!placeById.get(from) || !placeById.get(to)) throw new HttpError(404, 'Place not found');
+  if (from === to) throw new HttpError(400, 'Pick two different places');
+  db.prepare('INSERT OR IGNORE INTO traffic_routes(member_id, from_place, to_place) VALUES(?, ?, ?)').run(memberId, from, to);
+  res.json(routeRows.all(memberId));
+});
+router.delete('/traffic/routes/:id', (req, res) => {
+  db.prepare('DELETE FROM traffic_routes WHERE id = ?').run(toInt(req.params.id));
+  res.json({ ok: true });
+});
+router.get('/traffic/report', wrap(async (req, res) => {
+  const from = placeById.get(toInt(req.query.from)); const to = placeById.get(toInt(req.query.to));
+  if (!from || !to) throw new HttpError(404, 'Place not found');
+  res.json(await traffic.report(from, to));
+}));
+
 // ---- Calendar events -------------------------------------------------------
 const eventsInRange = db.prepare(`
   SELECT e.id, e.title, e.start, e.end, e.start_ts, e.end_ts, e.all_day, e.location, e.description,

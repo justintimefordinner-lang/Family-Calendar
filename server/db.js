@@ -184,4 +184,26 @@ if (!shopCols.includes('qty')) db.exec('ALTER TABLE shopping_items ADD COLUMN qt
 const txCols = db.prepare('PRAGMA table_info(transactions)').all().map((c) => c.name);
 if (!txCols.includes('account')) db.exec(`ALTER TABLE transactions ADD COLUMN account TEXT NOT NULL DEFAULT 'invested'`);
 
+// Traffic: shared places a parent saves (geocoded once), and each kid's favourite routes between them.
+db.exec(`
+CREATE TABLE IF NOT EXISTS places (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  name TEXT NOT NULL,
+  address TEXT NOT NULL,
+  emoji TEXT NOT NULL DEFAULT '📍',
+  lat REAL,
+  lon REAL,
+  sort_order INTEGER NOT NULL DEFAULT 0,
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE TABLE IF NOT EXISTS traffic_routes (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  member_id INTEGER NOT NULL REFERENCES members(id) ON DELETE CASCADE,
+  from_place INTEGER NOT NULL REFERENCES places(id) ON DELETE CASCADE,
+  to_place INTEGER NOT NULL REFERENCES places(id) ON DELETE CASCADE,
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  UNIQUE(member_id, from_place, to_place)
+);
+`);
+
 module.exports = db;

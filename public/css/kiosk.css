@@ -486,3 +486,19 @@ body.mobile .qty-row .btn.on { background: var(--accent); color: #fff; border-co
 
 ::-webkit-scrollbar { width: 8px; }
 ::-webkit-scrollbar-thumb { background: #d4cfc4; border-radius: 4px; }
+
+/* Traffic (kid routes with live drive times) */
+.traffic-card p { margin: 0; font-size: 0.95rem; }
+.tr-row { display: flex; align-items: center; gap: 12px; padding: 10px 0; border-top: 1px solid var(--line); }
+.tr-row:first-of-type { border-top: 0; }
+.tr-name { flex: 1; font-weight: 700; font-size: 1.05rem; }
+.tr-body { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; min-width: 150px; text-align: right; }
+.tr-min { font-size: 1.5rem; font-weight: 800; line-height: 1.1; }
+.tr-level { font-size: 0.85rem; font-weight: 700; padding: 2px 10px; border-radius: 999px; background: #eee; color: var(--muted); }
+.tr-level.clear { background: #e7f8ec; color: var(--good); }
+.tr-level.light { background: #e8f0ff; color: var(--accent); }
+.tr-level.moderate { background: #fff4e0; color: var(--warn); }
+.tr-level.heavy { background: #fde8e8; color: #dc2626; }
+.tr-sub, .tr-wait { font-size: 0.85rem; color: var(--muted); }
+.tr-err { font-size: 0.85rem; color: #dc2626; max-width: 260px; }
+.tr-row .x { border: 0; background: transparent; color: var(--muted); font-size: 1.05rem; width: 44px; height: 44px; border-radius: 10px; flex: none; }

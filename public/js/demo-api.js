@@ -29,7 +29,7 @@
     screensaver_minutes: 0, photo_seconds: 15, month_themes: 1, temp_unit: 'fahrenheit', weather_lat: 40.76, weather_lon: -111.89,
     weather_label: 'Demo City', interest_monthly: 0.5, interest_day: 1, coin_name: 'Mom Coins', coins_per_chore: 2, game_coins_per_minute: 0.5,
     games_weekday_until: '07:45', games_weekday_from: '16:00', games_weekends: 1, games_unlocked_day: '', games_free_day: '', sync_minutes: 5, ntfy_topic: '', ntfy_server: 'https://ntfy.sh',
-    app_url: '', google_client_id: 'demo', google_client_secret: true, pin_hash: true, pin_length: 4, session_secret: true,
+    app_url: '', google_client_id: 'demo', google_client_secret: true, tomtom_key: true, pin_hash: true, pin_length: 4, session_secret: true,
     last_sync_at: new Date().toISOString(), google_redirect_uri: 'http://localhost:3100/api/google/callback', google_configured: true, google_env_override: false,
   };
   let nextId = 100;
@@ -49,6 +49,8 @@
   const completions = []; // {id, chore_id, member_id, date, status, completed_at}
   completions.push({ id: nextId++, chore_id: 1, member_id: 1, date: ymd(today), status: 'approved', completed_at: nowIso() });
   completions.push({ id: nextId++, chore_id: 4, member_id: 2, date: ymd(today), status: 'pending', completed_at: nowIso() });
+  let places = [{ id: 901, name: 'Home', address: '123 Maple St', emoji: '🏠', sort_order: 0 }, { id: 902, name: 'School', address: 'Jefferson Academy', emoji: '🏫', sort_order: 1 }, { id: 903, name: 'Grandma\x27s', address: '45 Oak Ave', emoji: '👵', sort_order: 2 }, { id: 904, name: 'Soccer field', address: 'Community Park', emoji: '⚽', sort_order: 3 }];
+  let routes = [{ id: 905, member_id: 1, from_place: 901, to_place: 902, created_at: nowIso() }];
   const tx = [
     { id: nextId++, member_id: 1, type: 'deposit', account: 'invested', amount_cents: 12000, note: 'Birthday money', created_at: '2026-07-01 12:00:00' },
     { id: nextId++, member_id: 1, type: 'chore', account: 'cash', amount_cents: 500, note: 'Earned: Mow the lawn', created_at: '2026-07-20 18:10:00' },
@@ -220,6 +222,16 @@
     if (p === '/shopping/checked' && method === 'DELETE') { shopping = shopping.filter((s) => !s.checked); return { removed: 0 }; }
     if (seg[0] === 'shopping' && method === 'PATCH') { const s = shopping.find((x) => x.id === num(seg[1])); if (s) { if (body.checked !== undefined) s.checked = body.checked ? 1 : 0; if (body.qty !== undefined) s.qty = body.qty; if (body.text !== undefined) s.text = body.text; } return s; }
     if (seg[0] === 'shopping' && method === 'DELETE') { shopping = shopping.filter((x) => x.id !== num(seg[1])); return { ok: true }; }
+    // Traffic (example places; drive times are made up)
+    if (p === '/places' && method === 'GET') return places.slice();
+    if (p === '/places' && method === 'POST') { const pl = { id: nextId++, name: String(body.name || '').trim(), address: String(body.address || '').trim(), emoji: body.emoji || '📍', sort_order: places.length }; if (!pl.name || !pl.address) return { status: 400, body: { error: 'Name and address are required' } }; places.push(pl); return pl; }
+    if (seg[0] === 'places' && method === 'PATCH') { const pl = places.find((x) => x.id === num(seg[1])); if (pl) Object.assign(pl, { name: body.name ?? pl.name, address: body.address ?? pl.address, emoji: body.emoji ?? pl.emoji }); return pl; }
+    if (seg[0] === 'places' && method === 'DELETE') { places = places.filter((x) => x.id !== num(seg[1])); routes = routes.filter((r) => r.from_place !== num(seg[1]) && r.to_place !== num(seg[1])); return { ok: true }; }
+    const routeRow = (r) => { const f = places.find((x) => x.id === r.from_place) || {}; const t = places.find((x) => x.id === r.to_place) || {}; return { ...r, from_name: f.name, from_emoji: f.emoji, to_name: t.name, to_emoji: t.emoji }; };
+    if (p === '/traffic/routes' && method === 'GET') return routes.filter((r) => r.member_id === num(query.get('member'))).map(routeRow);
+    if (p === '/traffic/routes' && method === 'POST') { const m = num(body.member_id), f = num(body.from_place), t = num(body.to_place); if (f === t) return { status: 400, body: { error: 'Pick two different places' } }; if (!routes.some((r) => r.member_id === m && r.from_place === f && r.to_place === t)) routes.push({ id: nextId++, member_id: m, from_place: f, to_place: t, created_at: nowIso() }); return routes.filter((r) => r.member_id === m).map(routeRow); }
+    if (seg[0] === 'traffic' && seg[1] === 'routes' && method === 'DELETE') { routes = routes.filter((r) => r.id !== num(seg[2])); return { ok: true }; }
+    if (p === '/traffic/report') { const f = num(query.get('from')), t = num(query.get('to')); const base = 8 + ((f * 7 + t * 13) % 20); const delay = [0, 2, 6, 11][(f + t + new Date().getHours()) % 4]; const ratio = delay / base; const level = ratio < 0.1 ? 'clear' : ratio < 0.3 ? 'light' : ratio < 0.6 ? 'moderate' : 'heavy'; return { minutes: base + delay, typical_minutes: base, delay_minutes: delay, miles: Math.round(base * 0.7 * 10) / 10, level, label: { clear: 'Clear roads', light: 'Light traffic', moderate: 'Moderate traffic', heavy: 'Heavy traffic' }[level], checked_at: nowIso() }; }
     if (p === '/weather') return weather();
     if (p === '/weather/geocode') return [{ label: 'Demo City, UT, US', lat: 40.76, lon: -111.89 }];
     if (p === '/photos') return [];

@@ -674,11 +674,39 @@
     return opts.map(([v, l]) => `<option value="${v}" ${v === current ? 'selected' : ''}>${esc(l)}</option>`).join('');
   }
 
+  // ---- Traffic places (Settings › Traffic) ---------------------------------------
+  function placeForm(p = {}) {
+    return `<form data-form="place" data-id="${p.id || ''}">
+      <h2>${p.id ? 'Edit place' : 'New place'}</h2>
+      <div class="row2">
+        <label class="field"><span>Emoji</span><input type="text" name="emoji" maxlength="4" value="${esc(p.emoji || '📍')}" style="width:80px"></label>
+        <label class="field"><span>Name</span><input type="text" name="name" required maxlength="60" value="${esc(p.name || '')}" placeholder="School"></label>
+      </div>
+      <label class="field"><span>Address</span><input type="text" name="address" required maxlength="200" value="${esc(p.address || '')}" placeholder="123 Main St, Denver, CO"></label>
+      <p class="muted small">The address is looked up on the map when you save, so a typo shows up right away.</p>
+      <div class="actions"><button class="btn primary grow" type="submit">Save</button>
+        ${p.id ? `<button type="button" class="btn danger" data-action="delete-place" data-id="${p.id}">Delete</button>` : ''}</div>
+    </form>`;
+  }
+  function trafficSettings(settings, places) {
+    const rows = places.map((p) => `<div class="list-item tappable" data-edit-place="${p.id}">
+      <div class="avatar" style="--c:#e5e7eb;color:#111">${esc(p.emoji || '📍')}</div>
+      <div class="grow"><div class="title">${esc(p.name)}</div><div class="sub">${esc(p.address)}</div></div></div>`).join('');
+    return `<form data-form="settings">
+      <label class="field"><span>TomTom API key ${settings.tomtom_key ? '<span class="ok">(saved — leave blank to keep)</span>' : ''}</span><input type="password" name="tomtom_key" autocomplete="off" data-keep-empty placeholder="paste your key"></label>
+      <p class="muted small">Free, no card needed: sign up at <b>developer.tomtom.com</b>, open <b>My apps</b>, create an app (any name) and copy its key. The free tier allows 2,500 lookups a day; each traffic check is one lookup and results are reused for 5 minutes.</p>
+      <button class="btn primary" type="submit">Save key</button></form>
+      <h2 style="margin-top:16px">Places <span class="meta">${places.length}</span></h2>
+      <p class="muted small">Kids pick two of these on the display to see the drive time right now: Home, School, Grandma's, the soccer field…</p>
+      ${rows || '<p class="muted">No places yet.</p>'}
+      <div class="actions" style="margin-top:10px"><button class="btn" type="button" data-action="new-place">+ Add a place</button></div>`;
+  }
+
   async function renderSettings() {
-    const [settings, accounts, allMembers, photos, themeArt] = await Promise.all([
-      api('/api/settings'), api('/api/google/accounts'), api('/api/members/all'), api('/api/photos'), api('/api/theme-art'),
+    const [settings, accounts, allMembers, photos, themeArt, places] = await Promise.all([
+      api('/api/settings'), api('/api/google/accounts'), api('/api/members/all'), api('/api/photos'), api('/api/theme-art'), api('/api/places'),
     ]);
-    S.settings = settings;
+    S.settings = settings; S.places = Array.isArray(places) ? places : [];
     const section = (title, body, open = false) => `<details class="section" ${open ? 'open' : ''}><summary>${title}</summary><div class="body">${body}</div></details>`;
 
     const family = `<form data-form="settings"><label class="field"><span>Family name</span><input type="text" name="family_name" value="${esc(settings.family_name)}" maxlength="60"></label>
@@ -786,6 +814,7 @@
       section('👨‍👩‍👧‍👦 Family', family, true),
       section('📅 Google Calendar', google, accounts.length === 0),
       section('🌤️ Weather', weather),
+      section('🚗 Traffic', trafficSettings(settings, Array.isArray(places) ? places : [])),
       section('🖥️ Display', display),
       section('🪙 Rewards', rewards),
       section('📈 Interest', interest),
@@ -861,6 +890,8 @@
     if (addChore) { const sib = S.allChores.find((c) => c.id === Number(addChore.dataset.addChore)) || {}; openSheet(choreForm({ ...sib, id: null, member_id: Number(addChore.dataset.kid) })); return; }
     const dayChip = t.closest('[data-chore-day]');
     if (dayChip) { S.choreDay = dayChip.dataset.choreDay === '' ? null : Number(dayChip.dataset.choreDay); render(); return; }
+    const editPlace = t.closest('[data-edit-place]');
+    if (editPlace) { openSheet(placeForm((S.places || []).find((p) => p.id === Number(editPlace.dataset.editPlace)))); return; }
     const editChore = t.closest('[data-edit-chore]');
     if (editChore) { openSheet(choreForm(S.allChores.find((c) => c.id === Number(editChore.dataset.editChore)))); return; }
     const editLevent = t.closest('[data-edit-levent]');
@@ -907,6 +938,8 @@
       switch (a) {
         case 'add-member-row': $('#setupMembers').insertAdjacentHTML('beforeend', memberRow($('#setupMembers').children.length)); break;
         case 'new-chore': openSheet(choreForm()); break;
+        case 'new-place': openSheet(placeForm()); break;
+        case 'delete-place': await api(`/api/places/${id}`, { method: 'DELETE' }); closeSheet(); toast('Place removed'); render(); break;
         case 'new-earn-chore': openSheet(choreForm({ paid: true, member_id: null })); break;
         case 'restore-chore': await api(`/api/chores/${id}/restore`, { method: 'POST' }); toast('Restored'); render(); break;
         case 'new-levent': openSheet(leventForm()); break;
@@ -1110,6 +1143,12 @@
           const ids = String(form.dataset.ids || '').split(',').filter(Boolean);
           for (const i of ids) await api(`/api/chores/${i}`, { method: 'PATCH', body: edits });
           closeSheet(); toast(`Saved for ${ids.length} kid${ids.length === 1 ? '' : 's'}`); render(); break;
+        }
+        case 'place': {
+          const body = { name: fd.get('name'), address: fd.get('address'), emoji: fd.get('emoji') || '📍' };
+          if (form.dataset.id) await api(`/api/places/${form.dataset.id}`, { method: 'PATCH', body });
+          else await api('/api/places', { method: 'POST', body });
+          closeSheet(); toast('Saved'); render(); break;
         }
         case 'tx': {
           const cents = toCents(fd.get('amount'));

@@ -160,6 +160,17 @@ again from an afternoon time (default 4:00 PM); weekends are all day unless swit
 (Settings › Rewards). And a kid has to have ticked all their *morning* chores before noon, or all
 their *afternoon* chores after noon, before the "who's playing?" picker lets them in.
 
+## Traffic
+
+Kids can check how long a drive takes right now. A parent saves **places** (Home, School, Grandma's,
+the soccer field…) under Settings › Traffic in the parent app; on the display a kid opens **🚗 Traffic**
+in their view, picks two places, and sees the live drive time, how it compares with no traffic, and a
+Clear / Light / Moderate / Heavy label. Routes are remembered per kid.
+
+Traffic data comes from [TomTom](https://developer.tomtom.com/): sign up (free, no card), create an app
+under *My apps*, and paste its key into Settings › Traffic. The free tier allows 2,500 lookups a day; each
+check is one lookup and results are reused for 5 minutes.
+
 ## Money model
 
 Each kid has two accounts, each a ledger of signed transactions:

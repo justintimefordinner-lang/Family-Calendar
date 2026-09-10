@@ -29,6 +29,7 @@ const DEFAULTS = {
   app_url: '',               // how phones reach this server, e.g. http://192.168.1.20:3100 (auto-detected if blank)
   google_client_id: '',
   google_client_secret: '',
+  tomtom_key: '',            // TomTom developer key for traffic reports (free tier, no card)
   pin_hash: '',
   pin_length: 4,             // lets the parent app submit automatically after the last digit
   session_secret: '',
@@ -47,9 +48,9 @@ const EDITABLE_KEYS = [
   'temp_unit', 'weather_lat', 'weather_lon', 'weather_label', 'interest_monthly',
   'interest_day', 'coin_name', 'coins_per_chore', 'game_coins_per_minute', 'games_weekday_until', 'games_weekday_from', 'games_weekends', 'games_unlocked_day', 'games_free_day',
   'sync_minutes', 'ntfy_topic', 'ntfy_server', 'app_url',
-  'google_client_id', 'google_client_secret',
+  'google_client_id', 'google_client_secret', 'tomtom_key',
 ];
-const SECRET_KEYS = ['pin_hash', 'session_secret', 'google_client_secret'];
+const SECRET_KEYS = ['pin_hash', 'session_secret', 'google_client_secret', 'tomtom_key'];
 
 const getStmt = db.prepare('SELECT value FROM settings WHERE key = ?');
 const setStmt = db.prepare('INSERT INTO settings(key, value) VALUES(?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value');

@@ -247,6 +247,43 @@ router.post('/finance/apply-interest', (req, res) => {
   res.json({ credited: interest.applyIfDue(new Date(), { force: true }) });
 });
 
+// ---- Traffic places ----------------------------------------------------------
+const traffic = require('../traffic');
+function placeFields(b, existing = {}) {
+  const name = String(b.name ?? existing.name ?? '').trim().slice(0, 60);
+  const address = String(b.address ?? existing.address ?? '').trim().slice(0, 200);
+  const emoji = String(b.emoji ?? existing.emoji ?? '📍').trim().slice(0, 12) || '📍';
+  if (!name || !address) throw new HttpError(400, 'Name and address are required');
+  return { name, address, emoji };
+}
+const placeRow = (id) => db.prepare('SELECT id, name, address, emoji, lat, lon, sort_order FROM places WHERE id = ?').get(id);
+// Geocode right away so a bad address is caught while the parent is still looking at the form.
+async function checkAddress(row) {
+  if (!settings.get('tomtom_key')) return row; // no key yet: geocoded lazily on the first report
+  return traffic.geocode(row);
+}
+router.post('/places', wrap(async (req, res) => {
+  const f = placeFields(req.body);
+  const next = (db.prepare('SELECT COALESCE(MAX(sort_order), -1) + 1 AS n FROM places').get()).n;
+  const info = db.prepare('INSERT INTO places(name, address, emoji, sort_order) VALUES(?, ?, ?, ?)').run(f.name, f.address, f.emoji, next);
+  try { await checkAddress(placeRow(info.lastInsertRowid)); } catch (e) { db.prepare('DELETE FROM places WHERE id = ?').run(info.lastInsertRowid); throw e; }
+  res.json(placeRow(info.lastInsertRowid));
+}));
+router.patch('/places/:id', wrap(async (req, res) => {
+  const p = placeRow(toInt(req.params.id));
+  if (!p) throw new HttpError(404, 'Place not found');
+  const f = placeFields(req.body, p);
+  const moved = f.address !== p.address;
+  db.prepare('UPDATE places SET name = ?, address = ?, emoji = ?, lat = CASE WHEN ? THEN NULL ELSE lat END, lon = CASE WHEN ? THEN NULL ELSE lon END WHERE id = ?')
+    .run(f.name, f.address, f.emoji, moved ? 1 : 0, moved ? 1 : 0, p.id);
+  if (moved) await checkAddress(placeRow(p.id));
+  res.json(placeRow(p.id));
+}));
+router.delete('/places/:id', (req, res) => {
+  db.prepare('DELETE FROM places WHERE id = ?').run(toInt(req.params.id));
+  res.json({ ok: true });
+});
+
 // ---- Birthdays & events entered in the app --------------------------------
 router.get('/local-events', (req, res) => res.json(localEvents.list()));
 router.post('/local-events', (req, res) => res.json(localEvents.create(req.body || {})));

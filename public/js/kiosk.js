@@ -423,6 +423,7 @@
     if (m.role === 'kid') {
       const cash = fin ? (fin.cash_cents || 0) : 0;
       const invested = fin ? (fin.invested_cents || 0) : 0;
+      html += `<div class="card traffic-card" data-traffic="${m.id}"><h3>🚗 Traffic <span class="meta">tap to check the roads</span></h3><p class="muted">How long to get where you are going right now.</p></div>`;
       html += `<div class="card" data-money="${m.id}">
         <h3>💰 My Money <span class="meta">tap for history</span></h3>
         <div class="money2">
@@ -978,6 +979,52 @@
     } catch (err) { alert(err.message); }
   }
 
+  // ---- Traffic: a kid's saved routes between the family's places, with live drive times --------
+  const tr = { memberId: null, places: [], routes: [], reports: {}, from: null, busy: false };
+  async function openTraffic(memberId) {
+    Object.assign(tr, { memberId, from: null, reports: {} });
+    openModal('<h2>🚗 Traffic</h2><p class="muted center">Checking the roads…</p>');
+    try {
+      [tr.places, tr.routes] = await Promise.all([api('/api/places'), api(`/api/traffic/routes?member=${memberId}`)]);
+    } catch (err) { openModal(`<h2>🚗 Traffic</h2><p class="kv">${esc(err.message)}</p><div class="kid-pick"><button class="btn" data-close>OK</button></div>`); return; }
+    renderTraffic();
+    // Fetch each route's report in parallel; the modal re-renders as they land.
+    await Promise.all(tr.routes.map(async (r) => {
+      try { tr.reports[r.id] = await api(`/api/traffic/report?from=${r.from_place}&to=${r.to_place}`); }
+      catch (err) { tr.reports[r.id] = { error: err.message }; }
+      if (tr.memberId === memberId && !$('#modal').hidden) renderTraffic();
+    }));
+  }
+  function renderTraffic() {
+    const m = memberById(tr.memberId);
+    const placeChip = (p, attr) => `<button class="btn ${attr === 'data-tr-from' && tr.from === p.id ? 'on' : ''}" ${attr}="${p.id}">${esc(p.emoji)} ${esc(p.name)}</button>`;
+    const rows = tr.routes.map((r) => {
+      const rep = tr.reports[r.id];
+      let body = '<span class="tr-wait">checking…</span>';
+      if (rep && rep.error) body = `<span class="tr-err">${esc(rep.error)}</span>`;
+      else if (rep) body = `<span class="tr-min">${rep.minutes} min</span><span class="tr-level ${rep.level}">${esc(rep.label)}</span><span class="tr-sub">${rep.delay_minutes > 0 ? `${rep.delay_minutes} min slower than usual` : `usually ${rep.typical_minutes} min`} · ${rep.miles} mi</span>`;
+      return `<div class="tr-row"><div class="tr-name">${esc(r.from_emoji)} ${esc(r.from_name)} <span class="muted">→</span> ${esc(r.to_emoji)} ${esc(r.to_name)}</div><div class="tr-body">${body}</div><button class="x" data-tr-del="${r.id}" title="Remove this route">✕</button></div>`;
+    }).join('');
+    const picker = tr.places.length < 2
+      ? '<p class="muted">Ask a parent to add at least two places under Settings › Traffic in the parent app.</p>'
+      : `<p class="kv"><b>${tr.from == null ? 'Add a route — where from?' : `From ${esc((tr.places.find((p) => p.id === tr.from) || {}).name || '')} — going to?`}</b></p>
+         <div class="qty-row">${tr.places.filter((p) => tr.from == null || p.id !== tr.from).map((p) => placeChip(p, tr.from == null ? 'data-tr-from' : 'data-tr-to')).join('')}${tr.from != null ? '<button class="btn" data-tr-cancel>Start over</button>' : ''}</div>`;
+    openModal(`<h2>🚗 ${esc(m ? m.name : '')}'s Traffic</h2>
+      ${rows || '<p class="muted center">No routes yet — pick two places below.</p>'}
+      <div style="margin-top:14px">${picker}</div>
+      <div class="kid-pick"><button class="btn" data-tr-refresh>↻ Check again</button><button class="btn" data-close>Close</button></div>`);
+  }
+  async function addTrafficRoute(to) {
+    try {
+      tr.routes = await api('/api/traffic/routes', { method: 'POST', body: { member_id: tr.memberId, from_place: tr.from, to_place: to } });
+      tr.from = null; renderTraffic();
+      for (const route of tr.routes.filter((x) => !tr.reports[x.id])) {
+        try { tr.reports[route.id] = await api(`/api/traffic/report?from=${route.from_place}&to=${route.to_place}`); } catch (err) { tr.reports[route.id] = { error: err.message }; }
+        if (!$('#modal').hidden) renderTraffic();
+      }
+    } catch (err) { alert(err.message); }
+  }
+
   // ---- Data loading ---------------------------------------------------------
   let serverBuild = null;
   async function loadState() {
@@ -1149,6 +1196,16 @@
     }
     const chore = t.closest('[data-chore]');
     if (chore) { await toggleChore(chore); return; }
+    const trafficCard = t.closest('[data-traffic]');
+    if (trafficCard) { await openTraffic(Number(trafficCard.dataset.traffic)); return; }
+    const trFrom = t.closest('[data-tr-from]');
+    if (trFrom) { tr.from = Number(trFrom.dataset.trFrom); renderTraffic(); return; }
+    const trTo = t.closest('[data-tr-to]');
+    if (trTo) { await addTrafficRoute(Number(trTo.dataset.trTo)); return; }
+    if (t.closest('[data-tr-cancel]')) { tr.from = null; renderTraffic(); return; }
+    const trDel = t.closest('[data-tr-del]');
+    if (trDel) { try { await api(`/api/traffic/routes/${trDel.dataset.trDel}`, { method: 'DELETE' }); tr.routes = tr.routes.filter((r) => r.id !== Number(trDel.dataset.trDel)); renderTraffic(); } catch (err) { alert(err.message); } return; }
+    if (t.closest('[data-tr-refresh]')) { await openTraffic(tr.memberId); return; }
     const inv = t.closest('[data-invest]');
     if (inv) { openInvest(Number(inv.dataset.invest), Number(inv.dataset.cash)); return; }
     const invAmt = t.closest('[data-invest-amount]');
