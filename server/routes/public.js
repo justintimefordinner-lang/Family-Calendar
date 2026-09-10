@@ -15,7 +15,7 @@ const { HttpError, wrap, localDate, isDateStr, toInt } = require('../util');
 
 const router = express.Router();
 
-const activeMembers = db.prepare('SELECT id, name, role, color, emoji, sort_order FROM members WHERE active = 1 ORDER BY sort_order, id');
+const activeMembers = db.prepare('SELECT id, name, role, color, emoji, sort_order, traffic FROM members WHERE active = 1 ORDER BY sort_order, id');
 
 // Changes whenever the server (re)starts, so the wall display reloads itself after an update.
 const SERVER_BUILD = `${require('../../package.json').version}-${Date.now()}`;

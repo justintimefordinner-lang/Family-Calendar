@@ -247,6 +247,14 @@ router.post('/finance/apply-interest', (req, res) => {
   res.json({ credited: interest.applyIfDue(new Date(), { force: true }) });
 });
 
+// Which kids get the Traffic card on the display.
+router.patch('/members/:id/traffic', (req, res) => {
+  const m = memberById.get(toInt(req.params.id));
+  if (!m) throw new HttpError(404, 'Member not found');
+  db.prepare('UPDATE members SET traffic = ? WHERE id = ?').run(req.body.on ? 1 : 0, m.id);
+  res.json({ id: m.id, traffic: req.body.on ? 1 : 0 });
+});
+
 // ---- Traffic places ----------------------------------------------------------
 const traffic = require('../traffic');
 function placeFields(b, existing = {}) {

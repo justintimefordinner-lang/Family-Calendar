@@ -18,7 +18,7 @@
   const nowIso = () => new Date().toISOString().replace('T', ' ').slice(0, 19);
 
   const members = [
-    { id: 1, name: 'Ava', role: 'kid', color: '#f59e0b', emoji: '🦄', sort_order: 0, active: 1, aliases: '' },
+    { id: 1, name: 'Ava', role: 'kid', color: '#f59e0b', emoji: '🦄', sort_order: 0, active: 1, aliases: '', traffic: 1 },
     { id: 2, name: 'Ben', role: 'kid', color: '#16a34a', emoji: '🦖', sort_order: 1, active: 1, aliases: '' },
     { id: 3, name: 'Cara', role: 'kid', color: '#8b5cf6', emoji: '🎨', sort_order: 2, active: 1, aliases: '' },
     { id: 4, name: 'Dan', role: 'kid', color: '#0ea5e9', emoji: '⚽', sort_order: 3, active: 1, aliases: '' },
@@ -168,6 +168,7 @@
     const num = (s) => Number(s);
     if (p === '/state') return { build: 'demo', settings: publicSettings(), members: active().map(({ aliases, active: a, ...m }) => m), today: ymd(today), needs_setup: false, google: { configured: true, calendars_enabled: 3, accounts: [{ email: 'parent@example.com', error: null, last_sync_at: new Date().toISOString() }] } };
     if (p === '/members' && method === 'GET') return active();
+    if (seg[0] === 'members' && seg[2] === 'traffic' && method === 'PATCH') { const m = findMember(seg[1]); if (m) m.traffic = body.on ? 1 : 0; return { id: m && m.id, traffic: m && m.traffic }; }
     if (p === '/members/all') return members;
     if (p === '/members' && method === 'POST') { const m = { id: nextId++, name: body.name, role: body.role || 'kid', color: body.color || '#4f86f7', emoji: body.emoji || '🙂', aliases: body.aliases || '', sort_order: members.length, active: 1 }; members.push(m); return m; }
     if (seg[0] === 'members' && seg[2] === 'avatar') { const m = findMember(seg[1]); if (body.emoji) m.emoji = body.emoji; if (body.color) m.color = body.color; return m; }

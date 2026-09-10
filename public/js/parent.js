@@ -689,6 +689,7 @@
     </form>`;
   }
   function trafficSettings(settings, places) {
+    const who = S.members.filter((m) => m.role !== 'calendar').map((m) => `<label class="chip ${Number(m.traffic) ? 'active' : ''}" style="--c:${esc(m.color)}"><input type="checkbox" data-traffic-member="${m.id}" ${Number(m.traffic) ? 'checked' : ''} hidden>${esc(m.emoji)} ${esc(m.name)}</label>`).join('');
     const rows = places.map((p) => `<div class="list-item tappable" data-edit-place="${p.id}">
       <div class="avatar" style="--c:#e5e7eb;color:#111">${esc(p.emoji || '📍')}</div>
       <div class="grow"><div class="title">${esc(p.name)}</div><div class="sub">${esc(p.address)}</div></div></div>`).join('');
@@ -696,6 +697,9 @@
       <label class="field"><span>TomTom API key ${settings.tomtom_key ? '<span class="ok">(saved — leave blank to keep)</span>' : ''}</span><input type="password" name="tomtom_key" autocomplete="off" data-keep-empty placeholder="paste your key"></label>
       <p class="muted small">Free, no card needed: sign up at <b>developer.tomtom.com</b>, open <b>My apps</b>, create an app (any name) and copy its key. The free tier allows 2,500 lookups a day; each traffic check is one lookup and results are reused for 5 minutes.</p>
       <button class="btn primary" type="submit">Save key</button></form>
+      <h2 style="margin-top:16px">Who sees the Traffic card</h2>
+      <p class="muted small">Tap a kid to turn their Traffic card on or off on the display.</p>
+      <div class="chips">${who || '<span class="muted">Add kids first.</span>'}</div>
       <h2 style="margin-top:16px">Places <span class="meta">${places.length}</span></h2>
       <p class="muted small">Kids pick two of these on the display to see the drive time right now: Home, School, Grandma's, the soccer field…</p>
       ${rows || '<p class="muted">No places yet.</p>'}
@@ -890,6 +894,17 @@
     if (addChore) { const sib = S.allChores.find((c) => c.id === Number(addChore.dataset.addChore)) || {}; openSheet(choreForm({ ...sib, id: null, member_id: Number(addChore.dataset.kid) })); return; }
     const dayChip = t.closest('[data-chore-day]');
     if (dayChip) { S.choreDay = dayChip.dataset.choreDay === '' ? null : Number(dayChip.dataset.choreDay); render(); return; }
+    const trafficMember = t.closest('[data-traffic-member]');
+    if (trafficMember) {
+      const on = trafficMember.checked ? 1 : 0; // the checkbox has already toggled by the time the click reaches us
+      try {
+        await api(`/api/members/${trafficMember.dataset.trafficMember}/traffic`, { method: 'PATCH', body: { on } });
+        trafficMember.closest('.chip').classList.toggle('active', Boolean(on));
+        const mm = S.members.find((x) => x.id === Number(trafficMember.dataset.trafficMember)); if (mm) mm.traffic = on;
+        toast(on ? 'Traffic card on' : 'Traffic card off');
+      } catch (err) { toast(err.message, true); }
+      return;
+    }
     const editPlace = t.closest('[data-edit-place]');
     if (editPlace) { openSheet(placeForm((S.places || []).find((p) => p.id === Number(editPlace.dataset.editPlace)))); return; }
     const editChore = t.closest('[data-edit-chore]');

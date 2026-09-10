@@ -423,7 +423,7 @@
     if (m.role === 'kid') {
       const cash = fin ? (fin.cash_cents || 0) : 0;
       const invested = fin ? (fin.invested_cents || 0) : 0;
-      html += `<div class="card traffic-card" data-traffic="${m.id}"><h3>🚗 Traffic <span class="meta">tap to check the roads</span></h3><p class="muted">How long to get where you are going right now.</p></div>`;
+      if (m.traffic) html += `<div class="card traffic-card" data-traffic="${m.id}"><h3>🚗 Traffic <span class="meta">tap to check the roads</span></h3><p class="muted">How long to get where you are going right now.</p></div>`;
       html += `<div class="card" data-money="${m.id}">
         <h3>💰 My Money <span class="meta">tap for history</span></h3>
         <div class="money2">

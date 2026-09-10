@@ -176,6 +176,7 @@ CREATE TABLE IF NOT EXISTS shopping_items (
 // Migrations for databases created by earlier versions.
 const memberCols = db.prepare('PRAGMA table_info(members)').all().map((c) => c.name);
 if (!memberCols.includes('aliases')) db.exec(`ALTER TABLE members ADD COLUMN aliases TEXT NOT NULL DEFAULT ''`);
+if (!memberCols.includes('traffic')) db.exec('ALTER TABLE members ADD COLUMN traffic INTEGER NOT NULL DEFAULT 0'); // which kids get the Traffic card on the display
 const choreCols = db.prepare('PRAGMA table_info(chores)').all().map((c) => c.name);
 if (!choreCols.includes('period')) db.exec(`ALTER TABLE chores ADD COLUMN period TEXT NOT NULL DEFAULT 'any'`);
 if (!choreCols.includes('coins')) db.exec('ALTER TABLE chores ADD COLUMN coins INTEGER');
