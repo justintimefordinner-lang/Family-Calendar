@@ -539,7 +539,10 @@
     { key: 'snake', name: 'Snake', icon: '🐍', sub: 'Eat apples, don’t hit the walls', fire: false },
     { key: 'frogger', name: 'Frogger', icon: '🐸', sub: 'Hop across the road and river', fire: false },
     { key: 'asteroids', name: 'Asteroids', icon: '🚀', sub: '◀ ▶ steer · ▲ thrust · ▼ brake · ● shoot', fire: true },
-    { key: 'tetris', name: 'Tetris', icon: '🧱', sub: '◀ ▶ move · ▲ rotate · ▼ drop · ● slam · 1 or 2 players', fire: true },
+    { key: 'tetris', name: 'Tetris', icon: '🧱', sub: '◀ ▶ move · ▲ rotate · ▼ drop · ● slam · 1 or 2 players', fire: true, players: true },
+    { key: 'bump', name: 'Bump Battle', icon: '🥊', sub: 'Knock the other player off the platform · best of 3 · 1 or 2 players', fire: true, players: true },
+    { key: 'brawl', name: 'Monster Brawl', icon: '👾', sub: 'Punch the silly monsters · team up with 2 players', fire: true, players: true },
+    { key: 'pong', name: 'Pong', icon: '🏓', sub: 'First to 7 · vs the computer or 2 players', fire: false, players: true },
   ];
   const gameRate = () => (state.settings.games_free_day === state.today ? 0 : Number(state.settings.game_coins_per_minute) || 0); // 0 on a Free Games day
   const coinName = () => state.settings.coin_name || 'Mom Coins';
@@ -590,7 +593,7 @@
     if ($('#modal').hidden) return;
     openModal(`<h2>${g.icon} ${g.name} — who's playing?</h2>
       ${rate > 0 ? `<p class="kv">Costs <b>🪙 ${rate} ${esc(coinName())}</b> per minute while the game is open.</p>` : (state.settings.games_free_day === state.today ? '<p class="kv">🎉 Free games today — no coins charged!</p>' : '')}
-      ${key === 'tetris' ? `<div class="qty-row" data-players-row><button class="btn ${play.players === 2 ? '' : 'on'}" data-players="1">1 player</button><button class="btn ${play.players === 2 ? 'on' : ''}" data-players="2">👥 2 players</button></div><p class="hint">Player 2 uses the second controller, or W A S D + Enter on a keyboard.</p>` : ''}
+      ${g.players ? `<div class="qty-row" data-players-row><button class="btn ${play.players === 2 ? '' : 'on'}" data-players="1">1 player</button><button class="btn ${play.players === 2 ? 'on' : ''}" data-players="2">👥 2 players</button></div><p class="hint">Player 2 uses the second controller, or W A S D + Enter on a keyboard.</p>` : ''}
       <div class="kid-pick">${kids.map((m) => {
         const fin = state.finance.find((f) => f.member_id === m.id);
         const coins = fin ? (fin.coins || 0) : 0;
