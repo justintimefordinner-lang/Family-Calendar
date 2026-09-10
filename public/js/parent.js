@@ -486,7 +486,7 @@
     if (!S.settings) S.settings = await api('/api/settings');
     const coin = S.settings.coin_name || 'Mom Coins';
     const n = (v) => String(Math.round(v * 10) / 10);
-    const signed = (v) => (v < 0 ? '−' : '+') + n(Math.abs(v));
+    const signed = (v) => { const r = Math.round(v * 10) / 10; return (r < 0 ? '−' : '+') + n(Math.abs(r)); }; // sign after rounding, so no "−0"
     const chips = [7, 30, 90, 365].map((d) => `<button class="chip ${d === days ? 'active' : ''}" data-href="#coins/history-${d}">${d === 365 ? 'Past year' : `${d} days`}</button>`).join('');
     const cards = h.kids.sort((a, b) => a.name.localeCompare(b.name)).map((k) => `<div class="card">
       <h2><span style="display:flex;align-items:center;gap:10px"><span class="avatar" style="--c:${esc(k.color)}">${esc(k.emoji)}</span>${esc(k.name)}</span><span class="meta ${k.net < 0 ? 'neg' : 'pos'}">${signed(k.net)} net</span></h2>
@@ -495,17 +495,17 @@
         <div><small>🎮 Games</small><b class="${k.games ? 'neg' : ''}">${k.games ? '−' + n(-k.games) : '0'}</b></div>
         <div><small>🎁 Prizes</small><b class="${k.prizes ? 'neg' : ''}">${k.prizes ? '−' + n(-k.prizes) : '0'}</b></div>
         <div><small>👩‍👧 Parent</small><b class="${k.parent < 0 ? 'neg' : k.parent > 0 ? 'pos' : ''}">${k.parent ? signed(k.parent) : '0'}</b></div>
-      </div></div>`).join('');
+      </div>${(() => { const last = h.transactions.find((t) => t.member_id === k.member_id); return last ? `<div class="muted small" style="margin-top:8px">Last activity: ${fmtWhen(last.created_at)} · ${esc(last.note || 'Coins')}</div>` : ''; })()}</div>`).join('');
     const list = h.transactions.map((t) => `<div class="list-item tx">
       <div class="avatar" style="--c:${esc(t.color)}">${esc(t.emoji)}</div>
       <div class="grow"><div class="title">${esc(t.note || 'Coins')}</div><div class="sub">${esc(t.member_name)} · ${fmtWhen(t.created_at)}</div></div>
       <div class="a ${t.amount < 0 ? 'neg' : 'pos'}">${signed(t.amount)}</div>
       <button class="btn small icon" data-action="delete-coins" data-id="${t.id}" title="Remove">✕</button></div>`).join('');
-    shell(`🪙 ${esc(coin)}`, `<div class="chips">${chips}</div>
+    shell('📜 Coin history', `<div class="chips">${chips}</div>
       <p class="muted small">Coins earned from chores, spent on games and prizes, or given/taken by a parent, for the last ${days === 365 ? 'year' : `${days} days`}.</p>
       ${cards || '<div class="card"><p class="muted">No coin activity in this period.</p></div>'}
       <div class="card"><h2>All activity <span class="meta">${h.transactions.length}</span></h2>${list || '<p class="muted">Nothing yet.</p>'}</div>`,
-    '<button class="btn small" data-href="#coins">‹ Coins</button>');
+    '<button class="btn small" data-href="#coins" aria-label="Back to Coins">‹</button>');
   }
 
   // ---- Prizes (coin rewards) ---------------------------------------------------

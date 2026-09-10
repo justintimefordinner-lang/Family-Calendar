@@ -24,6 +24,9 @@ a { color: var(--accent); }
 .screen { max-width: 640px; margin: 0 auto; padding: 16px; }
 .screen h1 { font-size: 1.5rem; margin-bottom: 12px; }
 .topbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; gap: 8px; }
+.topbar h1 { flex: 1; min-width: 0; margin: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.topbar .actions { flex: none; flex-wrap: nowrap; }
+.topbar .actions .btn.small { padding: 6px 10px; white-space: nowrap; }
 .topbar h1 { font-size: 1.4rem; }
 
 .card { background: var(--panel); border-radius: var(--radius); box-shadow: 0 4px 16px rgba(31,36,48,0.06); padding: 14px 16px; margin-bottom: 14px; }
