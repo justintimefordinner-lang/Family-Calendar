@@ -502,3 +502,7 @@ body.mobile .qty-row .btn.on { background: var(--accent); color: #fff; border-co
 .tr-sub, .tr-wait { font-size: 0.85rem; color: var(--muted); }
 .tr-err { font-size: 0.85rem; color: #dc2626; max-width: 260px; }
 .tr-row .x { border: 0; background: transparent; color: var(--muted); font-size: 1.05rem; width: 44px; height: 44px; border-radius: 10px; flex: none; }
+.traffic-card .tr-row { padding: 8px 0; gap: 8px; }
+.traffic-card .tr-name { font-size: 0.95rem; }
+.traffic-card .tr-min { font-size: 1.3rem; }
+.traffic-card .tr-body { min-width: 130px; }

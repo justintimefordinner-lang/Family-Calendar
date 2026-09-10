@@ -420,7 +420,7 @@
       html += `<div class="card earn-hint" data-member-row="earn"><h3>💵 Earn Money <span class="meta">tap to open</span></h3>
         <p class="muted">${mine.length} extra chore${mine.length > 1 ? 's' : ''} for you${pendingMine ? ` · ${pendingMine} waiting for approval` : ''}</p></div>`;
     }
-    if (m.traffic) html += `<div class="card traffic-card" data-traffic="${m.id}"><h3>🚗 Traffic <span class="meta">tap to check the roads</span></h3><p class="muted">How long to get where you are going right now.</p></div>`;
+    if (m.traffic) html += `<div class="card traffic-card" data-traffic="${m.id}"><h3>🚗 Traffic <span class="meta">tap to add or remove routes</span></h3><div class="tr-inline">${sideTraffic.memberId === m.id && sideTraffic.html ? sideTraffic.html : '<p class="muted">Checking the roads…</p>'}</div></div>`;
     if (m.role === 'kid') {
       const cash = fin ? (fin.cash_cents || 0) : 0;
       const invested = fin ? (fin.invested_cents || 0) : 0;
@@ -435,6 +435,7 @@
       </div>`;
     }
     $('#side').innerHTML = html;
+    if (m.traffic) loadSideTraffic(m.id); // fills the Traffic card in the background
   }
 
   function renderSideEveryone() {
@@ -979,6 +980,27 @@
     } catch (err) { alert(err.message); }
   }
 
+  // One route row (used by the side card and the Traffic modal).
+  function trafficRow(r, rep, withDelete) {
+    let body = '<span class="tr-wait">checking…</span>';
+    if (rep && rep.error) body = `<span class="tr-err">${esc(rep.error)}</span>`;
+    else if (rep) body = `<span class="tr-min">${rep.minutes} min</span><span class="tr-level ${rep.level}">${esc(rep.label)}</span><span class="tr-sub">${rep.delay_minutes > 0 ? `${rep.delay_minutes} min slower than usual` : `usually ${rep.typical_minutes} min`} · ${rep.miles} mi</span>`;
+    return `<div class="tr-row"><div class="tr-name">${esc(r.from_emoji)} ${esc(r.from_name)} <span class="muted">→</span> ${esc(r.to_emoji)} ${esc(r.to_name)}</div><div class="tr-body">${body}</div>${withDelete ? `<button class="x" data-tr-del="${r.id}" title="Remove this route">✕</button>` : ''}</div>`;
+  }
+  // The side card shows the member's routes with live times, no tap needed; it refreshes with the side panel.
+  const sideTraffic = { memberId: null, html: '' };
+  async function loadSideTraffic(memberId) {
+    let html;
+    try {
+      const routes = await api(`/api/traffic/routes?member=${memberId}`);
+      const reports = await Promise.all(routes.map((r) => api(`/api/traffic/report?from=${r.from_place}&to=${r.to_place}`).catch((err) => ({ error: err.message }))));
+      html = routes.map((r, i) => trafficRow(r, reports[i], false)).join('') || '<p class="muted">Tap to pick two places and see the drive time.</p>';
+    } catch (err) { html = `<p class="muted">${esc(err.message)}</p>`; }
+    Object.assign(sideTraffic, { memberId, html });
+    const box = document.querySelector(`[data-traffic="${memberId}"] .tr-inline`);
+    if (box) box.innerHTML = html;
+  }
+
   // ---- Traffic: a kid's saved routes between the family's places, with live drive times --------
   const tr = { memberId: null, places: [], routes: [], reports: {}, from: null, busy: false };
   async function openTraffic(memberId) {
@@ -998,13 +1020,7 @@
   function renderTraffic() {
     const m = memberById(tr.memberId);
     const placeChip = (p, attr) => `<button class="btn ${attr === 'data-tr-from' && tr.from === p.id ? 'on' : ''}" ${attr}="${p.id}">${esc(p.emoji)} ${esc(p.name)}</button>`;
-    const rows = tr.routes.map((r) => {
-      const rep = tr.reports[r.id];
-      let body = '<span class="tr-wait">checking…</span>';
-      if (rep && rep.error) body = `<span class="tr-err">${esc(rep.error)}</span>`;
-      else if (rep) body = `<span class="tr-min">${rep.minutes} min</span><span class="tr-level ${rep.level}">${esc(rep.label)}</span><span class="tr-sub">${rep.delay_minutes > 0 ? `${rep.delay_minutes} min slower than usual` : `usually ${rep.typical_minutes} min`} · ${rep.miles} mi</span>`;
-      return `<div class="tr-row"><div class="tr-name">${esc(r.from_emoji)} ${esc(r.from_name)} <span class="muted">→</span> ${esc(r.to_emoji)} ${esc(r.to_name)}</div><div class="tr-body">${body}</div><button class="x" data-tr-del="${r.id}" title="Remove this route">✕</button></div>`;
-    }).join('');
+    const rows = tr.routes.map((r) => trafficRow(r, tr.reports[r.id], true)).join('');
     const picker = tr.places.length < 2
       ? '<p class="muted">Ask a parent to add at least two places under Settings › Traffic in the parent app.</p>'
       : `<p class="kv"><b>${tr.from == null ? 'Add a route — where from?' : `From ${esc((tr.places.find((p) => p.id === tr.from) || {}).name || '')} — going to?`}</b></p>
