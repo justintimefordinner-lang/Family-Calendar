@@ -946,9 +946,36 @@
         <div><div class="lbl">📈 Invested</div><div class="balance">${money(f.invested_cents || 0)}</div></div>
         <div class="coins"><div class="lbl">🪙 ${esc(f.coin_name || 'Mom Coins')}</div><div class="balance">${wholeCoins(f.coins)}</div></div>
       </div>
+      ${f.cash_cents > 0 && m && m.role === 'kid' ? `<div class="kid-pick" style="margin-top:12px"><button class="btn primary-btn" data-invest="${memberId}" data-cash="${f.cash_cents}">📈 Invest with Dad</button></div>` : ''}
       <div class="hint center">${f.interest_monthly > 0 ? `Invested with Dad earns ${f.interest_monthly}% a month, paid on day ${f.interest_day} for the days the money was there` : 'Invested with Dad'}</div>
       <div style="margin-top:16px">${rows || '<p class="muted center">No activity yet</p>'}</div>
       ${coinRows ? `<h3 style="margin-top:18px">🪙 ${esc(f.coin_name || 'Mom Coins')}</h3>${coinRows}` : ''}`);
+  }
+
+  // Kids can move cash into "Invested with Dad" themselves: pick an amount, then promise to leave it for 30 days.
+  function openInvest(memberId, cash) {
+    const m = memberById(memberId);
+    const presets = [100, 500, 1000, 2000, 5000].filter((c) => c < cash);
+    const btn = (c, label) => `<button class="btn" data-invest-amount="${c}" data-kid="${memberId}">${label}</button>`;
+    openModal(`<h2>📈 Invest with Dad</h2><p class="kv">${esc(m ? m.name : '')}, you have <b>${money(cash)}</b> in cash. How much do you want to put to work?</p>
+      <div class="qty-row">${presets.map((c) => btn(c, money(c))).join('')}${btn(cash, `All of it (${money(cash)})`)}</div>
+      <div class="kid-pick"><button class="btn" data-close>Not now</button></div>`);
+  }
+  function confirmInvest(memberId, cents) {
+    const rate = Number(state.settings.interest_monthly) || 0;
+    openModal(`<h2>🤝 The deal</h2>
+      <p class="kv"><b>${money(cents)}</b> goes to Dad to invest for you${rate > 0 ? ` and earns <b>${rate}% a month</b> while it is there` : ''}.</p>
+      <p class="kv">You promise not to take it back out for at least <b>30 days</b>, so the money can be put to work.</p>
+      <div class="kid-pick"><button class="btn primary-btn" data-invest-go="${cents}" data-kid="${memberId}">🤝 I promise — invest it</button><button class="btn" data-close>Never mind</button></div>`);
+  }
+  async function doInvest(memberId, cents) {
+    try {
+      const r = await api(`/api/finance/${memberId}/invest`, { method: 'POST', body: { amount_cents: cents } });
+      openModal(`<h2>💰 Nice work!</h2><p class="kv"><b>${money(cents)}</b> is now invested with Dad and starts earning right away.</p>
+        <p class="kv">📈 Invested: <b>${money(r.invested_cents)}</b> · 💵 Cash: <b>${money(r.cash_cents)}</b></p>
+        <div class="kid-pick"><button class="btn" data-close>OK</button></div>`);
+      await loadSide();
+    } catch (err) { alert(err.message); }
   }
 
   // ---- Data loading ---------------------------------------------------------
@@ -1122,6 +1149,12 @@
     }
     const chore = t.closest('[data-chore]');
     if (chore) { await toggleChore(chore); return; }
+    const inv = t.closest('[data-invest]');
+    if (inv) { openInvest(Number(inv.dataset.invest), Number(inv.dataset.cash)); return; }
+    const invAmt = t.closest('[data-invest-amount]');
+    if (invAmt) { confirmInvest(Number(invAmt.dataset.kid), Number(invAmt.dataset.investAmount)); return; }
+    const invGo = t.closest('[data-invest-go]');
+    if (invGo) { await doInvest(Number(invGo.dataset.kid), Number(invGo.dataset.investGo)); return; }
     const moneyCard = t.closest('[data-money]');
     if (moneyCard) { await showMoney(Number(moneyCard.dataset.money)); return; }
     if (t.closest("[data-gear]")) { await openGear(); return; }

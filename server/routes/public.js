@@ -152,6 +152,23 @@ const pendingCents = db.prepare(`
   JOIN chores c ON c.id = cc.chore_id WHERE cc.member_id = ? AND cc.status = 'pending'
 `);
 
+// Kids move their own cash into "Invested with Dad" from the display (a 30-day promise; no PIN needed).
+router.post('/finance/:id/invest', (req, res) => {
+  const id = toInt(req.params.id);
+  const m = db.prepare('SELECT * FROM members WHERE id = ? AND active = 1').get(id);
+  if (!m || m.role !== 'kid') throw new HttpError(404, 'Kid not found');
+  const cents = Math.abs(toInt(req.body.amount_cents));
+  const cash = interest.balance(id, 'cash');
+  if (!cents) throw new HttpError(400, 'amount_cents required');
+  if (cents > cash) throw new HttpError(400, 'That is more cash than you have');
+  const ins = db.prepare('INSERT INTO transactions(member_id, type, account, amount_cents, note) VALUES(?, ?, ?, ?, ?)');
+  db.transaction(() => {
+    ins.run(id, 'transfer', 'cash', -cents, 'Invested with Dad (30-day promise)');
+    ins.run(id, 'transfer', 'invested', cents, 'Invested with Dad (30-day promise)');
+  })();
+  res.json({ cash_cents: interest.balance(id, 'cash'), invested_cents: interest.balance(id, 'invested') });
+});
+
 router.get('/finance/summary', (req, res) => {
   const kids = activeMembers.all().filter((m) => m.role === 'kid');
   res.json(kids.map((m) => {
