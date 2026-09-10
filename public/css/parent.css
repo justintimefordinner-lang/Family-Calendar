@@ -151,3 +151,20 @@ details.section .body { padding: 0 16px 16px; }
 .coin-grid b { font-size: 1.15rem; }
 .coin-grid .pos, .meta.pos { color: var(--good, #16a34a); }
 .coin-grid .neg, .meta.neg { color: #dc2626; }
+
+/* Chore matrix (Chores tab) */
+.matrix-wrap { overflow-x: auto; margin: 0 -16px; padding: 0 16px; }
+.matrix { border-collapse: collapse; width: 100%; }
+.matrix th, .matrix td { padding: 3px 3px; text-align: center; vertical-align: middle; }
+.matrix thead th { font-size: 0.7rem; color: var(--muted); font-weight: 600; padding-bottom: 6px; }
+.matrix thead .avatar { width: 32px; height: 32px; font-size: 1rem; margin: 0 auto 2px; }
+.matrix th.t { text-align: left; font-weight: 600; font-size: 0.88rem; padding-left: 0; padding-right: 8px; line-height: 1.2; }
+.matrix tr.period th { text-align: left; padding: 12px 0 4px; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); border-top: 1px solid var(--line); }
+.matrix .cell { width: 100%; min-width: 44px; min-height: 42px; border-radius: 10px; border: 1px dashed var(--line); background: transparent; color: var(--muted); font-size: 0.68rem; font-weight: 700; padding: 3px 2px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px; }
+.matrix .cell.on { background: var(--c, var(--accent)); color: #fff; border: 0; }
+.matrix .cell.off { opacity: 0.3; }
+.matrix .cell.add { font-size: 1.1rem; }
+.matrix .cell small { font-size: 0.6rem; font-weight: 600; opacity: 0.9; }
+.matrix .cell .dw { display: flex; gap: 1px; }
+.matrix .cell .dw i { font-style: normal; opacity: 0.35; font-size: 0.62rem; width: 0.7em; }
+.matrix .cell .dw i.on { opacity: 1; }

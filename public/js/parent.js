@@ -69,7 +69,7 @@
   }
 
   function tabbar() {
-    const tabs = [['chores', '✅', 'Chores'], ['money', '💰', 'Money'], ['events', '🎂', 'Events'], ['meals', '🍽️', 'Meals'], ['list', '🛒', 'List'], ['settings', '⚙️', 'Settings']];
+    const tabs = [['chores', '✅', 'Chores'], ['money', '💰', 'Money'], ['coins', '🪙', 'Coins'], ['events', '🎂', 'Events'], ['meals', '🍽️', 'Meals'], ['list', '🛒', 'List'], ['settings', '⚙️', 'Settings']];
     return `<nav class="tabbar">${tabs.map(([r, ic, l]) => `<a href="#${r}" class="${S.route === r ? 'active' : ''}"><span class="ic">${ic}</span>${l}</a>`).join('')}</nav>`;
   }
 
@@ -100,8 +100,8 @@
       if (!S.me.parent) return renderLogin();
       await loadMembers();
       if (route === 'money' && arg) return await renderMoneyDetail(Number(arg));
-      if (route === 'coins') return await renderCoinHistory(Number(arg) || 30);
-      const views = { chores: renderChores, money: renderMoney, events: renderEvents, meals: renderMeals, list: renderList, settings: renderSettings };
+      if (route === 'coins' && arg) return /^history/.test(arg) ? await renderCoinHistory(Number(arg.split('-')[1]) || 30) : await renderCoinDetail(Number(arg));
+      const views = { chores: renderChores, money: renderMoney, coins: renderCoins, events: renderEvents, meals: renderMeals, list: renderList, settings: renderSettings };
       await (views[route] || renderChores)();
     } catch (e) {
       fail(e);
@@ -258,8 +258,8 @@
       <div class="avatar" style="--c:${esc(c.member_id ? memberById(c.member_id)?.color : '#9ca3af')}">${c.member_id ? esc(memberById(c.member_id)?.emoji || '?') : '👥'}</div>
       <div class="grow"><div class="title">${esc(c.title)}</div><div class="sub">${esc(c.member_name || 'Anyone')} · ${scheduleLabel(c)}${c.period && c.period !== 'any' ? ' · ' + c.period : ''}</div></div>
       ${c.paid ? `<div class="amt">${money(c.amount_cents)}</div>` : `<div class="muted small">🪙 ${c.coins != null ? c.coins : Number(S.settings?.coins_per_chore ?? 2)}</div>`}</div>`;
-    html += `<div class="card"><h2>Regular chores <span class="meta">${regular.length}</span></h2>${regular.map(choreItem).join('') || '<p class="muted">Tap + to add a chore.</p>'}</div>`;
-    html += `<div class="card"><h2>💵 Earn Money <span class="meta">${paid.length}</span></h2>${paid.map(choreItem).join('') || '<p class="muted">Extra chores kids can do to earn money. Add one with +.</p>'}</div>`;
+    html += choreMatrix(regular, S.members.filter((m) => m.role !== 'calendar' && (filt == null || m.id === filt)));
+    // Earn Money chores live on the Money tab.
     if (Array.isArray(removed) && removed.length) {
       html += `<details class="section"><summary>🗑️ Recently removed (${removed.length})</summary><div class="body">
         ${removed.map((c) => `<div class="list-item"><div class="grow"><div class="title">${esc(c.title)}</div><div class="sub">${esc(c.member_name || 'Anyone')} · ${scheduleLabel(c)}${c.paid ? ' · ' + money(c.amount_cents) : ''}</div></div>
@@ -270,6 +270,49 @@
     shell('Chores', html);
     S.allChores = all;
     S.pending = pending;
+  }
+
+  // ---- Chore matrix: one row per chore, one column per kid ------------------------
+  const dueOn = (c, dow) => c.schedule === 'daily' || c.schedule === 'once' || (c.days || '')[dow] === '1';
+  function choreMatrix(chores, kids) {
+    const PERIODS = [['morning', '☀️ Morning'], ['afternoon', '🌤️ Afternoon'], ['evening', '🌙 Evening'], ['any', '📋 Anytime']];
+    const day = S.choreDay ?? null; // null = all days, else 0..6
+    const dayChips = `<div class="chips">
+      <button class="chip ${day == null ? 'active' : ''}" data-chore-day="">All days</button>
+      ${DOW.map((d, i) => `<button class="chip ${day === i ? 'active' : ''}" data-chore-day="${i}">${d}</button>`).join('')}</div>`;
+    // Group by title + time of day so "Make my bed" is one row with a cell per kid.
+    const groups = new Map();
+    for (const c of chores) {
+      const key = `${(c.period || 'any')}|${String(c.title).trim().toLowerCase()}`;
+      if (!groups.has(key)) groups.set(key, { period: c.period || 'any', title: c.title, byKid: new Map() });
+      const g = groups.get(key);
+      if (!g.byKid.has(c.member_id)) g.byKid.set(c.member_id, []);
+      g.byKid.get(c.member_id).push(c);
+    }
+    const rows = [...groups.values()].filter((g) => day == null || [...g.byKid.values()].flat().some((c) => dueOn(c, day)));
+    const cell = (g, k) => {
+      const mine = g.byKid.get(k.id) || [];
+      if (!mine.length) {
+        const sib = [...g.byKid.values()].flat()[0];
+        return `<td><button class="cell add" data-add-chore="${sib.id}" data-kid="${k.id}" title="Give ${esc(k.name)} this chore">+</button></td>`;
+      }
+      const c = mine[0];
+      const due = day == null || dueOn(c, day);
+      const when = c.schedule === 'daily' || (c.schedule === 'weekly' && c.days === '1111111') ? 'Daily'
+        : c.schedule === 'once' ? 'Once'
+        : `<span class="dw">${DOW.map((d, i) => `<i class="${c.days[i] === '1' ? 'on' : ''}">${d[0]}</i>`).join('')}</span>`;
+      const extra = c.coins != null ? `<small>🪙${c.coins}</small>` : '';
+      return `<td><button class="cell on ${due ? '' : 'off'}" data-edit-chore="${c.id}" style="--c:${esc(k.color)}">${when}${extra}${mine.length > 1 ? `<small>×${mine.length}</small>` : ''}</button></td>`;
+    };
+    const head = `<tr><th></th>${kids.map((k) => `<th><div class="avatar" style="--c:${esc(k.color)}">${esc(k.emoji)}</div><small>${esc(k.name)}</small></th>`).join('')}</tr>`;
+    const body = PERIODS.map(([p, label]) => {
+      const rs = rows.filter((g) => g.period === p).sort((a, b) => a.title.localeCompare(b.title));
+      if (!rs.length) return '';
+      return `<tr class="period"><th colspan="${kids.length + 1}">${label}</th></tr>` + rs.map((g) => `<tr><th class="t">${esc(g.title)}</th>${kids.map((k) => cell(g, k)).join('')}</tr>`).join('');
+    }).join('');
+    return `<div class="card"><h2>Regular chores <span class="meta">${chores.length}</span></h2>${dayChips}
+      ${rows.length ? `<div class="matrix-wrap"><table class="matrix"><thead>${head}</thead><tbody>${body}</tbody></table></div>
+      <p class="muted small mt">Tap a filled cell to edit that kid's copy; tap + to give the chore to another kid (same schedule, coins and time of day, editable before saving).</p>` : '<p class="muted">Tap + to add a chore.</p>'}</div>`;
   }
 
   function choreForm(c = {}) {
@@ -307,7 +350,13 @@
 
   // ---- Money -----------------------------------------------------------------
   async function renderMoney() {
-    const [summary, settings, rewards, redemptions] = await Promise.all([api('/api/finance/summary'), api('/api/settings'), api('/api/rewards/all'), api('/api/redemptions')]);
+    const [summary, settings, rewards, redemptions, allChores] = await Promise.all([api('/api/finance/summary'), api('/api/settings'), api('/api/rewards/all'), api('/api/redemptions'), api('/api/chores')]);
+    S.allChores = Array.isArray(allChores) ? allChores : [];
+    const earnRows = S.allChores.filter((c) => c.paid).map((c) => `<div class="list-item tappable" data-edit-chore="${c.id}">
+      <div class="avatar" style="--c:${esc(c.member_id ? memberById(c.member_id)?.color : '#9ca3af')}">${c.member_id ? esc(memberById(c.member_id)?.emoji || '?') : '👥'}</div>
+      <div class="grow"><div class="title">${esc(c.title)}</div><div class="sub">${esc(c.member_name || 'Anyone')} · ${scheduleLabel(c)}</div></div><div class="amt">${money(c.amount_cents)}</div></div>`).join('');
+    const earnCard = `<div class="card"><h2>💵 Earn Money chores <span class="meta">${S.allChores.filter((c) => c.paid).length}</span></h2>${earnRows || '<p class="muted">Extra chores kids can do to earn cash. Anyone can claim them, or assign one to a kid.</p>'}
+      <div class="actions" style="margin-top:10px"><button class="btn" data-action="new-earn-chore">+ Earn Money chore</button></div></div>`;
     S.rewards = Array.isArray(rewards) ? rewards : []; S.settings = settings;
     const apr = Number(settings.interest_monthly) || 0;
     const cards = kids().map((m) => {
@@ -315,11 +364,10 @@
       return `<div class="card balance-card tappable" data-href="#money/${m.id}">
         <div class="avatar" style="--c:${esc(m.color)}">${esc(m.emoji)}</div>
         <div><div class="title" style="font-weight:600">${esc(m.name)}</div>${f.pending_cents ? `<div class="sub muted small">+${money(f.pending_cents)} awaiting approval</div>` : ''}</div>
-        <div class="bal" style="text-align:right;font-size:1.05rem;line-height:1.35">💵 ${money(f.cash_cents || 0)}<br>📈 ${money(f.invested_cents || 0)}<br>🪙 ${Math.floor(Number(f.coins) || 0)}</div></div>`;
+        <div class="bal" style="text-align:right;font-size:1.05rem;line-height:1.35">💵 ${money(f.cash_cents || 0)}<br>📈 ${money(f.invested_cents || 0)}</div></div>`;
     }).join('');
     shell('Money', `<p class="muted small">Each kid has <b>Cash</b> (pocket money you keep track of; chore earnings land here) and <b>Invested with Dad</b>${apr > 0 ? `, which earns ${apr}% per month, paid on day ${settings.interest_day} for the previous month and pro-rated by the day.` : ' (no interest set — see Settings › Interest).'}</p>
-      <div class="actions" style="margin:0 0 12px"><button class="btn" data-href="#coins/30">🪙 Coin history</button></div>
-      ${cards || '<div class="card"><p class="muted">Add kids in Settings › Family to start tracking money.</p></div>'}${prizesHtml(S.rewards, Array.isArray(redemptions) ? redemptions : [])}`);
+      ${cards || '<div class="card"><p class="muted">Add kids in Settings › Family to start tracking money.</p></div>'}${earnCard}`);
   }
 
   async function renderMoneyDetail(id) {
@@ -353,18 +401,6 @@
           </div>
           <button class="btn primary block" type="submit">Save</button>
         </form></div>
-      <div class="card"><h2>🪙 ${esc(f.coin_name || 'Mom Coins')} <span class="meta">${Math.floor(Number(f.coins) || 0)}</span></h2>
-        <form data-form="coins" data-member="${m.id}">
-          <div class="row2">
-            <label class="field"><span>Coins (negative to spend)</span><input type="number" name="amount" step="1" inputmode="numeric" required placeholder="-10"></label>
-            <label class="field"><span>Note</span><input type="text" name="note" maxlength="200" placeholder="Movie pick"></label>
-          </div>
-          <div class="actions"><button class="btn primary grow" type="submit">Save</button><button class="btn danger" type="button" data-action="coins-zero" data-id="${m.id}" data-coins="${f.coins || 0}">Reset to 0</button></div></form>
-        ${(f.coin_transactions || []).slice(0, 40).map((t) => `<div class="list-item tx">
-          <div class="grow"><div class="title">${esc(t.note || 'Coins')}</div><div class="sub">${fmtWhen(t.created_at)}</div></div>
-          <div class="a ${t.amount < 0 ? 'neg' : 'pos'}">${t.amount < 0 ? '−' : '+'}${Math.abs(t.amount)}</div>
-          <button class="btn small icon" data-action="delete-coins" data-id="${t.id}" title="Remove">✕</button></div>`).join('')}
-      </div>
       <div class="card"><h2>Set cash balance</h2>
         <form data-form="setbal" data-member="${m.id}" class="actions" style="margin:0">
           <input type="number" name="balance" step="0.01" inputmode="decimal" class="input grow" required placeholder="Count the cash… e.g. 12.50">
@@ -374,15 +410,55 @@
     `<a class="btn small" href="#money">‹ All kids</a>`);
   }
 
+  // ---- Coins tab: balances, prizes and the coin history ---------------------------
+  async function renderCoins() {
+    const [summary, settings, rewards, redemptions] = await Promise.all([api('/api/finance/summary'), api('/api/settings'), api('/api/rewards/all'), api('/api/redemptions')]);
+    S.rewards = Array.isArray(rewards) ? rewards : []; S.settings = settings;
+    const coin = settings.coin_name || 'Mom Coins';
+    const cards = kids().map((m) => {
+      const f = summary.find((s) => s.member_id === m.id) || { coins: 0 };
+      return `<div class="card balance-card tappable" data-href="#coins/${m.id}">
+        <div class="avatar" style="--c:${esc(m.color)}">${esc(m.emoji)}</div>
+        <div class="grow"><div class="title" style="font-weight:600">${esc(m.name)}</div><div class="sub muted small">tap to add, spend or reset</div></div>
+        <div class="bal" style="font-size:1.4rem;font-weight:700">🪙 ${Math.floor(Number(f.coins) || 0)}</div></div>`;
+    }).join('');
+    shell(`🪙 ${esc(coin)}`, `<p class="muted small">Kids earn ${esc(coin)} when you approve their regular chores, and spend them on games and prizes. Change the name or the coins per chore in Settings › Rewards.</p>
+      <div class="actions" style="margin:0 0 12px"><button class="btn" data-href="#coins/history-30">📜 Coin history</button></div>
+      ${cards || '<div class="card"><p class="muted">Add kids in Settings › Family to start.</p></div>'}
+      ${prizesHtml(S.rewards, Array.isArray(redemptions) ? redemptions : [])}`);
+  }
+
+  async function renderCoinDetail(id) {
+    S.route = 'coins';
+    const m = memberById(id);
+    if (!m) { location.hash = '#coins'; return; }
+    const f = await api(`/api/finance/${id}`);
+    shell(`${esc(m.emoji)} ${esc(m.name)}`, `
+      <div class="card"><h2>🪙 ${esc(f.coin_name || 'Mom Coins')} <span class="meta">${Math.floor(Number(f.coins) || 0)}</span></h2>
+        <form data-form="coins" data-member="${m.id}">
+          <div class="row2">
+            <label class="field"><span>Coins (negative to spend)</span><input type="number" name="amount" step="1" inputmode="numeric" required placeholder="-10"></label>
+            <label class="field"><span>Note</span><input type="text" name="note" maxlength="200" placeholder="Movie pick"></label>
+          </div>
+          <div class="actions"><button class="btn primary grow" type="submit">Save</button><button class="btn danger" type="button" data-action="coins-zero" data-id="${m.id}" data-coins="${f.coins || 0}">Reset to 0</button></div></form></div>
+      <div class="card"><h2>History <span class="meta">last ${Math.min(40, (f.coin_transactions || []).length)}</span></h2>
+        ${(f.coin_transactions || []).slice(0, 40).map((t) => `<div class="list-item tx">
+          <div class="grow"><div class="title">${esc(t.note || 'Coins')}</div><div class="sub">${fmtWhen(t.created_at)}</div></div>
+          <div class="a ${t.amount < 0 ? 'neg' : 'pos'}">${t.amount < 0 ? '−' : '+'}${Math.abs(Math.round(t.amount * 10) / 10)}</div>
+          <button class="btn small icon" data-action="delete-coins" data-id="${t.id}" title="Remove">✕</button></div>`).join('') || '<p class="muted">Nothing yet.</p>'}
+      </div>`,
+    `<a class="btn small" href="#coins">‹ All kids</a>`);
+  }
+
   // ---- Coin history: where the coins came from and went -----------------------
   async function renderCoinHistory(days) {
-    S.route = 'money';
+    S.route = 'coins';
     const h = await api(`/api/coins/history?days=${days}`);
     if (!S.settings) S.settings = await api('/api/settings');
     const coin = S.settings.coin_name || 'Mom Coins';
     const n = (v) => String(Math.round(v * 10) / 10);
     const signed = (v) => (v < 0 ? '−' : '+') + n(Math.abs(v));
-    const chips = [7, 30, 90, 365].map((d) => `<button class="chip ${d === days ? 'active' : ''}" data-href="#coins/${d}">${d === 365 ? 'Past year' : `${d} days`}</button>`).join('');
+    const chips = [7, 30, 90, 365].map((d) => `<button class="chip ${d === days ? 'active' : ''}" data-href="#coins/history-${d}">${d === 365 ? 'Past year' : `${d} days`}</button>`).join('');
     const cards = h.kids.sort((a, b) => a.name.localeCompare(b.name)).map((k) => `<div class="card">
       <h2><span style="display:flex;align-items:center;gap:10px"><span class="avatar" style="--c:${esc(k.color)}">${esc(k.emoji)}</span>${esc(k.name)}</span><span class="meta ${k.net < 0 ? 'neg' : 'pos'}">${signed(k.net)} net</span></h2>
       <div class="coin-grid">
@@ -400,7 +476,7 @@
       <p class="muted small">Coins earned from chores, spent on games and prizes, or given/taken by a parent, for the last ${days === 365 ? 'year' : `${days} days`}.</p>
       ${cards || '<div class="card"><p class="muted">No coin activity in this period.</p></div>'}
       <div class="card"><h2>All activity <span class="meta">${h.transactions.length}</span></h2>${list || '<p class="muted">Nothing yet.</p>'}</div>`,
-    '<button class="btn small" data-href="#money">‹ Money</button>');
+    '<button class="btn small" data-href="#coins">‹ Coins</button>');
   }
 
   // ---- Prizes (coin rewards) ---------------------------------------------------
@@ -738,6 +814,10 @@
     if (chip) { S.choreFilter = chip.dataset.choreFilter ? Number(chip.dataset.choreFilter) : null; render(); return; }
     const href = t.closest('[data-href]');
     if (href) { location.hash = href.dataset.href; return; }
+    const addChore = t.closest('[data-add-chore]');
+    if (addChore) { const sib = S.allChores.find((c) => c.id === Number(addChore.dataset.addChore)) || {}; openSheet(choreForm({ ...sib, id: null, member_id: Number(addChore.dataset.kid) })); return; }
+    const dayChip = t.closest('[data-chore-day]');
+    if (dayChip) { S.choreDay = dayChip.dataset.choreDay === '' ? null : Number(dayChip.dataset.choreDay); render(); return; }
     const editChore = t.closest('[data-edit-chore]');
     if (editChore) { openSheet(choreForm(S.allChores.find((c) => c.id === Number(editChore.dataset.editChore)))); return; }
     const editLevent = t.closest('[data-edit-levent]');
@@ -784,6 +864,7 @@
       switch (a) {
         case 'add-member-row': $('#setupMembers').insertAdjacentHTML('beforeend', memberRow($('#setupMembers').children.length)); break;
         case 'new-chore': openSheet(choreForm()); break;
+        case 'new-earn-chore': openSheet(choreForm({ paid: true, member_id: null })); break;
         case 'restore-chore': await api(`/api/chores/${id}/restore`, { method: 'POST' }); toast('Restored'); render(); break;
         case 'new-levent': openSheet(leventForm()); break;
         case 'delete-levent':
