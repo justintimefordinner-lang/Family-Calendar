@@ -66,53 +66,83 @@
     ctx.textAlign = 'right'; ctx.fillText(right, W - 12, 10);
   };
 
-  // ---------------------------------------------------------------- Snake
-  const SN = { cols: 30, rows: 22 };
+  // ---------------------------------------------------------------- Snake (1 or 2 players)
+  const SN = { cols: 30, rows: 22, players: 1 };
+  const SN_DIRS = { up: { x: 0, y: -1 }, down: { x: 0, y: 1 }, left: { x: -1, y: 0 }, right: { x: 1, y: 0 } };
+  const SN_SKINS = [['#9dff6b', '#5cd65c', '#48c048'], ['#ffd166', '#ff9f43', '#f39c12']];
+  function snakeStart(i) {
+    if (SN.players === 1) return { body: [{ x: 15, y: 11 }, { x: 14, y: 11 }, { x: 13, y: 11 }], dir: SN_DIRS.right };
+    return i === 0
+      ? { body: [{ x: 7, y: 11 }, { x: 6, y: 11 }, { x: 5, y: 11 }], dir: SN_DIRS.right }
+      : { body: [{ x: 22, y: 11 }, { x: 23, y: 11 }, { x: 24, y: 11 }], dir: SN_DIRS.left };
+  }
   Games.snake = makeGame({
     key: 'snake', aspect: SN.cols / SN.rows,
     init(g) {
-      g.score = 0; g.snake = [{ x: 15, y: 11 }, { x: 14, y: 11 }, { x: 13, y: 11 }];
-      g.dir = { x: 1, y: 0 }; g.next = g.dir; g.acc = 0; g.interval = 0.16; g.food = null; g.grow = 0; g.flash = 0;
+      g.score = 0; g.acc = 0; g.interval = 0.16; g.flash = 0; g.food = null; g.winner = null;
+      g.snakes = Array.from({ length: SN.players }, (_, i) => { const s = snakeStart(i); return { i, body: s.body, dir: s.dir, next: s.dir, grow: 0, score: 0, alive: true }; });
       placeFood(g);
     },
     press(g, k) {
-      const d = { up: { x: 0, y: -1 }, down: { x: 0, y: 1 }, left: { x: -1, y: 0 }, right: { x: 1, y: 0 } }[k];
-      if (d && !(d.x === -g.dir.x && d.y === -g.dir.y)) g.next = d;
+      const p = k.startsWith('p2:') ? 1 : 0; const key = k.replace('p2:', '');
+      const s = g.snakes[p]; const d = SN_DIRS[key];
+      if (s && s.alive && d && !(d.x === -s.dir.x && d.y === -s.dir.y)) s.next = d;
     },
     update(g, dt) {
       g.acc += dt; g.flash += dt;
       if (g.acc < g.interval) return;
       g.acc -= g.interval;
-      g.dir = g.next;
-      const h = { x: g.snake[0].x + g.dir.x, y: g.snake[0].y + g.dir.y };
-      if (h.x < 0 || h.y < 0 || h.x >= SN.cols || h.y >= SN.rows || g.snake.some((s) => s.x === h.x && s.y === h.y)) { g.gameOver(); return; }
-      g.snake.unshift(h);
-      if (g.food && h.x === g.food.x && h.y === g.food.y) {
-        g.score += 10; g.grow += 2; g.interval = Math.max(0.06, g.interval * 0.96); placeFood(g);
+      const moving = g.snakes.filter((s) => s.alive).map((s) => { s.dir = s.next; return { s, h: { x: s.body[0].x + s.dir.x, y: s.body[0].y + s.dir.y } }; });
+      const taken = (x, y) => g.snakes.some((s) => s.alive && s.body.some((b) => b.x === x && b.y === y));
+      for (const { s, h } of moving) {
+        const wall = h.x < 0 || h.y < 0 || h.x >= SN.cols || h.y >= SN.rows;
+        const headOn = moving.some((o) => o.s !== s && o.h.x === h.x && o.h.y === h.y);
+        if (wall || taken(h.x, h.y) || headOn) s.alive = false;
       }
-      if (g.grow > 0) g.grow -= 1; else g.snake.pop();
+      for (const { s, h } of moving) {
+        if (!s.alive) continue;
+        s.body.unshift(h);
+        if (g.food && h.x === g.food.x && h.y === g.food.y) { s.score += 10; s.grow += 2; g.interval = Math.max(0.06, g.interval * 0.96); placeFood(g); }
+        if (s.grow > 0) s.grow -= 1; else s.body.pop();
+      }
+      g.score = g.snakes.length === 1 ? g.snakes[0].score : Math.max(...g.snakes.map((s) => s.score));
+      if (g.snakes.length === 1) { if (!g.snakes[0].alive) g.gameOver(); return; }
+      const left = g.snakes.filter((s) => s.alive);
+      if (left.length <= 1) {
+        g.winner = left.length ? left[0].i + 1 : null;
+        g.summary = [g.winner ? `Player ${g.winner} wins!` : 'Both crashed — draw!', ...g.snakes.map((s) => `P${s.i + 1}: ${s.score} points · length ${s.body.length}`)];
+        g.gameOver();
+      }
     },
     draw(g, ctx, W, H) {
       const c = W / SN.cols; const top = H - SN.rows * c;
       ctx.fillStyle = '#0e2a12'; ctx.fillRect(0, 0, W, H);
       ctx.fillStyle = '#123a18'; for (let y = 0; y < SN.rows; y++) for (let x = (y % 2); x < SN.cols; x += 2) ctx.fillRect(x * c, top + y * c, c, c);
-      if (g.food) { ctx.fillStyle = '#ff4d4d'; ctx.beginPath(); ctx.arc(g.food.x * c + c / 2, top + g.food.y * c + c / 2, c * 0.4, 0, Math.PI * 2); ctx.fill(); ctx.fillStyle = '#5cbf5c'; ctx.fillRect(g.food.x * c + c / 2 - 1, top + g.food.y * c + c * 0.1, 3, c * 0.2); }
-      g.snake.forEach((s, i) => {
-        ctx.fillStyle = i === 0 ? '#9dff6b' : (i % 2 ? '#5cd65c' : '#48c048');
-        const r = c * 0.25; const x = s.x * c + 1; const y = top + s.y * c + 1; const w = c - 2;
-        ctx.beginPath(); ctx.roundRect(x, y, w, w, r); ctx.fill();
-        if (i === 0) { ctx.fillStyle = '#123a18'; const ex = x + w / 2 + g.dir.x * w * 0.2; const ey = y + w / 2 + g.dir.y * w * 0.2; ctx.beginPath(); ctx.arc(ex - g.dir.y * w * 0.2, ey + g.dir.x * w * 0.2, w * 0.09, 0, 7); ctx.arc(ex + g.dir.y * w * 0.2, ey - g.dir.x * w * 0.2, w * 0.09, 0, 7); ctx.fill(); }
-      });
-      hud(ctx, W, H, `SCORE ${g.score}`, `HIGH ${Math.max(g.high, g.score)}`);
+      if (g.food) { ctx.fillStyle = '#ff4d4d'; ctx.beginPath(); ctx.arc(g.food.x * c + c / 2, top + g.food.y * c + c / 2, c * 0.4, 0, Math.PI * 2); ctx.fill(); ctx.fillStyle = '#5cbf5c'; ctx.fillRect(g.food.x * c + c * 0.45, top + g.food.y * c + c * 0.05, c * 0.12, c * 0.25); }
+      for (const s of g.snakes) {
+        const skin = SN_SKINS[s.i] || SN_SKINS[0];
+        ctx.globalAlpha = s.alive ? 1 : 0.35;
+        s.body.forEach((b, i) => {
+          ctx.fillStyle = i === 0 ? skin[0] : (i % 2 ? skin[1] : skin[2]);
+          const r = c * 0.25; const x = b.x * c + 1; const y = top + b.y * c + 1; const w = c - 2;
+          ctx.beginPath(); ctx.roundRect(x, y, w, w, r); ctx.fill();
+          if (i === 0) { ctx.fillStyle = '#123a18'; const ex = x + w / 2 + s.dir.x * w * 0.2; const ey = y + w / 2 + s.dir.y * w * 0.2; ctx.beginPath(); ctx.arc(ex - s.dir.y * w * 0.2, ey + s.dir.x * w * 0.2, w * 0.09, 0, 7); ctx.arc(ex + s.dir.y * w * 0.2, ey - s.dir.x * w * 0.2, w * 0.09, 0, 7); ctx.fill(); }
+        });
+        ctx.globalAlpha = 1;
+      }
+      if (g.snakes.length === 1) hud(ctx, W, H, `SCORE ${g.score}`, `HIGH ${Math.max(g.high, g.score)}`);
+      else hud(ctx, W, H, `P1 ${g.snakes[0].score}`, `${g.snakes[1].score} P2`);
     },
   });
+  Games.snake.setPlayers = (p) => { SN.players = p === 2 ? 2 : 1; };
   function placeFood(g) {
     let p;
-    do { p = { x: Math.floor(Math.random() * SN.cols), y: Math.floor(Math.random() * SN.rows) }; } while (g.snake.some((s) => s.x === p.x && s.y === p.y));
+    do { p = { x: Math.floor(Math.random() * SN.cols), y: Math.floor(Math.random() * SN.rows) }; } while (g.snakes.some((s) => s.body.some((b) => b.x === p.x && b.y === p.y)));
     g.food = p;
   }
 
   // -------------------------------------------------------------- Frogger
+  const FRG = { players: 1 };
   const FR = { cols: 13, rows: 13 }; // 0 home, 1-5 river, 6 median, 7-11 road, 12 start
   const LANES = [
     { row: 1, kind: 'log', speed: 1.6, len: 4, gap: 4, color: '#8b5a2b' },
@@ -131,21 +161,37 @@
     key: 'frogger', aspect: FR.cols / (FR.rows + 1),
     init(g) {
       g.score = 0; g.lives = 3; g.level = 1; g.homes = [false, false, false, false, false]; g.time = 0;
-      g.lanes = LANES.map((l) => ({ ...l, items: [] }));
+      g.lanes = LANES.map((l) => ({ ...l, items: [], frozen: 0 }));
+      g.cross = FRG.players === 2 ? { x: 6, y: 9, shots: 3, reload: 0 } : null; // player 2: a crosshair that can freeze a lane
       for (const l of g.lanes) for (let x = -l.len; x < FR.cols + l.len; x += l.len + l.gap) l.items.push(x + Math.random() * 2);
       resetFrog(g);
     },
     press(g, k) {
+      if (k.startsWith('p2:')) {
+        const x = g.cross; if (!x || k !== 'p2:fire') return;
+        if (x.shots <= 0 || x.reload > 0) return;
+        const lane = g.lanes.find((l) => l.row === Math.round(x.y));
+        if (!lane) return;
+        lane.frozen = 4; x.shots -= 1; x.reload = 5;
+        return;
+      }
       if (g.dead > 0) return;
       const f = g.frog;
       if (k === 'up') f.y -= 1; if (k === 'down') f.y = Math.min(12, f.y + 1);
       if (k === 'left') f.x = Math.max(0, f.x - 1); if (k === 'right') f.x = Math.min(FR.cols - 1, f.x + 1);
       if (k === 'up') g.score += 10;
     },
-    update(g, dt) {
+    update(g, dt, held) {
       g.time += dt;
       const mult = 1 + (g.level - 1) * 0.25;
+      if (g.cross) {
+        const x = g.cross; const sp = 6 * dt;
+        if (held.has('p2:left')) x.x -= sp; if (held.has('p2:right')) x.x += sp; if (held.has('p2:up')) x.y -= sp; if (held.has('p2:down')) x.y += sp;
+        x.x = Math.max(0, Math.min(FR.cols - 1, x.x)); x.y = Math.max(1, Math.min(11, x.y));
+        if (x.reload > 0) x.reload -= dt;
+      }
       for (const l of g.lanes) {
+        if (l.frozen > 0) { l.frozen -= dt; continue; }
         const span = FR.cols + 2 * l.len;
         l.items = l.items.map((x) => { let nx = x + l.speed * mult * dt; if (nx > FR.cols + l.len) nx -= span; if (nx < -l.len) nx += span; return nx; });
       }
@@ -154,14 +200,14 @@
       const lane = g.lanes.find((l) => l.row === row);
       if (lane) {
         const on = lane.items.some((x) => f.x + 0.5 > x && f.x + 0.5 < x + lane.len);
-        if (lane.kind === 'log') { if (on) f.x += lane.speed * mult * dt; else return die(g); if (f.x < -0.5 || f.x > FR.cols - 0.5) return die(g); }
+        if (lane.kind === 'log') { if (on) f.x += (lane.frozen > 0 ? 0 : lane.speed * mult) * dt; else return die(g); if (f.x < -0.5 || f.x > FR.cols - 0.5) return die(g); }
         else if (on) return die(g);
       }
       if (row === 0) {
         const slot = HOMES.findIndex((hx) => Math.abs(f.x - hx) < 0.6);
         if (slot < 0 || g.homes[slot]) return die(g);
         g.homes[slot] = true; g.score += 50;
-        if (g.homes.every(Boolean)) { g.level += 1; g.score += 200; g.homes = [false, false, false, false, false]; }
+        if (g.homes.every(Boolean)) { g.level += 1; g.score += 200; g.homes = [false, false, false, false, false]; if (g.cross) g.cross.shots = 3; }
         resetFrog(g);
       }
     },
@@ -174,6 +220,7 @@
       for (let r = 8; r <= 11; r++) { ctx.beginPath(); ctx.moveTo(0, top + r * c); ctx.lineTo(W, top + r * c); ctx.stroke(); }
       ctx.setLineDash([]);
       // homes
+      for (const l of g.lanes) if (l.frozen > 0) { ctx.fillStyle = 'rgba(147, 197, 253, 0.45)'; ctx.fillRect(0, top + l.row * c, W, c); }
       HOMES.forEach((hx, i) => { ctx.fillStyle = '#0b1d3a'; ctx.fillRect(hx * c + c * 0.1, top + c * 0.1, c * 0.8, c * 0.8); if (g.homes[i]) frog(ctx, hx * c + c / 2, top + c / 2, c, '#5cd65c'); });
       for (const l of g.lanes) for (const x of l.items) {
         const y = top + l.row * c;
@@ -182,9 +229,15 @@
       }
       if (g.dead > 0) { ctx.fillStyle = '#ff5252'; ctx.font = `bold ${c}px ${FONT}`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('✖', g.frog.x * c + c / 2, top + g.frog.y * c + c / 2); }
       else frog(ctx, g.frog.x * c + c / 2, top + g.frog.y * c + c / 2, c, '#7dff5c');
-      hud(ctx, W, H, `SCORE ${g.score}   ${'🐸'.repeat(Math.max(0, g.lives))}`, `LEVEL ${g.level}  HIGH ${Math.max(g.high, g.score)}`);
+      if (g.cross) {
+        const x = g.cross; const cx = x.x * c + c / 2; const cy = top + x.y * c + c / 2;
+        ctx.strokeStyle = x.reload > 0 || x.shots <= 0 ? '#9ca3af' : '#ff3b3b'; ctx.lineWidth = 3;
+        ctx.beginPath(); ctx.arc(cx, cy, c * 0.45, 0, Math.PI * 2); ctx.moveTo(cx - c * 0.7, cy); ctx.lineTo(cx + c * 0.7, cy); ctx.moveTo(cx, cy - c * 0.7); ctx.lineTo(cx, cy + c * 0.7); ctx.stroke();
+        hud(ctx, W, H, `SCORE ${g.score}   ${'🐸'.repeat(Math.max(0, g.lives))}`, `🎯 ${x.shots}${x.reload > 0 ? ` (${Math.ceil(x.reload)}s)` : ''}   LEVEL ${g.level}`);
+      } else       hud(ctx, W, H, `SCORE ${g.score}   ${'🐸'.repeat(Math.max(0, g.lives))}`, `LEVEL ${g.level}  HIGH ${Math.max(g.high, g.score)}`);
     },
   });
+  Games.frogger.setPlayers = (p) => { FRG.players = p === 2 ? 2 : 1; };
   function resetFrog(g) { g.frog = { x: 6, y: 12 }; g.dead = 0; }
   function die(g) { g.lives -= 1; g.dead = 1; }
   function frog(ctx, x, y, c, color) {
@@ -324,6 +377,8 @@
       for (const b of g.boards) {
         if (b.over) continue;
         const soft = held.has(b.n === 2 ? 'p2:down' : 'down');
+        const dirKey = held.has(b.n === 2 ? 'p2:left' : 'left') ? -1 : held.has(b.n === 2 ? 'p2:right' : 'right') ? 1 : 0; // holding left/right zooms the piece sideways
+        if (dirKey) { b.hT = (b.hT || 0) + dt; while (b.hT >= 0.09) { b.hT -= 0.09; if (ttFits(b, b.cur.cells, b.cur.x + dirKey, b.cur.y)) b.cur.x += dirKey; } } else b.hT = -0.12;
         const gravity = Math.max(0.12, 0.8 - (b.level - 1) * 0.07);
         const interval = soft ? Math.min(0.11, gravity / 2) : gravity; // holding down: faster fall, never a slam
         b.timer += dt; b.flash = Math.max(0, b.flash - dt);
@@ -433,7 +488,7 @@
       const [a, b] = g.f; const dx = b.x - a.x; const dy = b.y - a.y; const dist = Math.hypot(dx, dy) || 1;
       if (dist < a.r + b.r) {
         const nx = dx / dist;
-        const fling = (from, to, dir) => { to.vx += nx * dir * W * 1.3; to.vy = Math.min(to.vy, -H * 0.45); to.hit = 0.25; from.dash = 0; };
+        const fling = (from, to, dir) => { to.vx += nx * dir * W * 2.6; /* a landed bump really sends them flying */ to.vy = Math.min(to.vy, -H * 0.45); to.hit = 0.25; from.dash = 0; };
         if (a.dash > 0) fling(a, b, 1);
         else if (b.dash > 0) fling(b, a, -1);
         else { const overlap = a.r + b.r - dist; a.x -= (nx * overlap) / 2; b.x += (nx * overlap) / 2; a.vx -= nx * W * 0.4; b.vx += nx * W * 0.4; }
@@ -473,19 +528,29 @@
     key: 'brawl', aspect: 16 / 9,
     init(g, W, H) {
       g.W = W; g.H = H; g.score = 0; g.wave = 0; g.mobs = []; g.spawnT = 0; g.punches = []; g.t = 0;
-      g.p = Array.from({ length: MB.players }, (_, i) => ({ i, x: W * (0.2 + i * 0.1), y: H * 0.7, face: 1, hp: 5, punch: 0, cool: 0, hurt: 0, down: false, size: Math.max(26, W / 24) }));
+      g.p = Array.from({ length: MB.players }, (_, i) => ({ i, x: W * (0.2 + i * 0.1), y: H * 0.7, face: 1, hp: 5, punch: 0, swing: 1, cool: 0, hurt: 0, down: false, size: Math.max(26, W / 24), hits: 0, charge: 0, superT: 0, kbx: 0 }));
+      g.bursts = [];
     },
     press(g, k) {
       const [p, key] = splitKey(k); const f = g.p[p]; if (!f || f.down) return;
-      if (key === 'fire' && f.cool <= 0) {
-        f.punch = 0.15; f.cool = 0.35;
-        const reach = f.size * 1.6;
+      const hit = (m, dir, power) => { m.hp -= 1; m.hurt = 0.25; m.kbx = dir * f.size * power; f.hits += 1; if (f.hits % 10 === 0) f.charge = Math.min(3, f.charge + 1); if (m.hp <= 0) g.score += 10 * m.tier; };
+      // A swings to the right, B to the left; ● on the touch pad and Space swing the way the hero faces.
+      const dir = key === 'swingR' ? 1 : key === 'swingL' ? -1 : key === 'fire' ? f.face : 0;
+      if (dir && f.cool <= 0) {
+        f.punch = 0.18; f.cool = 0.3; f.swing = dir; f.face = dir;
+        const reach = f.size * 4.8; // a sword: three times the old punch
+        let landed = false;
         for (const m of g.mobs) {
-          if (Math.abs(m.y - f.y) < f.size * 0.9 && (m.x - f.x) * f.face > 0 && Math.abs(m.x - f.x) < reach + m.size) {
-            m.hp -= 1; m.hurt = 0.2; m.x += f.face * f.size * 0.8; if (m.hp <= 0) g.score += 10 * m.tier;
-          }
+          if (Math.abs(m.y - f.y) < f.size * 1.1 && (m.x - f.x) * dir > 0 && Math.abs(m.x - f.x) < reach + m.size) { hit(m, dir, 2.2); landed = true; }
         }
-        g.punches.push({ x: f.x + f.face * f.size * 1.1, y: f.y - f.size * 0.2, t: 0.15 });
+        if (landed) f.kbx = -dir * f.size * 0.5; // the hero recoils a little too
+        g.punches.push({ x: f.x + dir * f.size * 2.4, y: f.y - f.size * 0.3, t: 0.18, dir });
+      }
+      if (key === 'super' && f.charge > 0 && f.superT <= 0) {
+        f.charge -= 1; f.superT = 0.5;
+        const radius = f.size * 4 * 1.6 + f.size; // four sword-swings wide
+        for (const m of g.mobs) if (Math.hypot(m.x - f.x, m.y - f.y) < radius + m.size) { const d = Math.sign(m.x - f.x) || 1; hit(m, d, 4); m.hp = 0; g.score += 10 * m.tier; }
+        g.bursts.push({ x: f.x, y: f.y, r: radius, t: 0.5 });
       }
     },
     update(g, dt, held) {
@@ -498,8 +563,10 @@
         const vy = (held.has(pkey('down', i)) ? sp * 0.7 : 0) - (held.has(pkey('up', i)) ? sp * 0.7 : 0);
         if (vx) f.face = vx > 0 ? 1 : -1;
         f.x = Math.max(f.size, Math.min(W - f.size, f.x + vx * dt)); f.y = Math.max(top, Math.min(bottom, f.y + vy * dt));
-        f.punch = Math.max(0, f.punch - dt); f.cool -= dt; f.hurt = Math.max(0, f.hurt - dt);
+        f.punch = Math.max(0, f.punch - dt); f.cool -= dt; f.hurt = Math.max(0, f.hurt - dt); f.superT = Math.max(0, f.superT - dt);
+        if (f.kbx) { f.x = Math.max(f.size, Math.min(W - f.size, f.x + f.kbx * 12 * dt)); f.kbx *= Math.max(0, 1 - 10 * dt); if (Math.abs(f.kbx) < 1) f.kbx = 0; }
       });
+      g.bursts = (g.bursts || []).map((b) => ({ ...b, t: b.t - dt })).filter((b) => b.t > 0);
       // Waves: more and tougher monsters as the score climbs.
       g.spawnT -= dt;
       const alive = g.mobs.length;
@@ -513,11 +580,12 @@
       g.mobs = g.mobs.filter((m) => m.hp > 0);
       for (const m of g.mobs) {
         m.hurt = Math.max(0, m.hurt - dt); m.atk -= dt;
+        if (m.kbx) { m.x += m.kbx * 12 * dt; m.kbx *= Math.max(0, 1 - 8 * dt); if (Math.abs(m.kbx) < 1) m.kbx = 0; continue; } // knocked back: no chasing this frame
         const targets = g.p.filter((f) => !f.down); if (!targets.length) continue;
         const t = targets.reduce((a, b) => (Math.hypot(b.x - m.x, b.y - m.y) < Math.hypot(a.x - m.x, a.y - m.y) ? b : a));
         const dx = t.x - m.x; const dy = t.y - m.y; const d = Math.hypot(dx, dy) || 1;
         if (d > m.size + t.size * 0.6) { m.x += (dx / d) * m.speed * dt; m.y += (dy / d) * m.speed * dt * 0.7; m.face = dx > 0 ? 1 : -1; }
-        else if (m.atk <= 0 && m.hurt <= 0) { m.atk = 1.1; t.hp -= 1; t.hurt = 0.4; t.x += m.face * t.size * 0.6; if (t.hp <= 0) t.down = true; }
+        else if (m.atk <= 0 && m.hurt <= 0) { m.atk = 1.1; t.hp -= 1; t.hurt = 0.4; t.kbx = m.face * t.size * 1.2; if (t.hp <= 0) t.down = true; }
       }
       g.punches = g.punches.map((p) => ({ ...p, t: p.t - dt })).filter((p) => p.t > 0);
       if (g.p.every((f) => f.down)) g.gameOver();
@@ -533,14 +601,16 @@
         ctx.globalAlpha = o.hurt > 0 ? 0.5 : (o.down ? 0.3 : 1);
         ctx.font = `${Math.round(o.size * 1.8)}px ${FONT}`;
         ctx.fillText(o.kind === 'mob' ? o.emoji : (o.i === 0 ? '🦸' : '🦸‍♀️'), 0, 0);
-        if (o.kind === 'p' && o.punch > 0) { ctx.font = `${Math.round(o.size * 1.2)}px ${FONT}`; ctx.fillText('👊', o.size * 1.1, -o.size * 0.2); }
+        if (o.kind === 'p' && o.punch > 0) { ctx.font = `${Math.round(o.size * 1.6)}px ${FONT}`; ctx.save(); ctx.rotate(-0.6 + (0.18 - o.punch) * 6); ctx.fillText('🗡️', o.size * 2.2, -o.size * 0.3); ctx.restore(); }
         ctx.restore();
       }
-      for (const p of g.punches) { ctx.fillStyle = `rgba(253,224,71,${p.t / 0.15})`; ctx.font = `bold ${Math.round(W / 40)}px ${FONT}`; ctx.fillText('POW', p.x, p.y - 30); }
+      for (const p of g.punches) { ctx.fillStyle = `rgba(253,224,71,${Math.max(0, p.t / 0.18)})`; ctx.font = `bold ${Math.round(W / 40)}px ${FONT}`; ctx.fillText('SLASH', p.x, p.y - 30); }
+      for (const b of (g.bursts || [])) { ctx.strokeStyle = `rgba(253,224,71,${b.t / 0.5})`; ctx.lineWidth = 6; ctx.beginPath(); ctx.arc(b.x, b.y, b.r * (1 - b.t / 0.5) + 10, 0, Math.PI * 2); ctx.stroke(); }
       ctx.fillStyle = '#fff'; ctx.textBaseline = 'top'; ctx.font = `bold ${Math.round(W / 30)}px ${FONT}`;
       g.p.forEach((f, i) => { ctx.textAlign = i === 0 ? 'left' : 'right'; ctx.fillText(`${i === 0 ? 'P1 ' : ''}${'❤️'.repeat(Math.max(0, f.hp))}${'🖤'.repeat(Math.max(0, 5 - f.hp))}${i === 1 ? ' P2' : ''}`, i === 0 ? 16 : W - 16, 12); });
       ctx.textAlign = 'center'; ctx.fillText(`Wave ${g.wave} · Score ${g.score}`, W / 2, 12);
-      ctx.font = `${Math.round(W / 44)}px ${FONT}`; ctx.fillStyle = '#c4b5fd'; ctx.fillText('◀ ▶ ▲ ▼ move · ● punch', W / 2, 12 + W / 26);
+      ctx.font = `${Math.round(W / 44)}px ${FONT}`; ctx.fillStyle = '#c4b5fd'; ctx.fillText('◀ ▶ ▲ ▼ move · A swing right · B swing left · X super', W / 2, 12 + W / 26);
+      g.p.forEach((f, i) => { const s = `SUPER ${'★'.repeat(f.charge)}${'☆'.repeat(3 - f.charge)} ${f.hits % 10}/10`; ctx.textAlign = i === 0 ? 'left' : 'right'; ctx.fillStyle = f.charge ? '#fde047' : '#c4b5fd'; ctx.fillText(s, i === 0 ? 16 : W - 16, 12 + W / 26); });
     },
   });
   Games.brawl.setPlayers = (p) => { MB.players = p === 2 ? 2 : 1; };

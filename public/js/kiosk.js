@@ -535,13 +535,13 @@
   }
 
   const GAME_LIST = [
-    { key: 'pacman', name: 'Pac-Man', icon: '🟡', sub: 'Swipe, arrows or a controller', fire: false },
-    { key: 'snake', name: 'Snake', icon: '🐍', sub: 'Eat apples, don’t hit the walls', fire: false },
-    { key: 'frogger', name: 'Frogger', icon: '🐸', sub: 'Hop across the road and river', fire: false },
+    { key: 'pacman', name: 'Pac-Man', icon: '🟡', sub: 'Swipe, arrows or a controller · 1 or 2 players', fire: false, players: true },
+    { key: 'snake', name: 'Snake', icon: '🐍', sub: 'Eat apples, don’t hit the walls · 2 players go head to head', fire: false, players: true },
+    { key: 'frogger', name: 'Frogger', icon: '🐸', sub: 'Hop across the road and river · player 2 freezes a lane (●, 3 shots a level)', fire: true, players: true },
     { key: 'asteroids', name: 'Asteroids', icon: '🚀', sub: '◀ ▶ steer · ▲ thrust · ▼ brake · ● shoot · 1 or 2 ships', fire: true, players: true },
     { key: 'tetris', name: 'Tetris', icon: '🧱', sub: '◀ ▶ move · ▲ rotate · ▼ drop · ● slam · B flips · 1 or 2 players', fire: true, players: true },
     { key: 'bump', name: 'Bump Battle', icon: '🥊', sub: 'Knock the other player off the platform · best of 3 · 1 or 2 players', fire: true, players: true },
-    { key: 'brawl', name: 'Monster Brawl', icon: '👾', sub: 'Punch the silly monsters · team up with 2 players', fire: true, players: true },
+    { key: 'brawl', name: 'Monster Brawl', icon: '👾', sub: 'Swords out: A swings right, B swings left, X super · team up with 2 players', fire: true, players: true },
     { key: 'pong', name: 'Pong', icon: '🏓', sub: 'First to 7 · vs the computer or 2 players', fire: false, players: true },
   ];
   const gameRate = () => (state.settings.games_free_day === state.today ? 0 : Number(state.settings.game_coins_per_minute) || 0); // 0 on a Free Games day
@@ -703,8 +703,8 @@
   // D-pad: hold-to-repeat for games that need it (Asteroids), single presses for the rest
   document.addEventListener('pointerdown', (e) => { const b = e.target.closest('[data-dir]'); const game = currentGame(); if (b && game) { e.preventDefault(); game.press(b.dataset.dir); } });
   ['pointerup', 'pointercancel', 'pointerleave'].forEach((ev) => document.addEventListener(ev, (e) => { const b = e.target.closest && e.target.closest('[data-dir]'); const game = currentGame(); if (b && game) game.release(b.dataset.dir); }));
-  const KEYMAP = { ArrowUp: 'up', ArrowDown: 'down', ArrowLeft: 'left', ArrowRight: 'right', w: 'up', s: 'down', a: 'left', d: 'right', ' ': 'fire', Enter: 'fire' };
-  const P2_KEYS = new Set(['w', 'a', 's', 'd', 'Enter']); // WASD + Enter drive player 2 in a 2-player game
+  const KEYMAP = { ArrowUp: 'up', ArrowDown: 'down', ArrowLeft: 'left', ArrowRight: 'right', w: 'up', s: 'down', a: 'left', d: 'right', ' ': 'fire', Enter: 'fire', x: 'super', q: 'super' };
+  const P2_KEYS = new Set(['w', 'a', 's', 'd', 'Enter', 'q']); // WASD + Enter drive player 2 in a 2-player game
   const keyFor = (k) => (play.players === 2 && P2_KEYS.has(k) ? `p2:${KEYMAP[k]}` : KEYMAP[k]);
   document.addEventListener('keydown', (e) => {
     const game = currentGame(); if (!game || $('#game').hidden) return;
@@ -730,8 +730,9 @@
       if (btn(15) || ax > 0.5) held.add(`${pre}right`);
       if (btn(12) || ay < -0.5) held.add(`${pre}up`);
       if (btn(13) || ay > 0.5) held.add(`${pre}down`);
-      if (btn(0)) held.add(`${pre}${play.key === 'tetris' ? 'flip' : 'fire'}`); // B (bottom button): flips the block in Tetris, fires elsewhere
-      if (btn(1) || btn(2) || btn(3)) held.add(`${pre}fire`); // A / X / Y
+      // Face buttons (standard order: 0 bottom=B, 1 right=A, 2 left=Y, 3 top=X) mean different things per game.
+      const face = play.key === 'brawl' ? { 0: 'swingL', 1: 'swingR', 2: 'fire', 3: 'super' } : play.key === 'tetris' ? { 0: 'flip', 1: 'fire', 2: 'fire', 3: 'fire' } : { 0: 'fire', 1: 'fire', 2: 'fire', 3: 'fire' };
+      for (const [n, k] of Object.entries(face)) if (btn(Number(n))) held.add(`${pre}${k}`);
       if (btn(9)) held.add('pause'); // Start
       const prev = padHeld.get(gp.index) || new Set();
       for (const k of held) if (!prev.has(k)) { if (k === 'pause') game.togglePause(); else game.press(k); }

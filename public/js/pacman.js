@@ -62,6 +62,8 @@
   let canvas; let ctx; let T = 24; let raf = 0; let last = 0; let running = false;
   let onHud = () => {};
   let game;
+  const PM = { players: 1 };
+  const PAC_COLORS = ['#ffe600', '#ff9f43'];
 
   function freshPellets() {
     const s = new Set();
@@ -72,14 +74,19 @@
   function newGame() {
     game = {
       score: 0, lives: 3, level: 1, pellets: freshPellets(), state: 'ready', stateT: 2,
-      pac: null, ghosts: [], frightT: 0, eatChain: 0, modeT: 7, mode: 'scatter', mouth: 0, tick: 0,
+      pac: null, pacs: [], ghosts: [], frightT: 0, overAt: 0, dying: null, eatChain: 0, modeT: 7, mode: 'scatter', mouth: 0, tick: 0,
       high: Number(localStorage.getItem('fc_pacman_high') || 0),
     };
     placeEntities();
   }
 
   function placeEntities() {
-    game.pac = { x: PAC_START.x, y: PAC_START.y, dir: DIRS.left, want: DIRS.left, speed: 7.5 + game.level * 0.25, moving: true };
+    const keep = game.pacs.length === PM.players ? game.pacs : Array.from({ length: PM.players }, (_, i) => ({ i, score: 0, lives: 3, out: false }));
+    game.pacs = keep.map((k, i) => {
+      const x = PM.players === 2 ? (i === 0 ? PAC_START.x - 1 : PAC_START.x + 1) : PAC_START.x;
+      return { ...k, x: blocked(x, PAC_START.y) ? PAC_START.x : x, y: PAC_START.y, dir: i === 0 ? DIRS.left : DIRS.right, want: i === 0 ? DIRS.left : DIRS.right, speed: 7.5 + game.level * 0.25, moving: true };
+    });
+    game.pac = game.pacs[0]; game.dying = null;
     game.ghosts = GHOSTS.map((g, i) => ({
       ...g, x: g.start.x, y: g.start.y, dir: i === 0 ? DIRS.left : DIRS.up, speed: 6.5 + game.level * 0.25,
       state: i === 0 ? 'out' : 'house', releaseT: g.release, door: false, bob: 0,
@@ -127,8 +134,12 @@
 
   const dist2 = (ax, ay, bx, by) => (ax - bx) ** 2 + (ay - by) ** 2;
 
+  function nearestPac(g) {
+    const alive = game.pacs.filter((p) => !p.out);
+    return alive.reduce((a, b) => (dist2(g.x, g.y, b.x, b.y) < dist2(g.x, g.y, a.x, a.y) ? b : a), alive[0] || game.pac);
+  }
   function ghostTarget(g) {
-    const p = game.pac;
+    const p = nearestPac(g);
     if (g.state === 'eyes') return DOOR_OUT;
     if (g.state === 'leaving') return DOOR_OUT;
     if (g.state === 'entering') return HOUSE;
@@ -162,10 +173,12 @@
     return best;
   }
 
-  function loseLife() {
-    game.lives -= 1;
-    if (game.lives <= 0) {
-      game.state = 'over'; game.stateT = 0;
+  function loseLife(p) {
+    p.lives -= 1; game.dying = p;
+    if (p.lives <= 0) p.out = true;
+    game.lives = game.pacs.reduce((n, q) => n + Math.max(0, q.lives), 0);
+    if (game.pacs.every((q) => q.out)) {
+      game.state = 'over'; game.stateT = 0; game.overAt = performance.now();
       if (game.score > game.high) { game.high = game.score; localStorage.setItem('fc_pacman_high', String(game.high)); }
     } else {
       game.state = 'dying'; game.stateT = 1.4;
@@ -186,17 +199,19 @@
       if (game.modeT <= 0) { game.mode = game.mode === 'scatter' ? 'chase' : 'scatter'; game.modeT = game.mode === 'scatter' ? 6 : 20; }
     }
 
-    const p = game.pac;
-    if (p.moving || pacDecide(p, Math.round(p.x), Math.round(p.y))) advance(p, dt, pacDecide);
-    // eat
-    const key = `${Math.round(p.x)},${Math.round(p.y)}`;
-    if (game.pellets.has(key)) {
-      game.pellets.delete(key);
-      const power = tileAt(Math.round(p.x), Math.round(p.y)) === 'o';
-      game.score += power ? 50 : 10;
-      if (power) { game.frightT = Math.max(3, 7 - game.level * 0.5); game.eatChain = 0; for (const g of game.ghosts) if (g.state === 'out') g.dir = { dx: -g.dir.dx, dy: -g.dir.dy }; }
-      if (game.pellets.size === 0) { game.score += 500; nextLevel(); return; }
+    for (const p of game.pacs) {
+      if (p.out) continue;
+      if (p.moving || pacDecide(p, Math.round(p.x), Math.round(p.y))) advance(p, dt, pacDecide);
+      const key = `${Math.round(p.x)},${Math.round(p.y)}`;
+      if (game.pellets.has(key)) {
+        game.pellets.delete(key);
+        const power = tileAt(Math.round(p.x), Math.round(p.y)) === 'o';
+        p.score += power ? 50 : 10;
+        if (power) { game.frightT = Math.max(3, 7 - game.level * 0.5); game.eatChain = 0; for (const g of game.ghosts) if (g.state === 'out') g.dir = { dx: -g.dir.dx, dy: -g.dir.dy }; }
+        if (game.pellets.size === 0) { p.score += 500; game.score = game.pacs.reduce((n, q) => n + q.score, 0); nextLevel(); return; }
+      }
     }
+    game.score = game.pacs.reduce((n, q) => n + q.score, 0);
 
     for (const g of game.ghosts) {
       if (g.state === 'house') {
@@ -209,19 +224,20 @@
       const base = 6.2 + game.level * 0.25;
       g.speed = g.state === 'eyes' ? 12 : frightened ? base * 0.6 : (Math.round(g.y) === 14 && (g.x < 5 || g.x > 22) ? base * 0.55 : base);
       advance(g, dt, ghostDecide);
-      // collision with pac
-      if (g.state === 'out' && dist2(g.x, g.y, p.x, p.y) < 0.6 * 0.6) {
+      // collision with a Pac
+      for (const p of game.pacs) {
+        if (p.out || g.state !== 'out' || dist2(g.x, g.y, p.x, p.y) >= 0.6 * 0.6) continue;
         if (game.frightT > 0) {
           game.eatChain += 1;
-          game.score += 200 * (2 ** (game.eatChain - 1));
+          p.score += 200 * (2 ** (game.eatChain - 1));
           g.state = 'eyes'; g.door = true;
         } else {
-          loseLife();
+          loseLife(p);
           return;
         }
       }
     }
-    if (game.score >= (game.nextLifeAt || 10000)) { game.lives += 1; game.nextLifeAt = (game.nextLifeAt || 10000) + 10000; }
+    if (game.score >= (game.nextLifeAt || 10000)) { game.pacs[0].lives += 1; game.nextLifeAt = (game.nextLifeAt || 10000) + 10000; }
     onHud(game);
   }
 
@@ -255,12 +271,18 @@
   }
 
   function drawPac() {
-    const p = game.pac;
+    for (const p of game.pacs) {
+      if (p.out && game.dying !== p) continue;
+      if (game.state === 'dying' && game.dying !== p) continue;
+      drawOnePac(p);
+    }
+  }
+  function drawOnePac(p) {
     const cx = p.x * T + T / 2; const cy = (p.y + HUD) * T + T / 2;
     const ang = Math.atan2(p.dir.dy, p.dir.dx);
     let open = game.state === 'dying' ? Math.min(Math.PI, (1.4 - game.stateT) * 2.4) : 0.15 + game.mouth * 0.65;
     if (!p.moving && game.state === 'play') open = 0.15;
-    ctx.fillStyle = '#ffe600';
+    ctx.fillStyle = PAC_COLORS[p.i] || '#ffe600';
     ctx.beginPath();
     ctx.moveTo(cx, cy);
     ctx.arc(cx, cy, T * 0.62, ang + open, ang - open + Math.PI * 2);
@@ -305,21 +327,33 @@
     ctx.fillStyle = '#fff';
     ctx.font = `bold ${T * 0.9}px "Segoe UI", system-ui, sans-serif`;
     ctx.textBaseline = 'middle';
-    ctx.textAlign = 'left'; ctx.fillText(`SCORE ${game.score}`, T * 0.5, T * 1);
-    ctx.textAlign = 'center'; ctx.fillText(`HIGH ${Math.max(game.high, game.score)}`, COLS * T / 2, T * 1);
-    ctx.textAlign = 'right'; ctx.fillText(`LEVEL ${game.level}`, COLS * T - T * 0.5, T * 1);
-    // lives (bottom-left, under the maze)
-    for (let i = 0; i < game.lives - 1; i++) {
-      const cx = T * (1 + i * 1.4); const cy = (ROWS + HUD) * T + T * 0.6;
-      ctx.fillStyle = '#ffe600'; ctx.beginPath(); ctx.moveTo(cx, cy); ctx.arc(cx, cy, T * 0.45, 0.6, Math.PI * 2 - 0.6); ctx.closePath(); ctx.fill();
+    if (game.pacs.length === 1) {
+      ctx.textAlign = 'left'; ctx.fillText(`SCORE ${game.score}`, T * 0.5, T * 1);
+      ctx.textAlign = 'center'; ctx.fillText(`HIGH ${Math.max(game.high, game.score)}`, COLS * T / 2, T * 1);
+    } else {
+      ctx.fillStyle = PAC_COLORS[0]; ctx.textAlign = 'left'; ctx.fillText(`P1 ${game.pacs[0].score}`, T * 0.5, T * 1);
+      ctx.fillStyle = PAC_COLORS[1]; ctx.textAlign = 'center'; ctx.fillText(`P2 ${game.pacs[1].score}`, COLS * T / 2, T * 1);
+      ctx.fillStyle = '#fff';
     }
+    ctx.textAlign = 'right'; ctx.fillText(`LEVEL ${game.level}`, COLS * T - T * 0.5, T * 1);
+    // lives under the maze: player 1 from the left, player 2 from the right
+    game.pacs.forEach((p, pi) => {
+      for (let i = 0; i < p.lives - 1; i++) {
+        const cx = pi === 0 ? T * (1 + i * 1.4) : COLS * T - T * (1 + i * 1.4); const cy = (ROWS + HUD) * T + T * 0.6;
+        ctx.fillStyle = PAC_COLORS[pi]; ctx.beginPath(); ctx.moveTo(cx, cy); ctx.arc(cx, cy, T * 0.45, 0.6, Math.PI * 2 - 0.6); ctx.closePath(); ctx.fill();
+      }
+    });
     if (game.state === 'ready' || game.state === 'over' || game.state === 'paused') {
       const msg = game.state === 'ready' ? (game.level === 1 && game.score === 0 ? 'READY!' : `LEVEL ${game.level}`) : game.state === 'paused' ? 'PAUSED' : 'GAME OVER';
       ctx.fillStyle = game.state === 'over' ? '#ff3b3b' : '#ffe600';
       ctx.font = `bold ${T * 1.3}px "Segoe UI", system-ui, sans-serif`;
       ctx.textAlign = 'center';
       ctx.fillText(msg, COLS * T / 2, (17 + HUD) * T + T / 2);
-      if (game.state === 'over') { ctx.font = `bold ${T * 0.8}px "Segoe UI", system-ui, sans-serif`; ctx.fillText('Tap ▶ Play again', COLS * T / 2, (19 + HUD) * T + T / 2); }
+      if (game.state === 'over') {
+        ctx.font = `bold ${T * 0.8}px "Segoe UI", system-ui, sans-serif`; ctx.fillStyle = '#fff';
+        if (game.pacs.length === 2) { const [a, b] = game.pacs; const w = a.score === b.score ? 'Draw!' : `Player ${a.score > b.score ? 1 : 2} wins!`; ctx.fillText(`${w}   P1 ${a.score} · P2 ${b.score}`, COLS * T / 2, (19 + HUD) * T + T / 2); }
+        if (performance.now() - game.overAt >= 3000) ctx.fillText('Press any button to play again', COLS * T / 2, (game.pacs.length === 2 ? 21 : 19) * T + HUD * T + T / 2);
+      }
     }
   }
 
@@ -357,16 +391,20 @@
   }
   function stop() { running = false; cancelAnimationFrame(raf); }
   function setDir(name) {
-    if (!game || !DIRS[name]) return;
-    if (game.state === 'over') { newGame(); return; }
+    if (!game) return;
+    const pi = name.startsWith('p2:') ? 1 : 0; const key = name.replace('p2:', '');
+    if (game.state === 'over') { if (performance.now() - game.overAt >= 3000) newGame(); return; }
+    if (!DIRS[key]) return;
     if (game.state === 'paused') game.state = 'play';
-    game.pac.want = DIRS[name];
-    if (!game.pac.moving) game.pac.moving = true;
+    const p = game.pacs[pi]; if (!p || p.out) return;
+    p.want = DIRS[key];
+    if (!p.moving) p.moving = true;
   }
   function togglePause() { if (!game) return; if (game.state === 'play') game.state = 'paused'; else if (game.state === 'paused') game.state = 'play'; }
-  function restart() { newGame(); }
+  function restart() { if (game && game.state === 'over' && performance.now() - game.overAt < 3000) return; newGame(); }
+  function setPlayers(p) { PM.players = p === 2 ? 2 : 1; }
 
   window.PacMan = { start, stop, setDir, togglePause, restart, get game() { return game; } };
   window.Games = window.Games || {};
-  window.Games.pacman = { start, stop, press: setDir, release() {}, togglePause, restart };
+  window.Games.pacman = { start, stop, press: setDir, release() {}, togglePause, restart, setPlayers };
 })();
