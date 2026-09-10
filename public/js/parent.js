@@ -315,6 +315,35 @@
       <p class="muted small mt">Tap a filled cell to edit that kid's copy; tap + to give the chore to another kid (same schedule, coins and time of day, editable before saving).</p>` : '<p class="muted">Tap + to add a chore.</p>'}</div>`;
   }
 
+  // Edit one chore for every kid who has it (title, schedule, time of day, coins, notes); each copy keeps its kid.
+  function choreGroupForm(cs) {
+    const c = cs[0] || {};
+    const sched = c.schedule || 'daily';
+    const days = c.days || '1111111';
+    const who = cs.map((x) => `${esc(memberById(x.member_id)?.emoji || '')} ${esc(x.member_name || 'Anyone')}`).join(', ');
+    return `<form data-form="chore-group" data-ids="${cs.map((x) => x.id).join(',')}">
+      <h2>Edit for everyone</h2>
+      <p class="muted small">Applies to ${who}. Tap a kid's cell in the matrix to change just one copy.</p>
+      <label class="field"><span>What</span><input type="text" name="title" required maxlength="80" value="${esc(c.title || '')}"></label>
+      <label class="field"><span>🪙 Coins when approved (blank = default ${Number(S.settings?.coins_per_chore ?? 2)})</span><input type="number" name="coins" step="1" min="0" inputmode="numeric" value="${c.coins != null ? c.coins : ''}"></label>
+      <div class="field"><span>When</span>
+        <div class="seg" data-seg="schedule">
+          <button type="button" data-val="daily" class="${sched === 'daily' ? 'active' : ''}">Every day</button>
+          <button type="button" data-val="weekly" class="${sched === 'weekly' ? 'active' : ''}">Certain days</button>
+          <button type="button" data-val="once" class="${sched === 'once' ? 'active' : ''}">One time</button>
+        </div><input type="hidden" name="schedule" value="${sched}"></div>
+      <div data-when="weekly" ${sched === 'weekly' ? '' : 'hidden'} class="field">
+        <div class="days" data-days>${DOW.map((d, i) => `<button type="button" data-day="${i}" class="${days[i] === '1' ? 'on' : ''}">${d[0]}</button>`).join('')}</div>
+        <input type="hidden" name="days" value="${days}"></div>
+      <div data-when="once" ${sched === 'once' ? '' : 'hidden'}><label class="field"><span>Available from (optional)</span><input type="date" name="due_date" value="${c.due_date || ''}"></label></div>
+      <label class="field"><span>Time of day</span><select name="period">
+        ${[['any', 'Anytime'], ['morning', '☀️ Morning'], ['afternoon', '🌤️ Afternoon'], ['evening', '🌙 Evening']].map(([v, l]) => `<option value="${v}" ${(c.period || 'any') === v ? 'selected' : ''}>${l}</option>`).join('')}
+      </select></label>
+      <label class="field"><span>Notes (optional)</span><input type="text" name="notes" maxlength="200" value="${esc(c.notes || '')}"></label>
+      <div class="actions"><button class="btn primary grow" type="submit">Save for everyone</button><button type="button" class="btn" data-action="close-sheet">Cancel</button></div>
+    </form>`;
+  }
+
   function choreForm(c = {}) {
     const paid = Boolean(c.paid);
     const sched = c.schedule || 'daily';
@@ -820,7 +849,7 @@
       const cs = ids.map((i) => S.allChores.find((c) => c.id === i)).filter(Boolean);
       const who = cs.map((c) => `${esc(memberById(c.member_id)?.emoji || '')} ${esc(c.member_name || 'Anyone')}`).join(', ');
       openSheet(`<h2>${esc(cs[0]?.title || 'Chore')}</h2><p class="muted small">Assigned to ${who || 'nobody'}. Tap a kid's cell in the matrix to edit or delete just their copy.</p>
-        <div class="actions"><button class="btn danger grow" type="button" data-action="delete-chore-group" data-ids="${ids.join(',')}">🗑️ Remove for everyone (${cs.length})</button><button class="btn" type="button" data-action="close-sheet">Cancel</button></div>`);
+        <div class="actions"><button class="btn primary grow" type="button" data-action="edit-chore-group" data-ids="${ids.join(',')}">✏️ Edit</button><button class="btn danger grow" type="button" data-action="delete-chore-group" data-ids="${ids.join(',')}">🗑️ Remove</button><button class="btn" type="button" data-action="close-sheet">Cancel</button></div>`);
       return;
     }
     const addChore = t.closest('[data-add-chore]');
@@ -879,6 +908,10 @@
         case 'delete-levent':
           if (!confirm('Delete this?')) return;
           await api(`/api/local-events/${id}`, { method: 'DELETE' }); closeSheet(); toast('Deleted'); render(); break;
+        case 'edit-chore-group': {
+          const cs = String(act.dataset.ids || '').split(',').map((i) => S.allChores.find((c) => c.id === Number(i))).filter(Boolean);
+          if (cs.length) openSheet(choreGroupForm(cs)); break;
+        }
         case 'delete-chore-group': {
           const ids = String(act.dataset.ids || '').split(',').filter(Boolean);
           for (const i of ids) await api(`/api/chores/${i}`, { method: 'DELETE' });
@@ -1061,6 +1094,12 @@
           if (form.dataset.id) await api(`/api/chores/${form.dataset.id}`, { method: 'PATCH', body });
           else await api('/api/chores', { method: 'POST', body });
           closeSheet(); toast('Saved'); render(); break;
+        }
+        case 'chore-group': {
+          const edits = { title: fd.get('title'), schedule: fd.get('schedule'), days: fd.get('days'), due_date: fd.get('due_date') || null, notes: fd.get('notes'), period: fd.get('period') || 'any', coins: fd.get('coins') === '' || fd.get('coins') === null ? null : parseInt(fd.get('coins'), 10) };
+          const ids = String(form.dataset.ids || '').split(',').filter(Boolean);
+          for (const i of ids) await api(`/api/chores/${i}`, { method: 'PATCH', body: edits });
+          closeSheet(); toast(`Saved for ${ids.length} kid${ids.length === 1 ? '' : 's'}`); render(); break;
         }
         case 'tx': {
           const cents = toCents(fd.get('amount'));
