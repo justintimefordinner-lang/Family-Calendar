@@ -74,7 +74,7 @@
   }
 
   function shell(title, content, actions = '') {
-    const reload = '<button class="btn small icon" data-action="reload" title="Refresh the app" aria-label="Refresh">↻</button>';
+    const reload = '<button class="btn small" data-action="update" title="Pull the latest version from GitHub and restart the Pi app">✓ Updates</button><button class="btn small icon" data-action="reload" title="Refresh the app" aria-label="Refresh">↻</button>';
     $('#app').innerHTML = `<div class="screen"><div class="topbar"><h1>${title}</h1><div class="actions" style="margin:0">${actions}${reload}</div></div>${content}</div>${tabbar()}`;
   }
 
@@ -955,6 +955,19 @@
           await api(`/api/photos/${encodeURIComponent(act.dataset.name)}`, { method: 'DELETE' }); render(); break;
         case 'logout': await api('/api/auth/logout', { method: 'POST' }); S.me.parent = false; render(); break;
         case 'reload': toast('Refreshing…'); await hardReload(); break;
+        case 'update': {
+          // Same as the display's gear button: git pull + npm install + restart on the Pi, then reload here when the new build is up.
+          act.disabled = true; act.textContent = 'Updating…';
+          let r;
+          try { r = await api('/api/system/update', { method: 'POST' }); } catch (e) { toast(e.message); act.disabled = false; act.textContent = '✓ Updates'; break; }
+          toast(r.already ? 'Already updating…' : 'Updating… this takes a minute or two');
+          const started = Date.now(); const before = build;
+          const poll = setInterval(async () => {
+            try { const s = await fetch('/api/state', { cache: 'no-store' }).then((x) => x.json()); if (s.build && s.build !== before) { clearInterval(poll); await hardReload(); return; } } catch { /* server restarting */ }
+            if (Date.now() - started > 4 * 60_000) { clearInterval(poll); act.disabled = false; act.textContent = '✓ Updates'; toast('Still waiting on the Pi — tap ↻ in a minute'); }
+          }, 3000);
+          break;
+        }
         default: break;
       }
     } catch (err) { fail(err); }
