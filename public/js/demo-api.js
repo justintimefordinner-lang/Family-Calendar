@@ -23,11 +23,13 @@
     { id: 3, name: 'Cara', role: 'kid', color: '#8b5cf6', emoji: '🎨', sort_order: 2, active: 1, aliases: '' },
     { id: 4, name: 'Dan', role: 'kid', color: '#0ea5e9', emoji: '⚽', sort_order: 3, active: 1, aliases: '' },
     { id: 5, name: 'Eve', role: 'kid', color: '#ec4899', emoji: '🌈', sort_order: 4, active: 1, aliases: '' },
+    { id: 6, name: 'Dad', role: 'parent', color: '#374151', emoji: '🧔', sort_order: 5, active: 1, aliases: '', traffic: 1 },
+    { id: 7, name: 'Mom (work)', role: 'calendar', color: '#0f766e', emoji: '💼', sort_order: 6, active: 1, aliases: '' },
   ];
   const settings = {
     family_name: 'The Example Family', timezone: Intl.DateTimeFormat().resolvedOptions().timeZone, week_start: 0,
     screensaver_minutes: 0, photo_seconds: 15, month_themes: 1, temp_unit: 'fahrenheit', weather_lat: 40.76, weather_lon: -111.89,
-    weather_label: 'Demo City', interest_monthly: 0.5, interest_day: 1, coin_name: 'Mom Coins', coins_per_chore: 2, game_coins_per_minute: 0.5,
+    weather_label: 'Demo City', interest_monthly: 10, interest_day: 1, coin_name: 'Mom Coins', coins_per_chore: 2, game_coins_per_minute: 0.5,
     games_weekday_until: '07:45', games_weekday_from: '16:00', games_weekends: 1, games_unlocked_day: '', games_free_day: '', sync_minutes: 5, ntfy_topic: '', ntfy_server: 'https://ntfy.sh',
     app_url: '', google_client_id: 'demo', google_client_secret: true, tomtom_key: true, pin_hash: true, pin_length: 4, session_secret: true,
     last_sync_at: new Date().toISOString(), google_redirect_uri: 'http://localhost:3100/api/google/callback', google_configured: true, google_env_override: false,
@@ -50,20 +52,41 @@
   completions.push({ id: nextId++, chore_id: 1, member_id: 1, date: ymd(today), status: 'approved', completed_at: nowIso() });
   completions.push({ id: nextId++, chore_id: 4, member_id: 2, date: ymd(today), status: 'pending', completed_at: nowIso() });
   let places = [{ id: 901, name: 'Home', address: '123 Maple St', emoji: '🏠', sort_order: 0 }, { id: 902, name: 'School', address: 'Jefferson Academy', emoji: '🏫', sort_order: 1 }, { id: 903, name: 'Grandma\x27s', address: '45 Oak Ave', emoji: '👵', sort_order: 2 }, { id: 904, name: 'Soccer field', address: 'Community Park', emoji: '⚽', sort_order: 3 }];
-  let routes = [{ id: 905, member_id: 1, from_place: 901, to_place: 902, created_at: nowIso() }];
+  let routes = [{ id: 905, member_id: 1, from_place: 901, to_place: 902, created_at: nowIso() }, { id: 906, member_id: 6, from_place: 901, to_place: 902, created_at: nowIso() }, { id: 907, member_id: 6, from_place: 901, to_place: 904, created_at: nowIso() }];
+  const at = (n, hm) => `${ymd(day(-n))} ${hm}:00`; // n days ago, as the server would store it
+  const prevMonth = ymd(new Date(today.getFullYear(), today.getMonth() - 1, 1)).slice(0, 7);
   const tx = [
-    { id: nextId++, member_id: 1, type: 'deposit', account: 'invested', amount_cents: 12000, note: 'Birthday money', created_at: '2026-07-01 12:00:00' },
-    { id: nextId++, member_id: 1, type: 'chore', account: 'cash', amount_cents: 500, note: 'Earned: Mow the lawn', created_at: '2026-07-20 18:10:00' },
-    { id: nextId++, member_id: 1, type: 'interest', account: 'invested', amount_cents: 50, note: 'Interest for 2026-08 (5% APR)', created_at: '2026-08-01 06:00:00' },
-    { id: nextId++, member_id: 2, type: 'deposit', account: 'cash', amount_cents: 4200, note: 'Tooth fairy', created_at: '2026-08-12 09:00:00' },
-    { id: nextId++, member_id: 5, type: 'deposit', account: 'invested', amount_cents: 2025, note: 'Grandma', created_at: '2026-08-15 09:00:00' },
+    { id: nextId++, member_id: 1, type: 'deposit', account: 'invested', amount_cents: 10000, note: 'Birthday money', created_at: at(70, '12:00') },
+    { id: nextId++, member_id: 1, type: 'chore', account: 'cash', amount_cents: 500, note: 'Earned: Wash the car', created_at: at(20, '18:10') },
+    { id: nextId++, member_id: 1, type: 'deposit', account: 'cash', amount_cents: 2000, note: 'Grandma', created_at: at(14, '09:00') },
+    { id: nextId++, member_id: 1, type: 'transfer', account: 'cash', amount_cents: -2000, note: 'Invested with Dad (30-day promise)', created_at: at(12, '17:45') },
+    { id: nextId++, member_id: 1, type: 'transfer', account: 'invested', amount_cents: 2000, note: 'Invested with Dad (30-day promise)', created_at: at(12, '17:45') },
+    { id: nextId++, member_id: 1, type: 'interest', account: 'invested', amount_cents: 1050, note: `Interest for ${prevMonth} (10% per month, pro-rated by day)`, created_at: at(today.getDate() - 1, '06:00') },
+    { id: nextId++, member_id: 2, type: 'deposit', account: 'cash', amount_cents: 4200, note: 'Tooth fairy', created_at: at(25, '09:00') },
+    { id: nextId++, member_id: 5, type: 'deposit', account: 'invested', amount_cents: 2025, note: 'Grandma', created_at: at(22, '09:00') },
+    { id: nextId++, member_id: 5, type: 'interest', account: 'invested', amount_cents: 60, note: `Interest for ${prevMonth} (10% per month, pro-rated by day)`, created_at: at(today.getDate() - 1, '06:00') },
   ];
   const coins = [
-    { id: nextId++, member_id: 1, amount: 64, note: 'Chores', created_at: '2026-08-30 08:00:00' },
-    { id: nextId++, member_id: 2, amount: 6, note: 'Chores', created_at: '2026-08-30 08:00:00' },
-    { id: nextId++, member_id: 3, amount: 9, note: 'Chores', created_at: '2026-08-30 08:00:00' },
-    { id: nextId++, member_id: 4, amount: 2, note: 'Chores', created_at: '2026-08-30 08:00:00' },
-    { id: nextId++, member_id: 5, amount: 11, note: 'Chores', created_at: '2026-08-30 08:00:00' },
+    { id: nextId++, member_id: 1, amount: 2, note: 'Make my bed', completion_id: 1, created_at: at(9, '08:10') },
+    { id: nextId++, member_id: 1, amount: 2, note: 'Feed the dog', completion_id: 1, created_at: at(9, '08:11') },
+    { id: nextId++, member_id: 1, amount: 3, note: 'Reading time', completion_id: 1, created_at: at(8, '19:30') },
+    { id: nextId++, member_id: 1, amount: -6, note: '🎮 Pac-Man · 12 min', created_at: at(7, '16:40') },
+    { id: nextId++, member_id: 1, amount: 2, note: 'Make my bed', completion_id: 1, created_at: at(6, '08:05') },
+    { id: nextId++, member_id: 1, amount: -20, note: '🎁 Pick dinner', created_at: at(5, '17:20') },
+    { id: nextId++, member_id: 1, amount: 5, note: 'Great report card', created_at: at(4, '20:00') },
+    { id: nextId++, member_id: 1, amount: 76, note: 'Chores', completion_id: 1, created_at: at(30, '08:00') },
+    { id: nextId++, member_id: 2, amount: 2, note: 'Take out trash', completion_id: 1, created_at: at(3, '08:15') },
+    { id: nextId++, member_id: 2, amount: -3, note: '🎮 Snake · 6 min', created_at: at(2, '16:50') },
+    { id: nextId++, member_id: 2, amount: 7, note: 'Chores', completion_id: 1, created_at: at(28, '08:00') },
+    { id: nextId++, member_id: 3, amount: 2, note: 'Practice piano', completion_id: 1, created_at: at(1, '15:30') },
+    { id: nextId++, member_id: 3, amount: -20, note: '🎁 Pick dinner', created_at: at(1, '17:30') },
+    { id: nextId++, member_id: 3, amount: 27, note: 'Chores', completion_id: 1, created_at: at(26, '08:00') },
+    { id: nextId++, member_id: 4, amount: 2, note: 'Water the plants', completion_id: 1, created_at: at(2, '08:20') },
+    { id: nextId++, member_id: 4, amount: -1, note: 'Grumpy at dinner', created_at: at(1, '18:40') },
+    { id: nextId++, member_id: 4, amount: 1, note: 'Chores', completion_id: 1, created_at: at(21, '08:00') },
+    { id: nextId++, member_id: 5, amount: 2, note: 'Tidy playroom', completion_id: 1, created_at: at(3, '16:00') },
+    { id: nextId++, member_id: 5, amount: -2.5, note: '🎮 Asteroids · 5 min', created_at: at(2, '17:10') },
+    { id: nextId++, member_id: 5, amount: 11.5, note: 'Chores', completion_id: 1, created_at: at(24, '08:00') },
   ];
   const meals = [{ date: ymd(day(0)), title: 'Tacos', notes: 'Ben picks toppings' }, { date: ymd(day(1)), title: 'Spaghetti', notes: null }, { date: ymd(day(3)), title: 'Pizza night', notes: null }, { date: ymd(day(5)), title: 'Grill out', notes: null }];
   let shopping = [{ id: 1, text: 'Milk', qty: 2, checked: 0 }, { id: 2, text: 'Eggs', qty: null, checked: 0 }, { id: 3, text: 'Dog food', qty: null, checked: 1 }];
@@ -79,7 +102,10 @@
     { id: 3, title: 'Pick dinner', coins: 20, emoji: '🍕', notes: null, active: 1, sort_order: 0 },
     { id: 4, title: 'Stay up 30 min later', coins: 15, emoji: '🌙', notes: 'School nights excluded', active: 1, sort_order: 0 },
   ];
-  const redemptions = [];
+  const redemptions = [
+    { id: nextId++, reward_id: 3, member_id: 3, title: 'Pick dinner', coins: 20, status: 'pending', coin_tx_id: null, created_at: at(1, '17:30'), member_name: 'Cara', member_emoji: '🎨', color: '#8b5cf6' },
+    { id: nextId++, reward_id: 3, member_id: 1, title: 'Pick dinner', coins: 20, status: 'done', coin_tx_id: null, created_at: at(5, '17:20'), member_name: 'Ava', member_emoji: '🦄', color: '#f59e0b' },
+  ];
   const evId = { n: 1 };
   const ev = (title, start, hours, memberId, isFamily, allDay = false, location = null, description = null) => {
     const end = allDay ? day(0) : null;
@@ -97,6 +123,8 @@
     ev('School picture day', day(3), 0, null, true, true),
     ev('Sleepover at Mia’s', day(4), 0, 5, false, true),
     ev('Grandma visits', day(5), 0, null, true, true),
+    ev('Dentist (Dad)', day(2, 11), 1, 6, false),
+    ev('Budget review', day(1, 13), 2, 7, false, false, 'Office'),
     ev('Swim meet', day(-1, 8), 4, 4, false, false, 'Aquatic Center', 'Bring towels and goggles'),
     ev('Late game', day(0, 22), 3, 2, false),
     ev('Camping trip', day(12), 0, null, true, true),
