@@ -253,7 +253,7 @@
     const filt = S.choreFilter ?? null;
     const chips = `<div class="chips">
       <button class="chip ${filt == null ? 'active' : ''}" data-chore-filter="">All</button>
-      ${S.members.filter((m) => m.role !== 'calendar').map((m) => `<button class="chip ${filt === m.id ? 'active' : ''}" data-chore-filter="${m.id}" style="--c:${esc(m.color)}">${esc(m.emoji)} ${esc(m.name)}</button>`).join('')}
+      ${S.members.filter((m) => m.role === 'kid').map((m) => `<button class="chip ${filt === m.id ? 'active' : ''}" data-chore-filter="${m.id}" style="--c:${esc(m.color)}">${esc(m.emoji)} ${esc(m.name)}</button>`).join('')}
     </div>`;
     const visible = (c) => filt == null || c.member_id === filt || c.member_id == null;
     const regular = all.filter((c) => !c.paid && visible(c));
@@ -263,7 +263,7 @@
       <div class="avatar" style="--c:${esc(c.member_id ? memberById(c.member_id)?.color : '#9ca3af')}">${c.member_id ? esc(memberById(c.member_id)?.emoji || '?') : '👥'}</div>
       <div class="grow"><div class="title">${esc(c.title)}</div><div class="sub">${esc(c.member_name || 'Anyone')} · ${scheduleLabel(c)}${c.period && c.period !== 'any' ? ' · ' + c.period : ''}</div></div>
       ${c.paid ? `<div class="amt">${money(c.amount_cents)}</div>` : `<div class="muted small">🪙 ${c.coins != null ? c.coins : Number(S.settings?.coins_per_chore ?? 2)}</div>`}</div>`;
-    html += choreMatrix(regular, S.members.filter((m) => m.role !== 'calendar' && (filt == null || m.id === filt)));
+    html += choreMatrix(regular, S.members.filter((m) => m.role === 'kid' && (filt == null || m.id === filt)));
     // Earn Money chores live on the Money tab.
     if (Array.isArray(removed) && removed.length) {
       html += `<details class="section"><summary>🗑️ Recently removed (${removed.length})</summary><div class="body">
@@ -361,7 +361,7 @@
       <div data-unpaid-only ${paid ? 'hidden' : ''}><label class="field"><span>🪙 Coins when approved (blank = default ${Number(S.settings?.coins_per_chore ?? 2)})</span><input type="number" name="coins" step="1" min="0" inputmode="numeric" value="${c.coins != null ? c.coins : ''}" placeholder="${Number(S.settings?.coins_per_chore ?? 2)}"></label></div>
       <label class="field"><span>Who</span><select name="member_id">
         <option value="" ${c.id && c.member_id == null ? 'selected' : ''} ${paid ? '' : 'disabled'}>Anyone — first kid to claim it</option>
-        ${S.members.filter((m) => m.role !== 'calendar').map((m) => `<option value="${m.id}" ${c.member_id === m.id ? 'selected' : ''}>${esc(m.emoji)} ${esc(m.name)}</option>`).join('')}
+        ${S.members.filter((m) => m.role === 'kid').map((m) => `<option value="${m.id}" ${c.member_id === m.id ? 'selected' : ''}>${esc(m.emoji)} ${esc(m.name)}</option>`).join('')}
       </select></label>
       <div class="field"><span>When</span>
         <div class="seg" data-seg="schedule">

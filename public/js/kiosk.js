@@ -328,7 +328,7 @@
     const preview = key !== state.today;
     const all = state.choresDate === key ? state.boardChores : null; // null until loadSide has fetched this day
     const PERIODS = [['morning', '☀️ Morning'], ['afternoon', '🌤️ Afternoon'], ['evening', '🌙 Evening'], ['any', '📋 Anytime']];
-    const cards = state.members.filter((m) => m.role !== 'calendar').map((m) => {
+    const cards = state.members.filter((m) => m.role === 'kid').map((m) => {
       const mine = (all || []).filter((c) => !c.paid && (c.member_id === m.id || (c.member_id == null && c.completed_by === m.id)));
       const done = mine.filter((c) => c.status && c.status !== 'rejected').length;
       const left = mine.length - done;
@@ -414,9 +414,11 @@
       <h3>${esc(m.emoji)} ${esc(m.name)}'s Chores <span class="meta">${choresPreview() ? `${parseYmd(state.choresDate).toLocaleDateString(LOCALE, { weekday: 'short', month: 'short', day: 'numeric' })} · preview` : `${done}/${regular.length} done · <button class="linkish" data-avatar-edit="${m.id}">🎨 change my look</button>`}</span></h3>
       ${regular.length ? list : '<p class="muted center">No chores today 🎉</p>'}
     </div>`;
+    // Grown-ups get no chore chart: their view is calendar, traffic and events.
+    if (m.role !== 'kid') html = `<div class="card accent" style="--c:${esc(m.color)}"><h3>${esc(m.emoji)} ${esc(m.name)} <span class="meta"><button class="linkish" data-avatar-edit="${m.id}">🎨 change look</button></span></h3><p class="muted">Calendar, traffic and events — no chores for grown-ups.</p></div>`;
     const mine = paid.filter((c) => c.member_id === m.id || c.completed_by === m.id);
     const pendingMine = mine.filter((c) => c.status === 'pending').length;
-    if (mine.length) {
+    if (mine.length && m.role === 'kid') {
       html += `<div class="card earn-hint" data-member-row="earn"><h3>💵 Earn Money <span class="meta">tap to open</span></h3>
         <p class="muted">${mine.length} extra chore${mine.length > 1 ? 's' : ''} for you${pendingMine ? ` · ${pendingMine} waiting for approval` : ''}</p></div>`;
     }
@@ -446,7 +448,7 @@
         ${dinner && dinner.notes ? `<small>${esc(dinner.notes)}</small>` : ''}
         ${tomorrow ? `<small>Tomorrow: ${esc(tomorrow.title)}</small>` : ''}</div></div>`;
 
-    const rows = state.members.filter((m) => m.role !== 'calendar').map((m) => {
+    const rows = state.members.filter((m) => m.role === 'kid').map((m) => {
       const mine = state.chores.filter((c) => c.member_id === m.id || (c.member_id == null && c.completed_by === m.id));
       const regular = mine.filter((c) => !c.paid);
       const done = regular.filter((c) => c.status && c.status !== 'rejected').length;
