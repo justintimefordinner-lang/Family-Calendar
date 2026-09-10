@@ -43,7 +43,8 @@
   const fail = (e) => toast(e.message || String(e), true);
 
   function fmtWhen(sqlite) {
-    return new Date(sqlite.replace(' ', 'T') + 'Z').toLocaleString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+    // Full date and time stamp, e.g. "Mon, Sep 7, 2026, 1:29 PM" (fixed en-US so phones with other locales match the display).
+    return new Date(sqlite.replace(' ', 'T') + 'Z').toLocaleString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' });
   }
 
   // ---- Sheets ----------------------------------------------------------------

@@ -935,10 +935,10 @@
     const label = { deposit: 'Deposit', withdrawal: 'Withdrawal', chore: 'Chore', interest: 'Interest', adjustment: 'Adjustment', transfer: 'Moved' };
     const acct = (t) => (t.account === 'cash' ? '💵 Cash' : '📈 Invested');
     const rows = f.transactions.map((t) => `<div class="tx">
-      <div class="n">${esc(t.note || label[t.type] || t.type)}<small>${new Date(t.created_at.replace(' ', 'T') + 'Z').toLocaleDateString(LOCALE, { month: 'short', day: 'numeric', year: 'numeric' })} · ${label[t.type] || t.type} · ${acct(t)}</small></div>
+      <div class="n">${esc(t.note || label[t.type] || t.type)}<small>${new Date(t.created_at.replace(' ', 'T') + 'Z').toLocaleString(LOCALE, { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' })} · ${label[t.type] || t.type} · ${acct(t)}</small></div>
       <div class="a ${t.amount_cents < 0 ? 'neg' : 'pos'}">${t.amount_cents < 0 ? '−' : '+'}${money(Math.abs(t.amount_cents))}</div></div>`).join('');
     const coinRows = (f.coin_transactions || []).slice(0, 15).map((t) => `<div class="tx">
-      <div class="n">${esc(t.note || 'Coins')}<small>${new Date(t.created_at.replace(' ', 'T') + 'Z').toLocaleDateString(LOCALE, { month: 'short', day: 'numeric' })}</small></div>
+      <div class="n">${esc(t.note || 'Coins')}<small>${new Date(t.created_at.replace(' ', 'T') + 'Z').toLocaleString(LOCALE, { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' })}</small></div>
       <div class="a ${t.amount < 0 ? 'neg' : 'pos'}">${t.amount < 0 ? '−' : '+'}${Math.abs(t.amount)} 🪙</div></div>`).join('');
     openModal(`<h2>${esc(m.emoji)} ${esc(m.name)}'s Money</h2>
       <div class="money2">
