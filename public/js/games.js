@@ -11,7 +11,7 @@
     const held = new Set();
     const g = { status: 'play', high: Number(localStorage.getItem(`fc_${def.key}_high`) || 0), score: 0 };
     g.gameOver = () => {
-      g.status = 'over';
+      g.status = 'over'; g.overAt = performance.now(); // results stay up for a few seconds before any button restarts
       if (g.score > g.high) { g.high = g.score; localStorage.setItem(`fc_${def.key}_high`, String(g.high)); }
     };
     function overlay() {
@@ -21,7 +21,10 @@
       ctx.font = `bold ${Math.round(W / 14)}px ${FONT}`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
       ctx.fillText(g.status === 'over' ? 'GAME OVER' : 'PAUSED', W / 2, H / 2 - W / 30);
       ctx.fillStyle = '#fff'; ctx.font = `bold ${Math.round(W / 28)}px ${FONT}`;
-      ctx.fillText(g.status === 'over' ? `Score ${g.score} · High ${g.high} · tap ▶ Play again` : 'tap ⏸ to continue', W / 2, H / 2 + W / 24);
+      const canRestart = g.status !== 'over' || performance.now() - (g.overAt || 0) >= 3000;
+      if (g.status === 'over' && Array.isArray(g.summary)) g.summary.forEach((line, i) => ctx.fillText(line, W / 2, H / 2 + W / 24 + i * (W / 22)));
+      const tail = g.status === 'over' ? (g.summary ? (H / 2 + W / 24 + g.summary.length * (W / 22)) : (H / 2 + W / 24)) : H / 2 + W / 24;
+      ctx.fillText(g.status === 'over' ? (g.summary ? '' : `Score ${g.score} · High ${g.high}`) + (canRestart ? (g.summary ? 'Press any button to play again' : ' · press any button to play again') : '') : 'tap ⏸ to continue', W / 2, tail);
     }
     function loop(ts) {
       if (!running) return;
@@ -39,21 +42,21 @@
         const ar = def.aspect || 1;
         if (W / H > ar) W = Math.floor(H * ar); else H = Math.floor(W / ar);
         canvas.width = W; canvas.height = H;
-        g.status = 'play'; held.clear();
+        g.status = 'play'; g.summary = null; held.clear();
         def.init(g, W, H);
         running = true; last = performance.now();
         cancelAnimationFrame(raf); raf = requestAnimationFrame(loop);
       },
       stop() { running = false; cancelAnimationFrame(raf); held.clear(); },
       press(k) {
-        if (g.status === 'over') { def.init(g, W, H); g.status = 'play'; return; }
+        if (g.status === 'over') { if (performance.now() - (g.overAt || 0) < 3000) return; g.summary = null; def.init(g, W, H); g.status = 'play'; return; }
         if (g.status === 'paused') g.status = 'play';
         held.add(k);
         if (def.press) def.press(g, k);
       },
       release(k) { held.delete(k); },
       togglePause() { if (g.status === 'play') g.status = 'paused'; else if (g.status === 'paused') g.status = 'play'; },
-      restart() { def.init(g, W, H); g.status = 'play'; },
+      restart() { if (g.status === 'over' && performance.now() - (g.overAt || 0) < 3000) return; g.summary = null; def.init(g, W, H); g.status = 'play'; },
     };
   }
 
@@ -321,12 +324,17 @@
       for (const b of g.boards) {
         if (b.over) continue;
         const soft = held.has(b.n === 2 ? 'p2:down' : 'down');
-        const interval = soft ? 0.05 : Math.max(0.12, 0.8 - (b.level - 1) * 0.07);
+        const gravity = Math.max(0.12, 0.8 - (b.level - 1) * 0.07);
+        const interval = soft ? Math.min(0.11, gravity / 2) : gravity; // holding down: faster fall, never a slam
         b.timer += dt; b.flash = Math.max(0, b.flash - dt);
         while (b.timer >= interval) { b.timer -= interval; ttStep(g, b); if (soft) b.score += 1; if (b.over) break; }
       }
       if (g.boards.length === 1) { g.score = g.boards[0].score; if (g.boards[0].over) g.gameOver(); }
-      else if (g.boards.some((b) => b.over)) { const alive = g.boards.find((b) => !b.over); g.winner = alive ? alive.n : null; g.score = Math.max(...g.boards.map((b) => b.score)); g.gameOver(); }
+      else if (g.boards.some((b) => b.over)) {
+        const alive = g.boards.find((b) => !b.over); g.winner = alive ? alive.n : null; g.score = Math.max(...g.boards.map((b) => b.score));
+        g.summary = [g.winner ? `Player ${g.winner} wins!` : 'Draw!', ...g.boards.map((b) => `P${b.n}: ${b.score} points · ${b.lines} lines · level ${b.level}`)];
+        g.gameOver();
+      }
     },
     draw(g, ctx, W, H) {
       ctx.fillStyle = '#0b0d14'; ctx.fillRect(0, 0, W, H);
