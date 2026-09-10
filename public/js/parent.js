@@ -308,7 +308,7 @@
     const body = PERIODS.map(([p, label]) => {
       const rs = rows.filter((g) => g.period === p).sort((a, b) => a.title.localeCompare(b.title));
       if (!rs.length) return '';
-      return `<tr class="period"><th colspan="${kids.length + 1}">${label}</th></tr>` + rs.map((g) => `<tr><th class="t">${esc(g.title)}</th>${kids.map((k) => cell(g, k)).join('')}</tr>`).join('');
+      return `<tr class="period"><th colspan="${kids.length + 1}">${label}</th></tr>` + rs.map((g) => `<tr><th class="t tappable" data-chore-group="${[...g.byKid.values()].flat().map((c) => c.id).join(',')}">${esc(g.title)}</th>${kids.map((k) => cell(g, k)).join('')}</tr>`).join('');
     }).join('');
     return `<div class="card"><h2>Regular chores <span class="meta">${chores.length}</span></h2>${dayChips}
       ${rows.length ? `<div class="matrix-wrap"><table class="matrix"><thead>${head}</thead><tbody>${body}</tbody></table></div>
@@ -814,6 +814,15 @@
     if (chip) { S.choreFilter = chip.dataset.choreFilter ? Number(chip.dataset.choreFilter) : null; render(); return; }
     const href = t.closest('[data-href]');
     if (href) { location.hash = href.dataset.href; return; }
+    const grp = t.closest('[data-chore-group]');
+    if (grp) {
+      const ids = grp.dataset.choreGroup.split(',').map(Number);
+      const cs = ids.map((i) => S.allChores.find((c) => c.id === i)).filter(Boolean);
+      const who = cs.map((c) => `${esc(memberById(c.member_id)?.emoji || '')} ${esc(c.member_name || 'Anyone')}`).join(', ');
+      openSheet(`<h2>${esc(cs[0]?.title || 'Chore')}</h2><p class="muted small">Assigned to ${who || 'nobody'}. Tap a kid's cell in the matrix to edit or delete just their copy.</p>
+        <div class="actions"><button class="btn danger grow" type="button" data-action="delete-chore-group" data-ids="${ids.join(',')}">🗑️ Remove for everyone (${cs.length})</button><button class="btn" type="button" data-action="close-sheet">Cancel</button></div>`);
+      return;
+    }
     const addChore = t.closest('[data-add-chore]');
     if (addChore) { const sib = S.allChores.find((c) => c.id === Number(addChore.dataset.addChore)) || {}; openSheet(choreForm({ ...sib, id: null, member_id: Number(addChore.dataset.kid) })); return; }
     const dayChip = t.closest('[data-chore-day]');
@@ -870,6 +879,12 @@
         case 'delete-levent':
           if (!confirm('Delete this?')) return;
           await api(`/api/local-events/${id}`, { method: 'DELETE' }); closeSheet(); toast('Deleted'); render(); break;
+        case 'delete-chore-group': {
+          const ids = String(act.dataset.ids || '').split(',').filter(Boolean);
+          for (const i of ids) await api(`/api/chores/${i}`, { method: 'DELETE' });
+          closeSheet(); toast(`Removed ${ids.length} chore${ids.length === 1 ? '' : 's'} (restore under Recently removed)`); render(); break;
+        }
+        case 'close-sheet': closeSheet(); break;
         case 'delete-chore':
           await api(`/api/chores/${id}`, { method: 'DELETE' }); closeSheet(); toast('Chore deleted'); render(); break;
         case 'approve-all': {
