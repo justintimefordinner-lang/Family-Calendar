@@ -253,6 +253,93 @@
       hud(ctx, W, H, `SCORE ${g.score}   ${'▲'.repeat(Math.max(0, g.lives))}`, `LEVEL ${g.level}  HIGH ${Math.max(g.high, g.score)}`);
     },
   });
+
+  // ---- Tetris (1 or 2 players; player 2 uses the second controller or WASD) ------------------
+  const TT = { cols: 10, rows: 20, players: 1 };
+  const TT_SHAPES = {
+    I: [[0, 1], [1, 1], [2, 1], [3, 1]], O: [[1, 0], [2, 0], [1, 1], [2, 1]], T: [[0, 1], [1, 1], [2, 1], [1, 0]],
+    S: [[1, 0], [2, 0], [0, 1], [1, 1]], Z: [[0, 0], [1, 0], [1, 1], [2, 1]], J: [[0, 0], [0, 1], [1, 1], [2, 1]], L: [[2, 0], [0, 1], [1, 1], [2, 1]],
+  };
+  const TT_COLORS = { I: '#22d3ee', O: '#fde047', T: '#c084fc', S: '#4ade80', Z: '#f87171', J: '#60a5fa', L: '#fb923c', G: '#6b7280' };
+  const ttRotate = (cells) => { const size = cells.some(([x, y]) => x === 3 || y === 3) ? 4 : 3; return cells.map(([x, y]) => [size - 1 - y, x]); };
+  function ttPiece() { const keys = Object.keys(TT_SHAPES); const t = keys[Math.floor(Math.random() * keys.length)]; return { t, cells: TT_SHAPES[t].map((c) => c.slice()), x: 3, y: -1 }; }
+  function ttFits(b, cells, x, y) {
+    return cells.every(([cx, cy]) => { const gx = x + cx; const gy = y + cy; return gx >= 0 && gx < TT.cols && gy < TT.rows && (gy < 0 || !b.grid[gy][gx]); });
+  }
+  function ttBoard(n) {
+    return { n, grid: Array.from({ length: TT.rows }, () => Array(TT.cols).fill(null)), cur: ttPiece(), next: ttPiece(), score: 0, lines: 0, level: 1, timer: 0, over: false, flash: 0 };
+  }
+  function ttLock(g, b) {
+    for (const [cx, cy] of b.cur.cells) { const gy = b.cur.y + cy; if (gy < 0) { b.over = true; return; } b.grid[gy][b.cur.x + cx] = b.cur.t; }
+    let cleared = 0;
+    for (let y = TT.rows - 1; y >= 0; y -= 1) {
+      if (b.grid[y].every(Boolean)) { b.grid.splice(y, 1); b.grid.unshift(Array(TT.cols).fill(null)); cleared += 1; y += 1; }
+    }
+    if (cleared) {
+      b.lines += cleared; b.score += [0, 100, 300, 500, 800][cleared] * b.level; b.level = 1 + Math.floor(b.lines / 10); b.flash = 0.25;
+      // Two players: clearing 2+ lines drops garbage on the other board.
+      const other = g.boards.find((x) => x !== b);
+      if (other && cleared >= 2) for (let i = 0; i < cleared - 1; i += 1) { other.grid.shift(); const row = Array(TT.cols).fill('G'); row[Math.floor(Math.random() * TT.cols)] = null; other.grid.push(row); }
+    }
+    b.cur = b.next; b.next = ttPiece();
+    if (!ttFits(b, b.cur.cells, b.cur.x, b.cur.y)) b.over = true;
+  }
+  function ttStep(g, b) { if (ttFits(b, b.cur.cells, b.cur.x, b.cur.y + 1)) b.cur.y += 1; else ttLock(g, b); }
+  Games.tetris = makeGame({
+    key: 'tetris',
+    get aspect() { return TT.players === 2 ? 1.5 : 0.75; },
+    init(g) { g.boards = Array.from({ length: TT.players }, (_, i) => ttBoard(i + 1)); g.score = 0; g.winner = null; },
+    press(g, k) {
+      const p = k.startsWith('p2:') ? 1 : 0; const key = k.replace('p2:', '');
+      const b = g.boards[p]; if (!b || b.over) return;
+      const c = b.cur;
+      if (key === 'left' && ttFits(b, c.cells, c.x - 1, c.y)) c.x -= 1;
+      else if (key === 'right' && ttFits(b, c.cells, c.x + 1, c.y)) c.x += 1;
+      else if (key === 'up') { const r = ttRotate(c.cells); for (const dx of [0, -1, 1, -2, 2]) if (ttFits(b, r, c.x + dx, c.y)) { c.cells = r; c.x += dx; break; } }
+      else if (key === 'fire') { while (ttFits(b, c.cells, c.x, c.y + 1)) { c.y += 1; b.score += 2; } ttLock(g, b); }
+    },
+    update(g, dt, held) {
+      for (const b of g.boards) {
+        if (b.over) continue;
+        const soft = held.has(b.n === 2 ? 'p2:down' : 'down');
+        const interval = soft ? 0.05 : Math.max(0.12, 0.8 - (b.level - 1) * 0.07);
+        b.timer += dt; b.flash = Math.max(0, b.flash - dt);
+        while (b.timer >= interval) { b.timer -= interval; ttStep(g, b); if (soft) b.score += 1; if (b.over) break; }
+      }
+      if (g.boards.length === 1) { g.score = g.boards[0].score; if (g.boards[0].over) g.gameOver(); }
+      else if (g.boards.some((b) => b.over)) { const alive = g.boards.find((b) => !b.over); g.winner = alive ? alive.n : null; g.score = Math.max(...g.boards.map((b) => b.score)); g.gameOver(); }
+    },
+    draw(g, ctx, W, H) {
+      ctx.fillStyle = '#0b0d14'; ctx.fillRect(0, 0, W, H);
+      const n = g.boards.length; const slotW = W / n;
+      g.boards.forEach((b, i) => {
+        const cell = Math.floor(Math.min((slotW - 90) / TT.cols, (H - 50) / TT.rows));
+        const bw = cell * TT.cols; const bh = cell * TT.rows; const ox = Math.floor(i * slotW + (slotW - bw - 70) / 2); const oy = Math.floor((H - bh) / 2) + 10;
+        ctx.fillStyle = b.flash > 0 ? '#1f2937' : '#111827'; ctx.fillRect(ox, oy, bw, bh);
+        ctx.strokeStyle = '#374151'; ctx.lineWidth = 2; ctx.strokeRect(ox - 1, oy - 1, bw + 2, bh + 2);
+        const block = (gx, gy, t, alpha = 1) => { if (gy < 0) return; ctx.globalAlpha = alpha; ctx.fillStyle = TT_COLORS[t]; ctx.fillRect(ox + gx * cell + 1, oy + gy * cell + 1, cell - 2, cell - 2); ctx.globalAlpha = 1; };
+        b.grid.forEach((row, y) => row.forEach((t, x) => { if (t) block(x, y, t); }));
+        // Ghost piece, then the falling piece
+        let gy = b.cur.y; while (ttFits(b, b.cur.cells, b.cur.x, gy + 1)) gy += 1;
+        for (const [cx, cy] of b.cur.cells) block(b.cur.x + cx, gy + cy, b.cur.t, 0.25);
+        for (const [cx, cy] of b.cur.cells) block(b.cur.x + cx, b.cur.y + cy, b.cur.t);
+        // Side panel: score, lines, level, next piece
+        const px = ox + bw + 12; ctx.fillStyle = '#fff'; ctx.textAlign = 'left'; ctx.textBaseline = 'top';
+        ctx.font = `bold ${Math.max(12, Math.round(cell * 0.7))}px ${FONT}`;
+        const lines = n === 2 ? [`P${b.n}`, `${b.score}`, `${b.lines} lines`, `Lv ${b.level}`] : [`${b.score}`, `${b.lines} lines`, `Lv ${b.level}`, `High ${g.high}`];
+        lines.forEach((s, j) => ctx.fillText(s, px, oy + j * cell * 1.1));
+        const nx = px; const ny = oy + cell * 5; const mini = Math.max(6, Math.floor(cell * 0.55));
+        ctx.fillStyle = '#9ca3af'; ctx.font = `${Math.max(10, Math.round(cell * 0.5))}px ${FONT}`; ctx.fillText('next', nx, ny - cell * 0.7);
+        for (const [cx, cy] of b.next.cells) { ctx.fillStyle = TT_COLORS[b.next.t]; ctx.fillRect(nx + cx * mini, ny + cy * mini, mini - 1, mini - 1); }
+        if (b.over && n === 2) { ctx.fillStyle = 'rgba(0,0,0,0.5)'; ctx.fillRect(ox, oy, bw, bh); }
+      });
+      if (g.status === 'over' && n === 2) {
+        ctx.fillStyle = '#ffe600'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.font = `bold ${Math.round(W / 16)}px ${FONT}`;
+        ctx.fillText(g.winner ? `Player ${g.winner} wins!` : 'Draw!', W / 2, H * 0.82);
+      }
+    },
+  });
+  Games.tetris.setPlayers = (p) => { TT.players = p === 2 ? 2 : 1; };
   const wrap = (v, max) => ((v % max) + max) % max;
   function spawnShip(g) { g.ship = { x: g.W / 2, y: g.H / 2, a: -Math.PI / 2, vx: 0, vy: 0, dead: 0, inv: 2.5, thrust: false }; }
   function makeRock(g, x, y, r) {

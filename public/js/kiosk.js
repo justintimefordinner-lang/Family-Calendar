@@ -539,6 +539,7 @@
     { key: 'snake', name: 'Snake', icon: '🐍', sub: 'Eat apples, don’t hit the walls', fire: false },
     { key: 'frogger', name: 'Frogger', icon: '🐸', sub: 'Hop across the road and river', fire: false },
     { key: 'asteroids', name: 'Asteroids', icon: '🚀', sub: '◀ ▶ steer · ▲ thrust · ▼ brake · ● shoot', fire: true },
+    { key: 'tetris', name: 'Tetris', icon: '🧱', sub: '◀ ▶ move · ▲ rotate · ▼ drop · ● slam · 1 or 2 players', fire: true },
   ];
   const gameRate = () => (state.settings.games_free_day === state.today ? 0 : Number(state.settings.game_coins_per_minute) || 0); // 0 on a Free Games day
   const coinName = () => state.settings.coin_name || 'Mom Coins';
@@ -569,7 +570,7 @@
   }
 
   // ---- Play sessions: who is playing, and coins ticking away per minute ----------------
-  const play = { key: null, memberId: null, sessionId: null, startedAt: 0, timer: null, coins: 0 };
+  const play = { key: null, memberId: null, sessionId: null, startedAt: 0, timer: null, coins: 0, players: 1 };
 
   async function openGame(key) {
     const g = GAME_LIST.find((x) => x.key === key);
@@ -589,6 +590,7 @@
     if ($('#modal').hidden) return;
     openModal(`<h2>${g.icon} ${g.name} — who's playing?</h2>
       ${rate > 0 ? `<p class="kv">Costs <b>🪙 ${rate} ${esc(coinName())}</b> per minute while the game is open.</p>` : (state.settings.games_free_day === state.today ? '<p class="kv">🎉 Free games today — no coins charged!</p>' : '')}
+      ${key === 'tetris' ? `<div class="qty-row" data-players-row><button class="btn ${play.players === 2 ? '' : 'on'}" data-players="1">1 player</button><button class="btn ${play.players === 2 ? 'on' : ''}" data-players="2">👥 2 players</button></div><p class="hint">Player 2 uses the second controller, or W A S D + Enter on a keyboard.</p>` : ''}
       <div class="kid-pick">${kids.map((m) => {
         const fin = state.finance.find((f) => f.member_id === m.id);
         const coins = fin ? (fin.coins || 0) : 0;
@@ -627,6 +629,7 @@
     const size = mobileNow
       ? { width: window.innerWidth - 24, height: Math.floor(window.innerHeight * 0.55) }
       : { height: wrap.clientHeight || (window.innerHeight - 120), width: Math.min(1100, window.innerWidth - 520) };
+    if (window.Games[key].setPlayers) window.Games[key].setPlayers(play.players); // Tetris: 1 or 2 boards
     window.Games[key].start($('#gameCanvas'), size);
     clearInterval(play.timer); clearInterval(play.hudTimer);
     if (play.sessionId) play.timer = setInterval(() => gameTick(false), 30_000);
@@ -694,14 +697,16 @@
   // D-pad: hold-to-repeat for games that need it (Asteroids), single presses for the rest
   document.addEventListener('pointerdown', (e) => { const b = e.target.closest('[data-dir]'); const game = currentGame(); if (b && game) { e.preventDefault(); game.press(b.dataset.dir); } });
   ['pointerup', 'pointercancel', 'pointerleave'].forEach((ev) => document.addEventListener(ev, (e) => { const b = e.target.closest && e.target.closest('[data-dir]'); const game = currentGame(); if (b && game) game.release(b.dataset.dir); }));
-  const KEYMAP = { ArrowUp: 'up', ArrowDown: 'down', ArrowLeft: 'left', ArrowRight: 'right', w: 'up', s: 'down', a: 'left', d: 'right', ' ': 'fire' };
+  const KEYMAP = { ArrowUp: 'up', ArrowDown: 'down', ArrowLeft: 'left', ArrowRight: 'right', w: 'up', s: 'down', a: 'left', d: 'right', ' ': 'fire', Enter: 'fire' };
+  const P2_KEYS = new Set(['w', 'a', 's', 'd', 'Enter']); // WASD + Enter drive player 2 in a 2-player game
+  const keyFor = (k) => (play.players === 2 && P2_KEYS.has(k) ? `p2:${KEYMAP[k]}` : KEYMAP[k]);
   document.addEventListener('keydown', (e) => {
     const game = currentGame(); if (!game || $('#game').hidden) return;
-    if (KEYMAP[e.key]) { e.preventDefault(); if (!e.repeat) game.press(KEYMAP[e.key]); }
+    if (KEYMAP[e.key]) { e.preventDefault(); if (!e.repeat) game.press(keyFor(e.key)); }
     if (e.key === 'p') game.togglePause();
     if (e.key === 'Escape') closeGame();
   });
-  document.addEventListener('keyup', (e) => { const game = currentGame(); if (game && KEYMAP[e.key]) game.release(KEYMAP[e.key]); });
+  document.addEventListener('keyup', (e) => { const game = currentGame(); if (game && KEYMAP[e.key]) game.release(keyFor(e.key)); });
 
   // Gamepads (USB or 2.4 GHz-dongle pads such as SNES-style controllers): any connected pad drives the
   // game. Chromium only lists a pad after a button has been pressed on it. Polled while a game is open.
@@ -709,22 +714,23 @@
   function pollGamepads() {
     const game = currentGame();
     if (!game || $('#game').hidden || !navigator.getGamepads) { if (padHeld.size) padHeld.clear(); return; }
-    for (const gp of navigator.getGamepads()) {
-      if (!gp) continue;
-      const btn = (i) => !!(gp.buttons[i] && gp.buttons[i].pressed);
+    const pads = [...navigator.getGamepads()].filter(Boolean);
+    pads.forEach((gp, i) => {
+      const btn = (n) => !!(gp.buttons[n] && gp.buttons[n].pressed);
       const ax = gp.axes[0] || 0; const ay = gp.axes[1] || 0; // some pads report the D-pad as axes
+      const pre = play.players === 2 && i > 0 ? 'p2:' : ''; // in a 2-player game the second pad is player 2
       const held = new Set();
-      if (btn(14) || ax < -0.5) held.add('left');
-      if (btn(15) || ax > 0.5) held.add('right');
-      if (btn(12) || ay < -0.5) held.add('up');
-      if (btn(13) || ay > 0.5) held.add('down');
-      if (btn(0) || btn(1) || btn(2) || btn(3)) held.add('fire'); // A / B / X / Y
+      if (btn(14) || ax < -0.5) held.add(`${pre}left`);
+      if (btn(15) || ax > 0.5) held.add(`${pre}right`);
+      if (btn(12) || ay < -0.5) held.add(`${pre}up`);
+      if (btn(13) || ay > 0.5) held.add(`${pre}down`);
+      if (btn(0) || btn(1) || btn(2) || btn(3)) held.add(`${pre}fire`); // A / B / X / Y
       if (btn(9)) held.add('pause'); // Start
       const prev = padHeld.get(gp.index) || new Set();
       for (const k of held) if (!prev.has(k)) { if (k === 'pause') game.togglePause(); else game.press(k); }
       for (const k of prev) if (!held.has(k) && k !== 'pause') game.release(k);
       padHeld.set(gp.index, held);
-    }
+    });
   }
   setInterval(pollGamepads, 16);
   window.addEventListener('gamepadconnected', (e) => console.log(`[gamepad] connected: ${e.gamepad.id}`));
@@ -1225,6 +1231,8 @@
     const trDel = t.closest('[data-tr-del]');
     if (trDel) { try { await api(`/api/traffic/routes/${trDel.dataset.trDel}`, { method: 'DELETE' }); tr.routes = tr.routes.filter((r) => r.id !== Number(trDel.dataset.trDel)); renderTraffic(); } catch (err) { alert(err.message); } return; }
     if (t.closest('[data-tr-refresh]')) { await openTraffic(tr.memberId); return; }
+    const playersBtn = t.closest('[data-players]');
+    if (playersBtn) { play.players = Number(playersBtn.dataset.players) === 2 ? 2 : 1; playersBtn.parentElement.querySelectorAll('.btn').forEach((b) => b.classList.toggle('on', b === playersBtn)); return; }
     const inv = t.closest('[data-invest]');
     if (inv) { openInvest(Number(inv.dataset.invest), Number(inv.dataset.cash)); return; }
     const invAmt = t.closest('[data-invest-amount]');
