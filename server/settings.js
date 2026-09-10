@@ -21,7 +21,8 @@ const DEFAULTS = {
   games_weekday_until: '07:45', // school days: games allowed before this time...
   games_weekday_from: '16:00',  // ...and from this time on
   games_weekends: 1,            // weekends: all day
-  games_unlocked: 0,            // parent override: games playable any time (chore + coin rules still apply)
+  games_unlocked_day: '',      // parent override: the date (YYYY-MM-DD) games are playable any time; expires at midnight
+  games_free_day: '',          // the date games cost no coins (chore rules still apply); expires at midnight
   sync_minutes: 5,
   ntfy_topic: '',            // parents subscribe to this topic in the ntfy app
   ntfy_server: 'https://ntfy.sh',
@@ -38,13 +39,13 @@ const DEFAULTS = {
 const PUBLIC_KEYS = [
   'family_name', 'timezone', 'week_start', 'screensaver_minutes', 'photo_seconds', 'month_themes',
   'temp_unit', 'weather_label', 'interest_monthly', 'interest_day', 'coin_name', 'coins_per_chore', 'game_coins_per_minute',
-  'games_weekday_until', 'games_weekday_from', 'games_weekends', 'games_unlocked', 'last_sync_at',
+  'games_weekday_until', 'games_weekday_from', 'games_weekends', 'games_unlocked_day', 'games_free_day', 'last_sync_at',
 ];
 // Settings a parent may change through PATCH /api/settings.
 const EDITABLE_KEYS = [
   'family_name', 'timezone', 'week_start', 'screensaver_minutes', 'photo_seconds', 'month_themes',
   'temp_unit', 'weather_lat', 'weather_lon', 'weather_label', 'interest_monthly',
-  'interest_day', 'coin_name', 'coins_per_chore', 'game_coins_per_minute', 'games_weekday_until', 'games_weekday_from', 'games_weekends', 'games_unlocked',
+  'interest_day', 'coin_name', 'coins_per_chore', 'game_coins_per_minute', 'games_weekday_until', 'games_weekday_from', 'games_weekends', 'games_unlocked_day', 'games_free_day',
   'sync_minutes', 'ntfy_topic', 'ntfy_server', 'app_url',
   'google_client_id', 'google_client_secret',
 ];

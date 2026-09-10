@@ -352,12 +352,15 @@ router.patch('/settings', (req, res) => {
   if (b.interest_day !== undefined && (toInt(b.interest_day) < 1 || toInt(b.interest_day) > 28)) throw new HttpError(400, 'interest_day must be 1-28');
   if (b.interest_monthly !== undefined && (Number(b.interest_monthly) < 0 || Number(b.interest_monthly) > 100)) throw new HttpError(400, 'interest_monthly must be 0-100');
   if (b.temp_unit !== undefined && !['fahrenheit', 'celsius'].includes(b.temp_unit)) throw new HttpError(400, 'temp_unit must be fahrenheit or celsius');
+  for (const k of ['games_unlocked_day', 'games_free_day']) {
+    if (b[k] !== undefined && b[k] !== '' && !isDateStr(String(b[k]))) throw new HttpError(400, `${k} must be YYYY-MM-DD or empty`);
+  }
   for (const k of ['games_weekday_until', 'games_weekday_from']) {
     if (b[k] !== undefined && !/^([01]\d|2[0-3]):[0-5]\d$/.test(String(b[k]))) throw new HttpError(400, `${k} must be HH:MM`);
   }
   db.transaction(() => {
     for (const [key, value] of Object.entries(b)) {
-      if (['week_start', 'screensaver_minutes', 'photo_seconds', 'month_themes', 'interest_day', 'coins_per_chore', 'games_weekends', 'games_unlocked', 'sync_minutes'].includes(key)) settings.set(key, toInt(value, 0));
+      if (['week_start', 'screensaver_minutes', 'photo_seconds', 'month_themes', 'interest_day', 'coins_per_chore', 'games_weekends', 'sync_minutes'].includes(key)) settings.set(key, toInt(value, 0));
       else if (['interest_monthly', 'weather_lat', 'weather_lon', 'game_coins_per_minute'].includes(key)) settings.set(key, value === null || value === '' ? null : Number(value));
       else settings.set(key, typeof value === 'string' ? value.trim() : value);
     }

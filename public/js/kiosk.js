@@ -536,13 +536,13 @@
     { key: 'frogger', name: 'Frogger', icon: '🐸', sub: 'Hop across the road and river', fire: false },
     { key: 'asteroids', name: 'Asteroids', icon: '🚀', sub: '◀ ▶ steer · ▲ thrust · ▼ brake · ● shoot', fire: true },
   ];
-  const gameRate = () => Number(state.settings.game_coins_per_minute) || 0;
+  const gameRate = () => (state.settings.games_free_day === state.today ? 0 : Number(state.settings.game_coins_per_minute) || 0); // 0 on a Free Games day
   const coinName = () => state.settings.coin_name || 'Mom Coins';
 
   // Mirrors the server's rule so the panel can show "opens at 4:00 PM" without a round trip.
   function gamesWindow(now = new Date()) {
     const s = state.settings;
-    if (Number(s.games_unlocked)) return { open: true, unlocked: true }; // a parent unlocked games from their phone (chores and coins still apply)
+    if (s.games_unlocked_day === state.today) return { open: true, unlocked: true }; // a parent unlocked games from their phone (chores and coins still apply)
     const parseHM = (v, d) => { const m = /^(\d{1,2}):(\d{2})$/.exec(String(v || '')); return m ? Number(m[1]) * 60 + Number(m[2]) : d; };
     const fmtHM = (mins) => { const h = Math.floor(mins / 60); const m = mins % 60; return `${((h + 11) % 12) + 1}:${String(m).padStart(2, '0')} ${h < 12 ? 'AM' : 'PM'}`; };
     const day = now.getDay();
@@ -557,8 +557,8 @@
   function renderSideGames() {
     const rate = gameRate();
     const win = gamesWindow();
-    $('#side').innerHTML = `<div class="card accent ${win.open ? '' : 'games-closed'}" style="--c:#111827"><h3>🎮 Games <span class="meta">${rate > 0 ? `🪙 ${rate} ${esc(coinName())} per minute` : 'free play'}</span></h3>
-      ${win.unlocked ? '<p class="games-locked">🔓 Unlocked by a parent</p>' : win.open ? '' : `<p class="games-locked">🔒 ${esc(win.reason)}</p>`}
+    $('#side').innerHTML = `<div class="card accent ${win.open ? '' : 'games-closed'}" style="--c:#111827"><h3>🎮 Games <span class="meta">${rate > 0 ? `🪙 ${rate} ${esc(coinName())} per minute` : (state.settings.games_free_day === state.today ? '🎉 Free games today!' : 'free play')}</span></h3>
+      ${win.unlocked ? `<p class="games-locked">🔓 Unlocked by a parent for today</p>` : win.open ? '' : `<p class="games-locked">🔒 ${esc(win.reason)}</p>`}
       ${GAME_LIST.map((g) => `<div class="game-card" data-game="${g.key}"><div class="icon ${g.key}">${win.open ? g.icon : '🔒'}</div><div><div class="name">${g.name}</div><span class="sub">${g.sub} · High score ${Number(localStorage.getItem(`fc_${g.key}_high`) || 0)}</span></div></div>`).join('')}
     </div>
     <p class="muted center">Morning chores done before noon, afternoon chores after — then games 😉</p>`;
@@ -584,7 +584,7 @@
     const gateFor = (id) => (ready.kids || []).find((k) => k.member_id === id) || { ok: true, missing: [] };
     if ($('#modal').hidden) return;
     openModal(`<h2>${g.icon} ${g.name} — who's playing?</h2>
-      ${rate > 0 ? `<p class="kv">Costs <b>🪙 ${rate} ${esc(coinName())}</b> per minute while the game is open.</p>` : ''}
+      ${rate > 0 ? `<p class="kv">Costs <b>🪙 ${rate} ${esc(coinName())}</b> per minute while the game is open.</p>` : (state.settings.games_free_day === state.today ? '<p class="kv">🎉 Free games today — no coins charged!</p>' : '')}
       <div class="kid-pick">${kids.map((m) => {
         const fin = state.finance.find((f) => f.member_id === m.id);
         const coins = fin ? (fin.coins || 0) : 0;

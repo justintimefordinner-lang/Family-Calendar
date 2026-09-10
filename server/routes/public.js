@@ -369,9 +369,12 @@ const coinTx = db.prepare('SELECT * FROM coin_transactions WHERE id = ?');
 const parseHM = (s, fallback) => { const m = /^(\d{1,2}):(\d{2})$/.exec(String(s || '')); return m ? Number(m[1]) * 60 + Number(m[2]) : fallback; };
 const fmtHM = (mins) => { const h = Math.floor(mins / 60); const m = mins % 60; return `${((h + 11) % 12) + 1}:${String(m).padStart(2, '0')} ${h < 12 ? 'AM' : 'PM'}`; };
 
+// Coins per minute right now: 0 on a "Free Games!" day.
+const rateToday = () => (settings.get('games_free_day') === localDate() ? 0 : Math.max(0, Number(settings.get('game_coins_per_minute')) || 0));
+
 // School days: open before `games_weekday_until` and from `games_weekday_from`; weekends all day if enabled.
 function gamesWindow(now = new Date()) {
-  if (Number(settings.get('games_unlocked'))) return { open: true, unlocked: true }; // parent override from the parent app
+  if (settings.get('games_unlocked_day') === localDate(now)) return { open: true, unlocked: true }; // parent override for today only
   const day = now.getDay();
   if (day === 0 || day === 6) {
     return Number(settings.get('games_weekends')) !== 0 ? { open: true } : { open: false, reason: 'Games are closed on weekends' };
@@ -407,7 +410,7 @@ router.post('/games/session', (req, res) => {
   const gate = choreGate(memberId);
   if (!gate.ok) throw new HttpError(403, `Finish your ${gate.period} chores first: ${gate.missing.join(', ')}`);
   const label = GAME_NAMES[req.body.game] || 'Game';
-  const rate = Math.max(0, Number(settings.get('game_coins_per_minute')) || 0);
+  const rate = rateToday();
   const coins = chores.coinBalance(memberId);
   if (rate > 0 && coins <= 0) throw new HttpError(402, `Out of ${settings.get('coin_name') || 'coins'}`);
   let id = null;
@@ -422,7 +425,7 @@ router.post('/games/session/:id/tick', (req, res) => {
   const tx = coinTx.get(toInt(req.params.id));
   if (!tx) throw new HttpError(404, 'Session not found');
   const seconds = Math.max(0, Number(req.body.seconds) || 0);
-  const rate = Math.max(0, Number(settings.get('game_coins_per_minute')) || 0);
+  const rate = rateToday();
   // Never charge past zero: cap at what the kid had before this session.
   const before = chores.coinBalance(tx.member_id) - tx.amount;
   const amount = -Math.min(Math.round((rate * seconds / 60) * 100) / 100, Math.max(0, before));

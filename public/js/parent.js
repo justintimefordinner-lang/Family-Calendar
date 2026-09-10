@@ -197,11 +197,16 @@
     if (!S.settings) S.settings = await api('/api/settings');
     let html = '';
     {
-      // Quick override for the games on the display: a one-off unlock that ignores the allowed hours.
-      const unlocked = Number(S.settings.games_unlocked) === 1;
-      html += `<div class="card"><div class="list-item" style="border-top:0"><div class="grow"><div class="title">${unlocked ? '🔓 Games unlocked' : '🎮 Games follow the schedule'}</div>
-        <div class="sub">${unlocked ? 'Playable any time until you lock them again. Chores and coins still apply.' : 'Only during the hours in Settings. Unlock for a one-off; chores and coins still apply.'}</div></div>
-        <button class="btn small ${unlocked ? '' : 'primary'}" data-action="toggle-games" data-on="${unlocked ? 1 : 0}">${unlocked ? 'Lock' : 'Unlock games'}</button></div></div>`;
+      // Quick overrides for the games on the display. Both last until midnight (or until turned off).
+      const today = ymd(new Date());
+      const unlocked = S.settings.games_unlocked_day === today;
+      const free = S.settings.games_free_day === today;
+      html += `<div class="card"><div class="list-item" style="border-top:0"><div class="grow"><div class="title">${unlocked ? '🔓 Games unlocked for today' : '🎮 Games follow the schedule'}</div>
+        <div class="sub">${unlocked ? 'Playable any time until midnight (or until you lock them). Chores and coins still apply.' : 'Only during the hours in Settings. Unlock for the rest of today; chores and coins still apply.'}</div></div>
+        <button class="btn small ${unlocked ? '' : 'primary'}" data-action="toggle-games" data-on="${unlocked ? 1 : 0}">${unlocked ? 'Lock' : 'Unlock games'}</button></div>
+        <div class="list-item"><div class="grow"><div class="title">${free ? '🎉 Free games today' : '🪙 Games cost coins'}</div>
+        <div class="sub">${free ? 'No coins charged until midnight (or until you turn this off). Chore rules still apply.' : `${Number(S.settings.game_coins_per_minute) || 0} per minute as usual. Make them free for the rest of today.`}</div></div>
+        <button class="btn small ${free ? '' : 'primary'}" data-action="toggle-free" data-on="${free ? 1 : 0}">${free ? 'Charge coins' : 'Free Games!'}</button></div></div>`;
     }
     if (pending.length) {
       // Grouped by kid, each with its own Approve all.
@@ -742,7 +747,7 @@
         <label class="field"><span>…and again from</span><input type="time" name="games_weekday_from" value="${esc(settings.games_weekday_from || '16:00')}"></label>
       </div>
       <label class="field"><span>Weekends</span><select name="games_weekends"><option value="1" ${Number(settings.games_weekends ?? 1) !== 0 ? 'selected' : ''}>Games allowed all day</option><option value="0" ${Number(settings.games_weekends ?? 1) === 0 ? 'selected' : ''}>Games closed</option></select></label>
-      <p class="muted small">Need a one-off exception? The Chores tab has an <b>Unlock games</b> button that ignores these hours until you lock them again.</p>
+      <p class="muted small">Need a one-off exception? The Chores tab has <b>Unlock games</b> (ignore these hours for the rest of today) and <b>Free Games!</b> (no coins for the rest of today) buttons.</p>
       <p class="muted small">Every chore a kid taps shows a "Great Job!" and waits for a parent's OK. Regular chores then award coins; Earn Money chores pay cash instead. Spend coins from the Money tab.</p>
       <button class="btn primary" type="submit">Save</button></form>`;
 
@@ -987,10 +992,15 @@
           const r = await api('/api/notify/test', { method: 'POST' });
           toast(`Sent. Buttons in notifications will open ${r.app_url}`); break;
         }
+        case 'toggle-free': {
+          const on = act.dataset.on === '1' ? 0 : 1;
+          await api('/api/settings', { method: 'PATCH', body: { games_free_day: on ? ymd(new Date()) : '' } });
+          S.settings = null; toast(on ? 'Free games for the rest of today!' : 'Games cost coins again'); render(); break;
+        }
         case 'toggle-games': {
           const on = act.dataset.on === '1' ? 0 : 1; // read the button, not cached settings, so a quick double-tap cannot flip it back
-          await api('/api/settings', { method: 'PATCH', body: { games_unlocked: on } });
-          S.settings = null; toast(on ? 'Games unlocked' : 'Games back on the schedule'); render(); break;
+          await api('/api/settings', { method: 'PATCH', body: { games_unlocked_day: on ? ymd(new Date()) : '' } });
+          S.settings = null; toast(on ? 'Games unlocked until midnight' : 'Games back on the schedule'); render(); break;
         }
         case 'apply-interest': {
           const r = await api('/api/finance/apply-interest', { method: 'POST' });
