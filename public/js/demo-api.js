@@ -27,7 +27,7 @@
     { id: 7, name: 'Mom (work)', role: 'calendar', color: '#0f766e', emoji: '💼', sort_order: 6, active: 1, aliases: '' },
   ];
   const settings = {
-    family_name: 'The Example Family', timezone: Intl.DateTimeFormat().resolvedOptions().timeZone, week_start: 0,
+    family_name: (q.get('family') || '').trim().slice(0, 40) || 'The Example Family', // ?family=… shows any name on the example site without storing it timezone: Intl.DateTimeFormat().resolvedOptions().timeZone, week_start: 0,
     screensaver_minutes: 0, photo_seconds: 15, month_themes: 1, temp_unit: 'fahrenheit', weather_lat: 40.76, weather_lon: -111.89,
     weather_label: 'Demo City', interest_monthly: 10, interest_day: 1, coin_name: 'Mom Coins', coins_per_chore: 2, game_coins_per_minute: 0.5,
     games_weekday_until: '07:45', games_weekday_from: '16:00', games_weekends: 1, games_unlocked_day: '', games_free_day: '', sync_minutes: 5, ntfy_topic: '', ntfy_server: 'https://ntfy.sh',
