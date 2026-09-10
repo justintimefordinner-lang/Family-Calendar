@@ -537,7 +537,7 @@
       // A swings to the right, B to the left; ● on the touch pad and Space swing the way the hero faces.
       const dir = key === 'swingR' ? 1 : key === 'swingL' ? -1 : key === 'fire' ? f.face : 0;
       if (dir && f.cool <= 0) {
-        f.punch = 0.18; f.cool = 0.3; f.swing = dir; f.face = dir;
+        f.punch = 0.18; f.cool = 0.3; f.swing = dir; // the hero keeps facing the way they run; the sword goes where the button says
         const reach = f.size * 4.8; // a sword: three times the old punch
         let landed = false;
         for (const m of g.mobs) {
@@ -601,7 +601,7 @@
         ctx.globalAlpha = o.hurt > 0 ? 0.5 : (o.down ? 0.3 : 1);
         ctx.font = `${Math.round(o.size * 1.8)}px ${FONT}`;
         ctx.fillText(o.kind === 'mob' ? o.emoji : (o.i === 0 ? '🦸' : '🦸‍♀️'), 0, 0);
-        if (o.kind === 'p' && o.punch > 0) { ctx.font = `${Math.round(o.size * 1.6)}px ${FONT}`; ctx.save(); ctx.rotate(-0.6 + (0.18 - o.punch) * 6); ctx.fillText('🗡️', o.size * 2.2, -o.size * 0.3); ctx.restore(); }
+        if (o.kind === 'p' && o.punch > 0) { ctx.font = `${Math.round(o.size * 1.6)}px ${FONT}`; ctx.save(); ctx.scale((o.swing || 1) * o.face, 1); ctx.rotate(-0.6 + (0.18 - o.punch) * 6); ctx.fillText('🗡️', o.size * 2.2, -o.size * 0.3); ctx.restore(); }
         ctx.restore();
       }
       for (const p of g.punches) { ctx.fillStyle = `rgba(253,224,71,${Math.max(0, p.t / 0.18)})`; ctx.font = `bold ${Math.round(W / 40)}px ${FONT}`; ctx.fillText('SLASH', p.x, p.y - 30); }
