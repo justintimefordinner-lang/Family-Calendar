@@ -506,3 +506,5 @@ body.mobile .qty-row .btn.on { background: var(--accent); color: #fff; border-co
 .traffic-card .tr-name { font-size: 0.95rem; }
 .traffic-card .tr-min { font-size: 1.3rem; }
 .traffic-card .tr-body { min-width: 130px; }
+.tr-route { font-size: 0.8rem; color: var(--muted); max-width: 260px; }
+.tr-route.alt { color: var(--warn); font-weight: 700; }

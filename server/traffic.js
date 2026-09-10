@@ -39,24 +39,42 @@ async function report(fromPlace, toPlace) {
   if (hit && Date.now() - hit.at < TTL) return hit.data;
   const from = await geocode(fromPlace);
   const to = await geocode(toPlace);
-  const url = `https://api.tomtom.com/routing/1/calculateRoute/${from.lat},${from.lon}:${to.lat},${to.lon}/json?key=${encodeURIComponent(apiKey())}&traffic=true&travelMode=car&computeTravelTimeFor=all&routeType=fastest`;
+  const url = `https://api.tomtom.com/routing/1/calculateRoute/${from.lat},${from.lon}:${to.lat},${to.lon}/json?key=${encodeURIComponent(apiKey())}&traffic=true&travelMode=car&computeTravelTimeFor=all&routeType=fastest&maxAlternatives=2&instructionsType=text&language=en-US`;
   const res = await fetch(url);
   if (!res.ok) await fail(res, 'TomTom routing');
   const json = await res.json();
-  const s = ((json.routes || [])[0] || {}).summary;
-  if (!s) throw new HttpError(404, 'No driving route found between those places');
-  const now = Number(s.travelTimeInSeconds) || 0;
-  const typical = Number(s.noTrafficTravelTimeInSeconds) || now;
-  const delay = Math.max(0, Number(s.trafficDelayInSeconds) || (now - typical));
+  const routes = (json.routes || []).filter((r) => r.summary);
+  if (!routes.length) throw new HttpError(404, 'No driving route found between those places');
+  // The main road(s) a route uses, from the turn-by-turn text: e.g. "I-25 / US-36".
+  const via = (r) => {
+    const seen = []; const ins = (r.guidance && r.guidance.instructions) || [];
+    for (const i of ins) for (const n of (i.roadNumbers || [])) if (n && !seen.includes(n)) seen.push(n);
+    if (!seen.length) for (const i of ins) if (i.street && !seen.includes(i.street)) seen.push(i.street);
+    return seen.slice(0, 2).join(' / ');
+  };
+  const t = (r) => Number(r.summary.travelTimeInSeconds) || 0;
+  const t0 = (r) => Number(r.summary.noTrafficTravelTimeInSeconds) || t(r);
+  const fastest = routes.reduce((a, b) => (t(b) < t(a) ? b : a));        // quickest right now, with traffic
+  const usual = routes.reduce((a, b) => (t0(b) < t0(a) ? b : a));        // the normal way when roads are clear
+  const saved = Math.round((t(usual) - t(fastest)) / 60);
+  const alternate = fastest !== usual && saved >= 3;
+  const s = fastest.summary;
+  const now = t(fastest);
+  const typical = t0(usual) || now;
+  const delay = Math.max(0, now - typical);
   const ratio = typical ? delay / typical : 0;
   const level = ratio < 0.1 ? 'clear' : ratio < 0.3 ? 'light' : ratio < 0.6 ? 'moderate' : 'heavy';
   const label = { clear: 'Clear roads', light: 'Light traffic', moderate: 'Moderate traffic', heavy: 'Heavy traffic' }[level];
+  const fastVia = via(fastest); const usualVia = via(usual);
+  const route_note = alternate
+    ? `Take the alternate route${fastVia ? ` via ${fastVia}` : ''}: ${saved} min faster than the usual way${usualVia ? ` (${usualVia})` : ''}`
+    : `Usual route${usualVia ? ` via ${usualVia}` : ''}`;
   const data = {
     minutes: Math.max(1, Math.round(now / 60)),
     typical_minutes: Math.max(1, Math.round(typical / 60)),
     delay_minutes: Math.round(delay / 60),
     miles: Math.round(((Number(s.lengthInMeters) || 0) / 1609.34) * 10) / 10,
-    level, label,
+    level, label, alternate, route_note, via: fastVia,
     checked_at: new Date().toISOString(),
   };
   cache.set(ck, { at: Date.now(), data });

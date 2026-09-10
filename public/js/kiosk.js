@@ -985,6 +985,7 @@
     let body = '<span class="tr-wait">checking…</span>';
     if (rep && rep.error) body = `<span class="tr-err">${esc(rep.error)}</span>`;
     else if (rep) body = `<span class="tr-min">${rep.minutes} min</span><span class="tr-level ${rep.level}">${esc(rep.label)}</span><span class="tr-sub">${rep.delay_minutes > 0 ? `${rep.delay_minutes} min slower than usual` : `usually ${rep.typical_minutes} min`} · ${rep.miles} mi</span>`;
+    if (rep && rep.route_note) body += `<span class="tr-route ${rep.alternate ? 'alt' : ''}">${rep.alternate ? '↪️ ' : ''}${esc(rep.route_note)}</span>`;
     return `<div class="tr-row"><div class="tr-name">${esc(r.from_emoji)} ${esc(r.from_name)} <span class="muted">→</span> ${esc(r.to_emoji)} ${esc(r.to_name)}</div><div class="tr-body">${body}</div>${withDelete ? `<button class="x" data-tr-del="${r.id}" title="Remove this route">✕</button>` : ''}</div>`;
   }
   // The side card shows the member's routes with live times, no tap needed; it refreshes with the side panel.
