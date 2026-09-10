@@ -55,12 +55,13 @@ function choresForDay(date = localDate(), memberId = null) {
 
     let completion = null;
     if (chore.schedule === 'once') {
-      completion = onceCompletions.find((c) => c.chore_id === chore.id) || null;
+      // A rejected Earn Money claim simply goes back up for grabs (no "Rejected" tag, anyone can claim again).
+      completion = onceCompletions.find((c) => c.chore_id === chore.id && !(chore.paid && c.status === 'rejected')) || null;
       // Once a one-off chore is done, it only shows on the day it was completed.
       if (completion && completion.date !== date) continue;
       if (completion && memberId != null && chore.member_id == null && completion.member_id !== memberId) continue;
     } else {
-      completion = dayCompletions.find((c) => c.chore_id === chore.id
+      completion = dayCompletions.find((c) => c.chore_id === chore.id && !(chore.paid && c.status === 'rejected')
         && (memberId == null || c.member_id === memberId)) || null;
     }
 
@@ -97,7 +98,7 @@ function complete(choreId, memberId, date = localDate()) {
   if (!isDue(chore, date)) throw new HttpError(400, 'That chore is not due today');
 
   if (chore.schedule === 'once') {
-    const existing = completionsForOnce.all().find((c) => c.chore_id === chore.id);
+    const existing = completionsForOnce.all().find((c) => c.chore_id === chore.id && c.status !== 'rejected');
     if (existing && existing.member_id !== memberId) throw new HttpError(400, `${existing.member_name} already claimed that one`);
     if (existing) return existing;
   }

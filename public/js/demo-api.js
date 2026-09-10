@@ -117,7 +117,7 @@
       if (c.member_id == null && !c.paid) continue;
       let comp;
       if (c.schedule === 'once') { comp = completions.find((k) => k.chore_id === c.id && k.status !== 'rejected'); if (comp && comp.date !== date) continue; if (comp && memberId != null && c.member_id == null && comp.member_id !== memberId) continue; }
-      else comp = completions.find((k) => k.chore_id === c.id && k.date === date && (memberId == null || k.member_id === memberId));
+      else comp = completions.find((k) => k.chore_id === c.id && k.date === date && (memberId == null || k.member_id === memberId) && !(c.paid && k.status === 'rejected'));
       const who = comp ? findMember(comp.member_id) : null;
       out.push({ id: c.id, title: c.title, notes: c.notes, member_id: c.member_id, member_name: c.member_id ? findMember(c.member_id).name : null, schedule: c.schedule, period: c.period, coins: c.paid ? 0 : coinsFor(c), paid: Boolean(c.paid), amount_cents: c.amount_cents, status: comp ? comp.status : null, completion_id: comp ? comp.id : null, completed_by: comp ? comp.member_id : null, completed_by_name: who ? who.name : null });
     }
