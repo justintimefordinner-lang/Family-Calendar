@@ -675,6 +675,178 @@
     },
   });
   Games.pong.setPlayers = (p) => { PG.players = p === 2 ? 2 : 1; };
+
+  // ---- Jump Quest: an original side-scrolling platformer (1 or 2 players, co-op) -----------------
+  // Level legend: # ground/bricks, = floating platform, o coin, e critter, ^ spikes, F flag, P start.
+  const JQ = { players: 1, rows: 13 };
+  const JQ_LEVELS = [
+    [
+      '.........................................................................................................',
+      '.........................................................................................................',
+      '...................................o.o.o.................................................................',
+      '.............................o....=====.........o.o.o...........................o.o......................',
+      '..........o.o.............=====.................=====.........o.o.o.........o.=====.o....................',
+      '.........=====.....................................................=====....=====...=====.................',
+      '...................o.o.o..............................o.o.......................................o.o.o....F',
+      '..................=======.....e.........o.o.o......=======..........e.e.............o.o.o.....=======...#',
+      '.............................====.....=======.....................=======..........=======...............#',
+      '.....................................................................................................e...#',
+      '..P........e..........e..........e.....................e.......e...........e.e...........e...........e...#',
+      '########################....###########....######^^######.....########^^^########....####################',
+      '########################....###########....##############.....####################....####################',
+    ],
+    [
+      '.........................................................................................................',
+      '..........................o.o.o..........................................................................',
+      '.........................=======.........o.o.o...................o.o.o.o.................................',
+      '...............o.o.o..........................=====.............=========.........o.o.o..................',
+      '..............=======..............o.o......................................e....=======.................',
+      '...........................o.o....=====...............o.o.o.o..........======......................o.o.o.',
+      '........o.o..............=====.......................=========.................o.o.o...........e..=======',
+      '.......=====.....e.................e.............e.............e..............=======...................F',
+      '.................====.....====.....=====...^^^..=====......................................e.............#',
+      '..........................................^^^^^..........................e.e.........................e..#',
+      '..P.....e..........e..........e...........^^^^^...........e.e...........................e...............#',
+      '#############....#########....########....^^^^^....###########^^^^^#####....########^^^^#################',
+      '#############....#########....########....#####....#################.....########################',
+    ],
+    [
+      '.........................................................................................................',
+      '......o.o.o..............................................................o.o.o.o.o.......................',
+      '.....=======.........o.o.o......o.o.o..........o.o.o...................===========.......................',
+      '....................=======....=======........=======...........o.o..........................o.o.o.......',
+      '...............................................................=====.........................=======......',
+      '..........o.o.o..........e.......e...................e.e..............o.o.o.....e....e...................',
+      '.........=======.......======..=====..............=========..........=======...======.....o.o.o.o.o......',
+      '..............................................................................................=========..F',
+      '...........e.........e.......e..........e.e.........e.......e..........e..........e.e..........e.........#',
+      '.........^^^.......^^^^^...........^^^^^^^^^.................^^^^............^^^^^^^........^^^^^^.......#',
+      '..P.....^^^^^.....^^^^^^^.........^^^^^^^^^^^...............^^^^^^..........^^^^^^^^^......^^^^^^^^......#',
+      '#####################################################################################################',
+      '#####################################################################################################',
+    ],
+  ];
+  const jqTile = (g, c, r) => (r < 0 || r >= JQ.rows || c < 0 || c >= g.cols ? (r >= JQ.rows ? '.' : '.') : (g.map[r][c] || '.'));
+  const jqSolid = (t) => t === '#' || t === '=';
+  function jqLoad(g, n) {
+    const src = JQ_LEVELS[n % JQ_LEVELS.length];
+    g.levelIndex = n; g.map = src.map((row) => row.split('')); g.cols = Math.max(...g.map.map((r) => r.length));
+    g.critters = []; g.coinsLeft = 0; g.flag = null; g.start = { c: 2, r: 10 };
+    g.map.forEach((row, r) => row.forEach((t, c) => {
+      if (t === 'P') { g.start = { c, r }; row[c] = '.'; }
+      if (t === 'e') { g.critters.push({ x: c + 0.5, y: r + 1, vx: (n % 2 ? -1 : 1) * (2.2 + Math.floor(n / JQ_LEVELS.length) * 0.6), alive: true, squish: 0 }); row[c] = '.'; }
+      if (t === 'o') g.coinsLeft += 1;
+      if (t === 'F') g.flag = { c, r };
+    }));
+    g.p.forEach((p, i) => Object.assign(p, { x: g.start.c + 0.5 + i * 0.8, y: g.start.r + 1, vx: 0, vy: 0, ground: false, face: 1, inv: 2, dead: 0 }));
+    g.camX = 0; g.banner = `LEVEL ${n + 1}`; g.bannerT = 1.5;
+  }
+  Games.jump = makeGame({
+    key: 'jump', aspect: 16 / 9,
+    init(g) {
+      g.score = 0; g.coins = 0; g.t = 0; g.won = false; g.viewCols = (16 / 9) * JQ.rows; g.camX = 0;
+      g.p = Array.from({ length: JQ.players }, (_, i) => ({ i, lives: 3, out: false }));
+      jqLoad(g, 0);
+    },
+    press(g, k) {
+      const p = k.startsWith('p2:') ? 1 : 0; const key = k.replace('p2:', '');
+      const f = g.p[p]; if (!f || f.out || f.dead > 0) return;
+      if ((key === 'up' || key === 'fire') && f.ground) { f.vy = -14.5; f.ground = false; f.jumpHold = 0.22; }
+    },
+    update(g, dt, held) {
+      g.t += dt; if (g.bannerT > 0) g.bannerT -= dt;
+      const has = (f, k) => held.has(f.i === 1 ? `p2:${k}` : k);
+      const alivePlayers = g.p.filter((f) => !f.out);
+      for (const f of alivePlayers) {
+        if (f.dead > 0) { f.dead -= dt; f.y += 6 * dt; if (f.dead <= 0) { if (f.lives <= 0) f.out = true; else Object.assign(f, { x: g.start.c + 0.5, y: g.start.r + 1, vx: 0, vy: 0, inv: 2.5 }); } continue; }
+        const acc = 34; const max = 6.5;
+        if (has(f, 'left')) { f.vx -= acc * dt; f.face = -1; } else if (has(f, 'right')) { f.vx += acc * dt; f.face = 1; } else f.vx *= Math.max(0, 1 - 12 * dt);
+        f.vx = Math.max(-max, Math.min(max, f.vx));
+        if (f.jumpHold > 0 && (has(f, 'up') || has(f, 'fire'))) { f.jumpHold -= dt; f.vy -= 22 * dt; } else f.jumpHold = 0; // hold to jump higher
+        f.vy = Math.min(22, f.vy + 34 * dt);
+        // horizontal move + walls
+        f.x += f.vx * dt;
+        const w = 0.35; const hTop = 0.85;
+        for (const r of [Math.floor(f.y - hTop), Math.floor(f.y - 0.05)]) {
+          if (f.vx > 0 && jqSolid(jqTile(g, Math.floor(f.x + w), r))) { f.x = Math.floor(f.x + w) - w - 0.001; f.vx = 0; }
+          if (f.vx < 0 && jqSolid(jqTile(g, Math.floor(f.x - w), r))) { f.x = Math.floor(f.x - w) + 1 + w + 0.001; f.vx = 0; }
+        }
+        // vertical move + floor/ceiling (platforms '=' only block from above)
+        f.y += f.vy * dt; f.ground = false;
+        const feetR = Math.floor(f.y); const under = [jqTile(g, Math.floor(f.x - w * 0.8), feetR), jqTile(g, Math.floor(f.x + w * 0.8), feetR)];
+        if (f.vy >= 0 && under.some((t) => t === '#' || (t === '=' && f.y - f.vy * dt <= feetR + 0.01))) { f.y = feetR; f.vy = 0; f.ground = true; }
+        const headR = Math.floor(f.y - hTop);
+        if (f.vy < 0 && [jqTile(g, Math.floor(f.x - w * 0.8), headR), jqTile(g, Math.floor(f.x + w * 0.8), headR)].some((t) => t === '#')) { f.y = headR + 1 + hTop; f.vy = 0; }
+        f.x = Math.max(w, Math.min(g.cols - w, f.x));
+        if (f.inv > 0) f.inv -= dt;
+        // coins, spikes, flag
+        const cc = Math.floor(f.x); const cr = Math.floor(f.y - 0.4);
+        if (jqTile(g, cc, cr) === 'o') { g.map[cr][cc] = '.'; g.coins += 1; g.score += 10; g.coinsLeft -= 1; if (g.coins % 20 === 0) f.lives += 1; }
+        if (jqTile(g, cc, Math.floor(f.y - 0.1)) === '^' && f.inv <= 0) { f.lives -= 1; f.dead = 1; f.vy = -6; }
+        if (f.y > JQ.rows + 1 && f.dead <= 0) { f.lives -= 1; f.dead = 0.4; }
+        if (g.flag && Math.abs(f.x - (g.flag.c + 0.5)) < 0.6 && !g.won) { g.won = true; g.score += 200 + g.coinsLeft * 0; g.banner = 'LEVEL CLEAR!'; g.bannerT = 1.5; setTimeout(() => { if (g.status === 'play') { g.won = false; jqLoad(g, g.levelIndex + 1); } }, 1400); }
+      }
+      // critters
+      for (const m of g.critters) {
+        if (!m.alive) { m.squish -= dt; continue; }
+        m.x += m.vx * dt;
+        const ahead = Math.floor(m.x + Math.sign(m.vx) * 0.45); const below = jqTile(g, ahead, Math.floor(m.y));
+        if (jqSolid(jqTile(g, ahead, Math.floor(m.y - 0.5))) || !jqSolid(below)) { m.vx = -m.vx; m.x += m.vx * dt * 2; }
+        for (const f of alivePlayers) {
+          if (f.dead > 0 || f.inv > 0) continue;
+          if (Math.abs(f.x - m.x) < 0.7 && Math.abs((f.y - 0.45) - (m.y - 0.4)) < 0.75) {
+            if (f.vy > 2 && f.y - 0.3 < m.y - 0.3) { m.alive = false; m.squish = 0.4; g.score += 50; f.vy = -9; }
+            else { f.lives -= 1; f.dead = 1; f.vy = -6; }
+          }
+        }
+      }
+      g.critters = g.critters.filter((m) => m.alive || m.squish > 0);
+      // camera follows the players
+      const xs = alivePlayers.filter((f) => f.dead <= 0).map((f) => f.x);
+      if (xs.length) { const target = (Math.min(...xs) + Math.max(...xs)) / 2 - g.viewCols / 2; g.camX += (Math.max(0, Math.min(g.cols - g.viewCols, target)) - g.camX) * Math.min(1, 6 * dt); }
+      if (g.p.every((f) => f.out)) { g.summary = [`Score ${g.score} · ${g.coins} coins · level ${g.levelIndex + 1}`]; g.gameOver(); }
+    },
+    draw(g, ctx, W, H) {
+      const T = H / JQ.rows; g.viewCols = W / T;
+      const sky = ctx.createLinearGradient(0, 0, 0, H); sky.addColorStop(0, '#7dd3fc'); sky.addColorStop(1, '#e0f2fe');
+      ctx.fillStyle = sky; ctx.fillRect(0, 0, W, H);
+      // distant hills
+      ctx.fillStyle = '#86efac';
+      for (let i = 0; i < 12; i += 1) { const hx = ((i * 9 - g.camX * 0.3) % (g.viewCols + 12) + g.viewCols + 12) % (g.viewCols + 12) - 6; ctx.beginPath(); ctx.arc(hx * T, H * 0.86, T * (2.5 + (i % 3)), Math.PI, 0); ctx.fill(); }
+      const c0 = Math.floor(g.camX); const c1 = Math.ceil(g.camX + g.viewCols) + 1; const ox = -g.camX * T;
+      for (let r = 0; r < JQ.rows; r += 1) for (let c = c0; c <= c1; c += 1) {
+        const t = jqTile(g, c, r); if (t === '.') continue;
+        const x = ox + c * T; const y = r * T;
+        if (t === '#') { ctx.fillStyle = r > 0 && jqTile(g, c, r - 1) !== '#' ? '#65a30d' : '#92400e'; ctx.fillRect(x, y, T + 0.5, T + 0.5); ctx.fillStyle = 'rgba(0,0,0,0.12)'; ctx.fillRect(x + 2, y + T * 0.55, T - 4, 2); }
+        else if (t === '=') { ctx.fillStyle = '#b45309'; ctx.fillRect(x, y + T * 0.15, T + 0.5, T * 0.55); ctx.fillStyle = '#f59e0b'; ctx.fillRect(x, y + T * 0.15, T + 0.5, T * 0.12); }
+        else if (t === 'o') { ctx.fillStyle = '#fbbf24'; ctx.beginPath(); ctx.ellipse(x + T / 2, y + T / 2, T * 0.28 * (0.6 + 0.4 * Math.abs(Math.sin(g.t * 4 + c))), T * 0.32, 0, 0, Math.PI * 2); ctx.fill(); ctx.strokeStyle = '#b45309'; ctx.lineWidth = 2; ctx.stroke(); }
+        else if (t === '^') { ctx.fillStyle = '#9ca3af'; ctx.beginPath(); for (let k = 0; k < 3; k += 1) { ctx.moveTo(x + (k * T) / 3, y + T); ctx.lineTo(x + (k * T) / 3 + T / 6, y + T * 0.2); ctx.lineTo(x + ((k + 1) * T) / 3, y + T); } ctx.fill(); }
+        else if (t === 'F') { ctx.fillStyle = '#e5e7eb'; ctx.fillRect(x + T * 0.45, y - T * 6, T * 0.1, T * 7); ctx.fillStyle = '#ef4444'; ctx.beginPath(); ctx.moveTo(x + T * 0.55, y - T * 6); ctx.lineTo(x + T * 1.6, y - T * 5.5); ctx.lineTo(x + T * 0.55, y - T * 5); ctx.fill(); }
+      }
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      for (const m of g.critters) {
+        ctx.save(); ctx.translate(ox + m.x * T, m.y * T - T * 0.45); if (m.vx > 0) ctx.scale(-1, 1); if (!m.alive) ctx.scale(1, 0.4);
+        ctx.font = `${Math.round(T * 0.9)}px ${FONT}`; ctx.fillText('🐢', 0, 0); ctx.restore();
+      }
+      g.p.forEach((f, i) => {
+        if (f.out || (f.inv > 0 && Math.floor(f.inv * 12) % 2 === 1)) return;
+        const x = ox + f.x * T; const y = f.y * T;
+        ctx.save(); ctx.translate(x, y); if (f.face < 0) ctx.scale(-1, 1); if (f.dead > 0) ctx.rotate(Math.PI);
+        const body = i === 0 ? '#2563eb' : '#dc2626'; const cap = i === 0 ? '#1d4ed8' : '#b91c1c';
+        ctx.fillStyle = body; ctx.beginPath(); ctx.roundRect(-T * 0.3, -T * 0.8, T * 0.6, T * 0.7, T * 0.15); ctx.fill();
+        ctx.fillStyle = '#fde68a'; ctx.beginPath(); ctx.arc(0, -T * 0.95, T * 0.26, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = cap; ctx.beginPath(); ctx.arc(0, -T * 1.02, T * 0.28, Math.PI, 0); ctx.fill(); ctx.fillRect(-T * 0.05, -T * 1.05, T * 0.45, T * 0.09);
+        ctx.fillStyle = '#111'; ctx.beginPath(); ctx.arc(T * 0.1, -T * 0.95, T * 0.04, 0, 7); ctx.fill();
+        ctx.fillStyle = '#7c2d12'; const step = f.ground && Math.abs(f.vx) > 0.5 ? Math.sin(g.t * 18) * T * 0.12 : 0; ctx.fillRect(-T * 0.28, -T * 0.12, T * 0.22, T * 0.12 + step); ctx.fillRect(T * 0.06, -T * 0.12, T * 0.22, T * 0.12 - step);
+        ctx.restore();
+      });
+      ctx.fillStyle = '#0f172a'; ctx.textBaseline = 'top'; ctx.font = `bold ${Math.round(W / 34)}px ${FONT}`;
+      ctx.textAlign = 'left'; ctx.fillText(`SCORE ${g.score}   🪙 ${g.coins}`, 14, 10);
+      ctx.textAlign = 'right'; ctx.fillText(`${g.p.map((f, i) => `${g.p.length > 1 ? `P${i + 1} ` : ''}${'❤️'.repeat(Math.max(0, f.lives))}`).join('   ')}   LEVEL ${g.levelIndex + 1}`, W - 14, 10);
+      if (g.bannerT > 0) { ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillStyle = '#fff'; ctx.strokeStyle = '#1e3a8a'; ctx.lineWidth = 6; ctx.font = `bold ${Math.round(W / 12)}px ${FONT}`; ctx.strokeText(g.banner, W / 2, H * 0.4); ctx.fillText(g.banner, W / 2, H * 0.4); }
+    },
+  });
+  Games.jump.setPlayers = (p) => { JQ.players = p === 2 ? 2 : 1; };
   const wrap = (v, max) => ((v % max) + max) % max;
   // A fresh ship for player i (0 or 1); `prev` keeps lives and score across respawns.
   function spawnShip(g, i = 0, prev = null) {

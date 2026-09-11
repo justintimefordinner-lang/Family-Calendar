@@ -543,6 +543,7 @@
     { key: 'bump', name: 'Bump Battle', icon: '🥊', sub: 'Knock the other player off the platform · best of 3 · 1 or 2 players', fire: true, players: true },
     { key: 'brawl', name: 'Monster Brawl', icon: '👾', sub: 'Swords out: A swings right, B swings left, X super · team up with 2 players', fire: true, players: true },
     { key: 'pong', name: 'Pong', icon: '🏓', sub: 'First to 7 · vs the computer or 2 players', fire: false, players: true },
+    { key: 'jump', name: 'Jump Quest', icon: '🏃', sub: 'Run, jump, stomp critters, grab coins, reach the flag · 2-player co-op', fire: true, players: true },
   ];
   const gameRate = () => (state.settings.games_free_day === state.today ? 0 : Number(state.settings.game_coins_per_minute) || 0); // 0 on a Free Games day
   const coinName = () => state.settings.coin_name || 'Mom Coins';

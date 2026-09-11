@@ -391,7 +391,7 @@ router.post('/rewards/:id/redeem', (req, res) => {
 });
 
 // ---- Games: allowed hours, and coins per minute of play --------------------
-const GAME_NAMES = { pacman: 'Pac-Man', snake: 'Snake', frogger: 'Frogger', asteroids: 'Asteroids', tetris: 'Tetris', bump: 'Bump Battle', brawl: 'Monster Brawl', pong: 'Pong' };
+const GAME_NAMES = { pacman: 'Pac-Man', snake: 'Snake', frogger: 'Frogger', asteroids: 'Asteroids', tetris: 'Tetris', bump: 'Bump Battle', brawl: 'Monster Brawl', pong: 'Pong', jump: 'Jump Quest' };
 const coinTx = db.prepare('SELECT * FROM coin_transactions WHERE id = ?');
 
 const parseHM = (s, fallback) => { const m = /^(\d{1,2}):(\d{2})$/.exec(String(s || '')); return m ? Number(m[1]) * 60 + Number(m[2]) : fallback; };
