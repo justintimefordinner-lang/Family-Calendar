@@ -156,7 +156,7 @@
   function approve(id) {
     const comp = completions.find((c) => c.id === id); if (!comp || comp.status === 'approved') return;
     const c = chores.find((x) => x.id === comp.chore_id);
-    comp.status = 'approved';
+    comp.status = 'approved'; if (c.schedule === 'once') c.active = 0; // a finished one-time chore retires itself
     if (c.paid) tx.push({ id: nextId++, member_id: comp.member_id, type: 'chore', account: 'cash', amount_cents: c.amount_cents, note: `Earned: ${c.title}`, completion_id: comp.id, created_at: nowIso() });
     else if (coinsFor(c) > 0) coins.push({ id: nextId++, member_id: comp.member_id, amount: coinsFor(c), note: c.title, completion_id: comp.id, created_at: nowIso() });
   }

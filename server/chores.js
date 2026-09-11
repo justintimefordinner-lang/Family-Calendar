@@ -134,10 +134,13 @@ function pending() {
   return pendingList.all().map((p) => ({ ...p, coins: p.paid ? 0 : coinsFor({ coins: p.chore_coins }) }));
 }
 
+// Tidy-up for older data: one-time chores that were already approved should not still be listed.
+db.prepare(`UPDATE chores SET active = 0 WHERE schedule = 'once' AND active = 1 AND id IN (SELECT chore_id FROM chore_completions WHERE status = 'approved')`).run();
+
 // Parent approves a completion: Earn Money chores credit cash, regular chores award coins.
 const approve = db.transaction((completionId) => {
   const c = db.prepare(`
-    SELECT cc.*, c.title, c.amount_cents, c.paid, c.coins FROM chore_completions cc JOIN chores c ON c.id = cc.chore_id WHERE cc.id = ?
+    SELECT cc.*, c.title, c.amount_cents, c.paid, c.coins, c.schedule FROM chore_completions cc JOIN chores c ON c.id = cc.chore_id WHERE cc.id = ?
   `).get(completionId);
   if (!c) throw new HttpError(404, 'Not found');
   if (c.status === 'approved') return c;
@@ -153,6 +156,8 @@ const approve = db.transaction((completionId) => {
         .run(c.member_id, coins, c.title, completionId);
     }
   }
+  // A one-time chore is finished once it is approved: retire it (it can be restored under Recently removed).
+  if (c.schedule === 'once') db.prepare('UPDATE chores SET active = 0 WHERE id = ?').run(c.chore_id);
   return { ...c, status: 'approved' };
 });
 
