@@ -201,7 +201,7 @@
     if (p === '/members' && method === 'POST') { const m = { id: nextId++, name: body.name, role: body.role || 'kid', color: body.color || '#4f86f7', emoji: body.emoji || '🙂', aliases: body.aliases || '', sort_order: members.length, active: 1 }; members.push(m); return m; }
     if (seg[0] === 'members' && seg[2] === 'avatar') { const m = findMember(seg[1]); if (body.emoji) m.emoji = body.emoji; if (body.color) m.color = body.color; return m; }
     if (seg[0] === 'members' && method === 'PATCH') { const m = findMember(seg[1]); Object.assign(m, { name: body.name ?? m.name, role: body.role ?? m.role, color: body.color ?? m.color, emoji: body.emoji ?? m.emoji, aliases: body.aliases ?? m.aliases, active: body.active === undefined ? m.active : (body.active ? 1 : 0) }); return m; }
-    if (seg[0] === 'members' && method === 'DELETE') { const m = findMember(seg[1]); if (m) m.active = 0; return { ok: true }; }
+    if (seg[0] === 'members' && method === 'DELETE') { const i = members.findIndex((m) => m.id === num(seg[1])); if (i >= 0) members.splice(i, 1); return { ok: true }; }
     if (p === '/events') {
       const from = new Date(`${query.get('from') || ymd(today)}T00:00:00`).getTime(); const to = new Date(`${query.get('to') || query.get('from') || ymd(today)}T00:00:00`).getTime() + 86_400_000;
       return [...events.filter((e) => e.end_ts > from && e.start_ts < to), ...localOccurrences(from, to)].map((e) => ({ ...e, member_ids: nameMatch(e.title) })).sort((a, b) => (b.all_day - a.all_day) || (a.start_ts - b.start_ts));

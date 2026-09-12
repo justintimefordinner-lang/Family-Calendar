@@ -56,7 +56,9 @@ router.patch('/members/:id', (req, res) => {
 
 // Soft delete keeps chore history and money ledgers intact.
 router.delete('/members/:id', (req, res) => {
-  db.prepare('UPDATE members SET active = 0 WHERE id = ?').run(toInt(req.params.id));
+  // Removes the member for good; chores, completions, money, coins, prizes and routes go with them (FK cascades),
+  // calendars and events they owned become family-wide. To merely hide someone, PATCH active = 0 instead.
+  db.prepare('DELETE FROM members WHERE id = ?').run(toInt(req.params.id));
   res.json({ ok: true });
 });
 

@@ -862,7 +862,7 @@
       <label class="field"><span>Nicknames / abbreviations for calendar matching (comma-separated)</span><input type="text" name="aliases" maxlength="200" value="${esc(m.aliases || '')}" placeholder="e.g. Pip, Pipes"></label>
       <p class="muted small">Events show for this member when the title contains their name or a nickname, or starts with their initial (“${esc((m.name || 'P').charAt(0).toUpperCase())} soccer”, “${esc((m.name || 'P').charAt(0).toUpperCase())} - dentist”).</p>
       ${m.id ? `<label class="field inline"><span>Show on the display</span><input type="checkbox" name="active" ${m.active ? 'checked' : ''}></label>` : ''}
-      <div class="actions"><button class="btn primary grow" type="submit">Save</button></div></form>`;
+      <div class="actions"><button class="btn primary grow" type="submit">Save</button>${m.id ? `<button type="button" class="btn danger" data-action="delete-member" data-id="${m.id}" data-name="${esc(m.name || '')}">Remove</button>` : ''}</div></form>`;
   }
 
   // ---- Event handling --------------------------------------------------------
@@ -980,6 +980,9 @@
         case 'new-earn-chore': openSheet(choreForm({ paid: true, member_id: null })); break;
         case 'restore-chore': await api(`/api/chores/${id}/restore`, { method: 'POST' }); toast('Restored'); render(); break;
         case 'new-levent': openSheet(leventForm()); break;
+        case 'delete-member':
+          if (!confirm(`Remove ${act.dataset.name || 'this member'} from the family? Their chores, money, coins and prizes are deleted too. This cannot be undone.`)) return;
+          await api(`/api/members/${id}`, { method: 'DELETE' }); closeSheet(); toast('Removed'); S.members = null; await loadMembers(); render(); break;
         case 'delete-levent':
           if (!confirm('Delete this?')) return;
           await api(`/api/local-events/${id}`, { method: 'DELETE' }); closeSheet(); toast('Deleted'); render(); break;
