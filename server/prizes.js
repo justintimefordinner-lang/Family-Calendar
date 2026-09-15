@@ -13,6 +13,7 @@ const DEFAULT_PRIZES = [
   { emoji: '🎬', title: 'Pick the family movie', coins: 25 },
   { emoji: '🎲', title: 'Pick game night', coins: 20 },
   { emoji: '🍰', title: 'Dessert first', coins: 12, notes: 'Dessert before dinner, one time' },
+  { emoji: '💵', title: 'One Dollar Bill', coins: 35, notes: 'Real money: a parent hands you $1' },
 ];
 
 function seedDefaults() {
@@ -29,4 +30,11 @@ function seedDefaults() {
   return added;
 }
 
-module.exports = { DEFAULT_PRIZES, seedDefaults };
+// Added later than the first-run seed, so make sure existing installs get it too.
+function ensureDollarBill() {
+  if (db.prepare('SELECT 1 FROM rewards WHERE lower(title) = lower(?)').get('One Dollar Bill')) return;
+  const next = (db.prepare('SELECT COALESCE(MAX(sort_order), -1) + 1 AS n FROM rewards').get()).n;
+  db.prepare('INSERT INTO rewards(title, coins, emoji, notes, sort_order) VALUES(?, ?, ?, ?, ?)').run('One Dollar Bill', 35, '💵', 'Real money: a parent hands you ', next);
+}
+
+module.exports = { DEFAULT_PRIZES, seedDefaults, ensureDollarBill };

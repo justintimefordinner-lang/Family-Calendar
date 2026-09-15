@@ -499,6 +499,7 @@
         <div><small>✅ Chores</small><b class="pos">+${n(k.chores)}</b></div>
         <div><small>🎮 Games</small><b class="${k.games ? 'neg' : ''}">${k.games ? '−' + n(-k.games) : '0'}</b></div>
         <div><small>🎁 Prizes</small><b class="${k.prizes ? 'neg' : ''}">${k.prizes ? '−' + n(-k.prizes) : '0'}</b></div>
+        <div><small>💵 Cash-in</small><b class="${k.cashin ? 'neg' : ''}">${k.cashin ? '−' + n(-k.cashin) : '0'}</b></div>
         <div><small>👩‍👧 Parent</small><b class="${k.parent < 0 ? 'neg' : k.parent > 0 ? 'pos' : ''}">${k.parent ? signed(k.parent) : '0'}</b></div>
       </div>${(() => { const last = h.transactions.find((t) => t.member_id === k.member_id); return last ? `<div class="muted small" style="margin-top:8px">Last activity: ${fmtWhen(last.created_at)} · ${esc(last.note || 'Coins')}</div>` : ''; })()}</div>`).join('');
     const list = h.transactions.map((t) => `<div class="list-item tx">
@@ -791,6 +792,7 @@
       <div class="row2">
         <label class="field"><span>Name of the reward points</span><input type="text" name="coin_name" maxlength="30" value="${esc(settings.coin_name)}" placeholder="Mom Coins"></label>
         <label class="field"><span>Coins per approved chore</span><input type="number" name="coins_per_chore" min="0" max="100" value="${settings.coins_per_chore}"></label>
+        <label class="field"><span>Coins per dollar when kids cash in (0 = off)</span><input type="number" name="coins_per_dollar" min="0" max="10000" value="${settings.coins_per_dollar ?? 35}"></label>
       </div>
       <label class="field"><span>🎮 Games on the display cost (coins per minute, 0 = free)</span><input type="number" name="game_coins_per_minute" min="0" max="100" step="0.1" inputmode="decimal" value="${settings.game_coins_per_minute ?? 0.5}"></label>
       <div class="row2">

@@ -965,7 +965,7 @@
         <div><div class="lbl">📈 Invested</div><div class="balance">${money(f.invested_cents || 0)}</div></div>
         <div class="coins"><div class="lbl">🪙 ${esc(f.coin_name || 'Mom Coins')}</div><div class="balance">${wholeCoins(f.coins)}</div></div>
       </div>
-      ${f.cash_cents > 0 && m && m.role === 'kid' ? `<div class="kid-pick" style="margin-top:12px"><button class="btn primary-btn" data-invest="${memberId}" data-cash="${f.cash_cents}">📈 Invest with Dad</button></div>` : ''}
+      ${m && m.role === 'kid' && (f.cash_cents > 0 || (cashRate() > 0 && (f.coins || 0) >= cashRate())) ? `<div class="kid-pick" style="margin-top:12px">${f.cash_cents > 0 ? `<button class="btn primary-btn" data-invest="${memberId}" data-cash="${f.cash_cents}">📈 Invest with Dad</button>` : ''}${cashRate() > 0 && (f.coins || 0) >= cashRate() ? `<button class="btn primary-btn" data-cashin="${memberId}" data-coins="${f.coins || 0}">🪙 → 💵 Cash in coins</button>` : ''}</div>` : ''}
       <div class="hint center">${f.interest_monthly > 0 ? `Invested with Dad earns ${f.interest_monthly}% a month, paid on day ${f.interest_day} for the days the money was there` : 'Invested with Dad'}</div>
       <div style="margin-top:16px">${rows || '<p class="muted center">No activity yet</p>'}</div>
       ${coinRows ? `<h3 style="margin-top:18px">🪙 ${esc(f.coin_name || 'Mom Coins')}</h3>${coinRows}` : ''}`);
@@ -1056,6 +1056,31 @@
         try { tr.reports[route.id] = await api(`/api/traffic/report?from=${route.from_place}&to=${route.to_place}`); } catch (err) { tr.reports[route.id] = { error: err.message }; }
         if (!$('#modal').hidden) renderTraffic();
       }
+    } catch (err) { alert(err.message); }
+  }
+
+  // Kids turn coins into cash themselves (whole dollars, at the parent's coins-per-dollar rate).
+  const cashRate = () => Math.max(0, Math.floor(Number(state.settings.coins_per_dollar) || 0));
+  function openCashIn(memberId, coins) {
+    const m = memberById(memberId); const rate = cashRate();
+    const maxDollars = rate > 0 ? Math.floor(coins / rate) : 0;
+    if (maxDollars < 1) { openModal(`<h2>🪙 → 💵 Cash in coins</h2><p class="kv">You need <b>${rate}</b> ${esc(coinName())} for $1 and have <b>${wholeCoins(coins)}</b>. Keep going!</p><div class="kid-pick"><button class="btn" data-close>OK</button></div>`); return; }
+    const options = [1, 2, 5, 10, 20].filter((d) => d < maxDollars);
+    const btn = (d) => `<button class="btn" data-cashin-amount="${d}" data-kid="${memberId}">${money(d * 100)}<small class="sub">${d * rate} coins</small></button>`;
+    openModal(`<h2>🪙 → 💵 Cash in coins</h2><p class="kv">${esc(m ? m.name : '')}, you have <b>${wholeCoins(coins)}</b> ${esc(coinName())}. Every <b>${rate}</b> coins is <b>$1</b>. How much do you want?</p>
+      <div class="qty-row">${options.map(btn).join('')}<button class="btn" data-cashin-amount="${maxDollars}" data-kid="${memberId}">All I can (${money(maxDollars * 100)})<small class="sub">${maxDollars * rate} coins</small></button></div>
+      <div class="kid-pick"><button class="btn" data-close>Not now</button></div>`);
+  }
+  function confirmCashIn(memberId, dollars) {
+    const rate = cashRate();
+    openModal(`<h2>💵 Sure?</h2><p class="kv">Turn <b>${dollars * rate}</b> ${esc(coinName())} into <b>${money(dollars * 100)}</b> cash?</p><p class="kv">Coins spent here can't be turned back into coins.</p>
+      <div class="kid-pick"><button class="btn primary-btn" data-cashin-go="${dollars}" data-kid="${memberId}">💵 Yes, cash in</button><button class="btn" data-close>Never mind</button></div>`);
+  }
+  async function doCashIn(memberId, dollars) {
+    try {
+      const r = await api(`/api/finance/${memberId}/cash-in`, { method: 'POST', body: { dollars } });
+      openModal(`<h2>💰 Ka-ching!</h2><p class="kv"><b>${money(dollars * 100)}</b> added to your cash.</p><p class="kv">💵 Cash: <b>${money(r.cash_cents)}</b> · 🪙 ${esc(coinName())}: <b>${wholeCoins(r.coins)}</b></p><div class="kid-pick"><button class="btn" data-close>OK</button></div>`);
+      await loadSide();
     } catch (err) { alert(err.message); }
   }
 
@@ -1242,6 +1267,12 @@
     if (t.closest('[data-tr-refresh]')) { await openTraffic(tr.memberId); return; }
     const playersBtn = t.closest('[data-players]');
     if (playersBtn) { play.players = Number(playersBtn.dataset.players) === 2 ? 2 : 1; playersBtn.parentElement.querySelectorAll('.btn').forEach((b) => b.classList.toggle('on', b === playersBtn)); return; }
+    const cashBtn = t.closest('[data-cashin]');
+    if (cashBtn) { openCashIn(Number(cashBtn.dataset.cashin), Number(cashBtn.dataset.coins)); return; }
+    const cashAmt = t.closest('[data-cashin-amount]');
+    if (cashAmt) { confirmCashIn(Number(cashAmt.dataset.kid), Number(cashAmt.dataset.cashinAmount)); return; }
+    const cashGo = t.closest('[data-cashin-go]');
+    if (cashGo) { await doCashIn(Number(cashGo.dataset.kid), Number(cashGo.dataset.cashinGo)); return; }
     const inv = t.closest('[data-invest]');
     if (inv) { openInvest(Number(inv.dataset.invest), Number(inv.dataset.cash)); return; }
     const invAmt = t.closest('[data-invest-amount]');

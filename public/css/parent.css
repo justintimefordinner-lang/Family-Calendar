@@ -149,7 +149,7 @@ details.section .body { padding: 0 16px 16px; }
 .toast.err { background: var(--bad); }
 
 /* Coin history */
-.coin-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; text-align: center; }
+.coin-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; text-align: center; }
 .coin-grid small { display: block; color: var(--muted); font-size: 0.75rem; margin-bottom: 2px; }
 .coin-grid b { font-size: 1.15rem; }
 .coin-grid .pos, .meta.pos { color: var(--good, #16a34a); }

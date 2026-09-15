@@ -159,7 +159,7 @@ router.post('/coins/:memberId', (req, res) => {
 });
 
 // Where the coins went: per-kid totals by kind plus every transaction in the period.
-const coinKind = (t) => (t.completion_id ? 'chores' : /^🎮/.test(t.note || '') ? 'games' : /^🎁/.test(t.note || '') ? 'prizes' : 'parent');
+const coinKind = (t) => (t.completion_id ? 'chores' : /^🎮/.test(t.note || '') ? 'games' : /^🎁/.test(t.note || '') ? 'prizes' : /^💵/.test(t.note || '') ? 'cashin' : 'parent');
 router.get('/coins/history', (req, res) => {
   const days = Math.min(365, Math.max(1, toInt(req.query.days, 30)));
   const rows = db.prepare(`
@@ -168,7 +168,7 @@ router.get('/coins/history', (req, res) => {
     WHERE ct.created_at >= datetime('now', ?) ORDER BY ct.created_at DESC, ct.id DESC`).all(`-${days} days`);
   const kids = new Map();
   for (const t of rows) {
-    if (!kids.has(t.member_id)) kids.set(t.member_id, { member_id: t.member_id, name: t.member_name, emoji: t.emoji, color: t.color, chores: 0, games: 0, prizes: 0, parent: 0, net: 0 });
+    if (!kids.has(t.member_id)) kids.set(t.member_id, { member_id: t.member_id, name: t.member_name, emoji: t.emoji, color: t.color, chores: 0, games: 0, prizes: 0, cashin: 0, parent: 0, net: 0 });
     const k = kids.get(t.member_id); const kind = coinKind(t);
     k[kind] += t.amount; k.net += t.amount;
   }

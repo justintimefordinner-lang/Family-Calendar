@@ -80,6 +80,26 @@ router.get('/traffic/report', wrap(async (req, res) => {
   res.json(await traffic.report(from, to));
 }));
 
+// Kids turn coins into cash from the display: whole dollars at the coins_per_dollar rate (0 = feature off).
+router.post('/finance/:id/cash-in', (req, res) => {
+  const id = toInt(req.params.id);
+  const m = db.prepare('SELECT * FROM members WHERE id = ? AND active = 1').get(id);
+  if (!m || m.role !== 'kid') throw new HttpError(404, 'Kid not found');
+  const rate = Math.max(0, Math.floor(Number(settings.get('coins_per_dollar')) || 0));
+  if (rate <= 0) throw new HttpError(400, 'Cashing in coins is switched off');
+  const dollars = toInt(req.body.dollars);
+  if (dollars < 1 || dollars > 1000) throw new HttpError(400, 'Pick a whole number of dollars');
+  const coins = dollars * rate;
+  const have = chores.coinBalance(id);
+  if (coins > have) throw new HttpError(400, `That needs ${coins} coins and you have ${Math.floor(have)}`);
+  const label = `$${dollars}.00`;
+  db.transaction(() => {
+    db.prepare('INSERT INTO coin_transactions(member_id, amount, note) VALUES(?, ?, ?)').run(id, -coins, `💵 Cashed in for ${label}`);
+    db.prepare(`INSERT INTO transactions(member_id, type, account, amount_cents, note) VALUES(?, 'deposit', 'cash', ?, ?)`).run(id, dollars * 100, `Cashed in ${coins} coins`);
+  })();
+  res.json({ cash_cents: interest.balance(id, 'cash'), coins: chores.coinBalance(id) });
+});
+
 // ---- Calendar events -------------------------------------------------------
 const eventsInRange = db.prepare(`
   SELECT e.id, e.title, e.start, e.end, e.start_ts, e.end_ts, e.all_day, e.location, e.description,
