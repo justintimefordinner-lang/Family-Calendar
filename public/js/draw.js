@@ -85,7 +85,7 @@
           <button class="draw-btn wide rainbow" data-rainbow>🌈 Rainbow</button>
         </div>
         <div class="draw-stage">
-          <canvas class="draw-canvas"></canvas><canvas class="draw-overlay"></canvas>
+          <canvas class="draw-canvas"></canvas><canvas class="draw-overlay"></canvas><div class="draw-cursor" hidden></div>
           <div class="draw-pending" hidden>
             <button class="btn" data-pend="smaller">➖</button><button class="btn" data-pend="bigger">➕</button>
             <button class="btn" data-pend="ccw">↺</button><button class="btn" data-pend="cw">↻</button>
@@ -109,6 +109,7 @@
     ov.addEventListener('pointerdown', onDown);
     ov.addEventListener('pointermove', onMove);
     ['pointerup', 'pointercancel'].forEach((ev) => ov.addEventListener(ev, onUp));
+    ov.addEventListener('pointerleave', hideCursor);
     root.addEventListener('click', onClick);
     root.addEventListener('pointerdown', onThumbDown);
     root.addEventListener('contextmenu', (e) => e.preventDefault());
@@ -150,6 +151,24 @@
     return st.color;
   }
   const penWidth = () => (st.tool === 'pencil' ? Math.max(2, st.size / 3) : st.tool === 'eraser' ? st.size * 2 : st.size);
+
+  // A ring the size of the current tool: follows a mouse or stylus as it hovers, sits under the finger while
+  // drawing, and flashes in the middle of the page when the tool or size changes (touchscreens cannot hover).
+  const toolDiameter = () => (st.tool === 'fill' ? 0 : st.tool === 'spray' ? (st.size * 1.6 + 6) * 2 : st.tool === 'crayon' ? st.size + Math.max(1.5, st.size / 4) : penWidth());
+  let cursorT = null;
+  function showCursor(clientX, clientY, lingerMs) {
+    const el = $('.draw-cursor', root); const d = toolDiameter();
+    clearTimeout(cursorT);
+    if (!d || pending) { el.hidden = true; return; }
+    const r = ov.getBoundingClientRect(); const size = Math.max(6, d * (r.width / ov.width));
+    el.style.width = `${size}px`; el.style.height = `${size}px`;
+    el.style.left = `${clientX - r.left - size / 2}px`; el.style.top = `${clientY - r.top - size / 2}px`;
+    el.classList.toggle('eraser', st.tool === 'eraser');
+    el.hidden = false;
+    if (lingerMs) cursorT = setTimeout(() => { el.hidden = true; }, lingerMs);
+  }
+  function hideCursor() { clearTimeout(cursorT); const el = root && $('.draw-cursor', root); if (el) el.hidden = true; }
+  function flashCursor() { const r = ov.getBoundingClientRect(); showCursor(r.left + r.width / 2, r.top + r.height / 2, 1200); }
 
   function segment(p, x, y) {
     const c = inkColor();
@@ -248,6 +267,7 @@
       if (hit === 'body') { drag = { id: e.pointerId, mode: 'move', dx: pt.x - pending.x, dy: pt.y - pending.y }; return; }
       stick(); // touching the page anywhere else sticks the shape down and carries on drawing
     }
+    showCursor(e.clientX, e.clientY);
     pushUndo();
     if (st.tool === 'fill') { floodFill(pt.x, pt.y, st.rainbow ? `hsl(${(st.hue += 40) % 360}, 90%, 55%)` : st.color); autosave(); return; }
     const p = { x: pt.x, y: pt.y, mx: pt.x, my: pt.y };
@@ -255,6 +275,7 @@
     segment(p, pt.x + 0.01, pt.y + 0.01); // a tap leaves a dot
   }
   function onMove(e) {
+    if (!drag) showCursor(e.clientX, e.clientY);
     if (drag && drag.id === e.pointerId && pending) {
       const pt = pos(e);
       if (drag.mode === 'move') { pending.x = pt.x - drag.dx; pending.y = pt.y - drag.dy; }
@@ -266,6 +287,7 @@
     for (const ce of (evs.length ? evs : [e])) { const pt = pos(ce); segment(p, pt.x, pt.y); }
   }
   function onUp(e) {
+    if (e.pointerType === 'touch') showCursor(e.clientX, e.clientY, 500); // fingers cannot hover: let the ring linger a moment
     if (drag && drag.id === e.pointerId) { drag = null; return; }
     const p = pointers.get(e.pointerId); if (!p) return;
     if (st.tool !== 'spray' && st.tool !== 'crayon') { ctx.beginPath(); ctx.moveTo(p.mx, p.my); ctx.lineTo(p.x, p.y); ctx.stroke(); }
@@ -296,8 +318,8 @@
 
   function onClick(e) {
     const t = e.target;
-    const tool = t.closest('[data-tool]'); if (tool) { st.tool = tool.dataset.tool; syncUi(); return; }
-    const size = t.closest('[data-size]'); if (size) { st.size = Number(size.dataset.size); syncUi(); return; }
+    const tool = t.closest('[data-tool]'); if (tool) { st.tool = tool.dataset.tool; syncUi(); flashCursor(); return; }
+    const size = t.closest('[data-size]'); if (size) { st.size = Number(size.dataset.size); syncUi(); flashCursor(); return; }
     const color = t.closest('[data-color]'); if (color) { st.color = color.dataset.color; st.rainbow = false; if (st.tool === 'eraser') st.tool = 'brush'; syncUi(); renderOverlay(); return; }
     if (t.closest('[data-rainbow]')) { st.rainbow = !st.rainbow; if (st.tool === 'eraser') st.tool = 'brush'; syncUi(); renderOverlay(); return; }
     const pend = t.closest('[data-pend]');

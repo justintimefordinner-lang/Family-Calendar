@@ -580,3 +580,5 @@ body.mobile .draw-slots { grid-template-columns: 1fr 1fr; gap: 10px; }
 body.mobile .draw-modal-card { padding: 16px; } body.mobile .draw-modal-card h2 { font-size: 1.15rem; flex-wrap: wrap; }
 body.mobile .draw-slot.empty .plus { font-size: 3.5rem; }
 body.mobile .draw-top { flex-wrap: wrap; } body.mobile .draw-top-actions { flex-wrap: wrap; gap: 6px; }
+.draw-cursor { position: absolute; z-index: 2; border-radius: 50%; border: 2px solid rgba(17, 24, 39, 0.75); box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.9), inset 0 0 0 1px rgba(255, 255, 255, 0.9); pointer-events: none; }
+.draw-cursor.eraser { background: rgba(255, 255, 255, 0.55); border-style: dashed; }
