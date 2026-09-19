@@ -508,3 +508,46 @@ body.mobile .qty-row .btn.on { background: var(--accent); color: #fff; border-co
 .traffic-card .tr-body { min-width: 130px; }
 .tr-route { font-size: 0.8rem; color: var(--muted); max-width: 260px; }
 .tr-route.alt { color: var(--warn); font-weight: 700; }
+
+/* Draw mode (kids): tools on the left, the page in the middle, shapes to drag in on the right */
+#draw { position: fixed; inset: 0; z-index: 86; background: #eef0f4; display: flex; flex-direction: column; touch-action: none; user-select: none; -webkit-user-select: none; }
+.draw-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 16px; background: #fff; border-bottom: 1px solid var(--line); }
+.draw-title { font-size: 1.5rem; font-weight: 800; }
+.draw-top-actions { display: flex; gap: 10px; }
+.draw-main { flex: 1; min-height: 0; display: flex; gap: 12px; padding: 12px; }
+.draw-tools { width: 196px; flex: none; display: flex; flex-direction: column; gap: 12px; overflow-y: auto; touch-action: pan-y; }
+.draw-shapes { width: 232px; flex: none; overflow-y: auto; touch-action: pan-y; background: #fff; border-radius: 14px; padding: 10px 12px; box-shadow: var(--shadow); }
+.draw-shapes h4 { margin: 10px 0 6px; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); }
+.draw-hint { margin: 0; font-size: 0.85rem; color: var(--muted); }
+.draw-grid { display: grid; gap: 6px; }
+.draw-grid.two { grid-template-columns: 1fr 1fr; } .draw-grid.three { grid-template-columns: repeat(3, 1fr); } .draw-grid.four { grid-template-columns: repeat(4, 1fr); }
+.draw-btn { border: 2px solid var(--line); background: #fff; border-radius: 12px; min-height: 58px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; font-size: 1.5rem; color: var(--ink); touch-action: manipulation; }
+.draw-btn small { font-size: 0.7rem; font-weight: 600; color: var(--muted); }
+.draw-btn.on { border-color: var(--accent); background: #eef2ff; }
+.draw-btn.size i { display: block; border-radius: 50%; background: var(--ink); }
+.draw-btn.size { min-height: 56px; }
+.draw-btn.wide { flex-direction: row; font-size: 1rem; font-weight: 700; min-height: 48px; }
+.draw-btn.rainbow.on { background: linear-gradient(90deg, #fecaca, #fde68a, #bbf7d0, #bfdbfe, #ddd6fe); }
+.draw-swatch { aspect-ratio: 1; border-radius: 50%; border: 3px solid #fff; box-shadow: 0 0 0 1px var(--line); touch-action: manipulation; }
+.draw-swatch.on { box-shadow: 0 0 0 3px var(--accent); }
+.draw-stage { flex: 1; min-width: 0; position: relative; background: #fff; border-radius: 14px; overflow: hidden; box-shadow: var(--shadow); }
+.draw-stage canvas { position: absolute; inset: 0; width: 100%; height: 100%; touch-action: none; }
+.draw-overlay { cursor: crosshair; }
+.draw-pending { position: absolute; top: 10px; left: 50%; transform: translateX(-50%); display: flex; gap: 8px; background: rgba(255, 255, 255, 0.95); padding: 8px; border-radius: 14px; box-shadow: var(--shadow); }
+.draw-pending .btn { min-width: 52px; }
+.draw-thumb { border: 2px solid var(--line); background: #fff; border-radius: 12px; padding: 0; aspect-ratio: 1; display: grid; place-items: center; touch-action: none; }
+.draw-thumb:active { border-color: var(--accent); }
+.draw-thumb canvas { width: 100%; height: 100%; pointer-events: none; }
+.draw-ghost { position: fixed; z-index: 90; width: 96px; height: 96px; pointer-events: none; opacity: 0.85; }
+.member-btn.draw { margin-top: 0; }
+body.mobile .draw-main { flex-direction: column; padding: 8px; gap: 8px; }
+body.mobile .draw-tools { width: auto; flex-direction: row; overflow-x: auto; overflow-y: hidden; touch-action: pan-x; }
+body.mobile .draw-tools .draw-grid { grid-auto-flow: column; grid-template-columns: none; grid-auto-columns: 52px; }
+body.mobile .draw-btn { min-height: 48px; font-size: 1.2rem; } body.mobile .draw-btn small { display: none; }
+body.mobile .draw-btn.wide { min-width: 120px; }
+body.mobile .draw-swatch { width: 40px; }
+body.mobile .draw-stage { min-height: 50vh; }
+body.mobile .draw-shapes { width: auto; display: flex; gap: 6px; overflow-x: auto; overflow-y: hidden; touch-action: pan-x; padding: 8px; }
+body.mobile .draw-shapes h4, body.mobile .draw-hint { display: none; }
+body.mobile .draw-shapes .draw-grid { grid-auto-flow: column; grid-template-columns: none; grid-auto-columns: 60px; }
+body.mobile .draw-pending { flex-wrap: wrap; justify-content: center; width: 94%; }

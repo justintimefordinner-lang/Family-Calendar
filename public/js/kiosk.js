@@ -220,7 +220,9 @@
         <span class="avatar">🎮</span><span>Games</span></button>`;
     const prizes = `<button class="member-btn games ${state.selected === 'prizes' ? 'active' : ''}" data-member="prizes" style="--c:#db2777">
         <span class="avatar">🎁</span><span>Prizes</span></button>`;
-    $('#members').innerHTML = all + rest + earn + games + prizes;
+    const draw = `<button class="member-btn games draw" data-draw-open style="--c:#7c3aed">
+      <span class="avatar">🎨</span><span>Draw</span></button>`;
+    $('#members').innerHTML = all + rest + earn + games + draw + prizes;
   }
 
   // ---- Rendering: calendar ---------------------------------------------------
