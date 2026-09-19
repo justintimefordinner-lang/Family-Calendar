@@ -346,8 +346,8 @@
     onSlotsClick(t);
   }
 
-  // ---- Saved pictures: five slots per kid, kept on the Pi ----------------------------------------------
-  const SLOTS = 5;
+  // ---- Saved pictures: eight slots per kid, kept on the Pi ----------------------------------------------
+  const SLOTS = 8;
   const gal = { mode: 'save', kid: null, kids: [], slots: [], ask: null }; // ask: { slot, what: 'replace' | 'delete' }
   async function api(url, opts = {}) {
     const res = await fetch(url, { method: opts.method || 'GET', headers: opts.body ? { 'Content-Type': 'application/json' } : {}, body: opts.body ? JSON.stringify(opts.body) : undefined });

@@ -59,7 +59,7 @@ router.delete('/members/:id', (req, res) => {
   // Removes the member for good; chores, completions, money, coins, prizes and routes go with them (FK cascades),
   // calendars and events they owned become family-wide. To merely hide someone, PATCH active = 0 instead.
   db.prepare('DELETE FROM members WHERE id = ?').run(toInt(req.params.id));
-  for (let s = 1; s <= 5; s += 1) fs.rmSync(path.join(require('../config').DRAW_DIR, `${toInt(req.params.id)}-${s}.png`), { force: true }); // their saved drawings
+  for (let s = 1; s <= 8; s += 1) fs.rmSync(path.join(require('../config').DRAW_DIR, `${toInt(req.params.id)}-${s}.png`), { force: true }); // their saved drawings
   res.json({ ok: true });
 });
 

@@ -100,8 +100,8 @@ router.post('/finance/:id/cash-in', (req, res) => {
   res.json({ cash_cents: interest.balance(id, 'cash'), coins: chores.coinBalance(id) });
 });
 
-// ---- Drawings: five save slots per kid, PNG files in data/drawings --------------------
-const DRAW_SLOTS = 5;
+// ---- Drawings: eight save slots per kid, PNG files in data/drawings --------------------
+const DRAW_SLOTS = 8;
 fs.mkdirSync(DRAW_DIR, { recursive: true });
 const drawFile = (memberId, slot) => path.join(DRAW_DIR, `${memberId}-${slot}.png`);
 function drawingSlots(memberId) {

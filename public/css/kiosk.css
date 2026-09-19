@@ -554,18 +554,18 @@ body.mobile .draw-pending { flex-wrap: wrap; justify-content: center; width: 94%
 
 /* Draw mode: the save / open window with five big picture frames */
 .draw-modal { position: absolute; inset: 0; z-index: 5; background: rgba(20, 20, 30, 0.5); display: grid; place-items: center; touch-action: manipulation; }
-.draw-modal-card { background: #fff; border-radius: 22px; padding: 22px 26px; width: min(1500px, 94vw, 150vh); max-height: 92vh; overflow-y: auto; touch-action: pan-y; box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3); }
+.draw-modal-card { background: #fff; border-radius: 22px; padding: 22px 26px; width: min(1700px, 94vw, 200vh); max-height: 92vh; overflow-y: auto; touch-action: pan-y; box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3); }
 .draw-modal-card h2 { display: flex; align-items: center; gap: 12px; margin: 0 0 16px; font-size: 1.6rem; }
 .draw-modal-card h2 .avatar { width: 48px; height: 48px; border-radius: 50%; display: grid; place-items: center; background: var(--c, #ddd); font-size: 1.6rem; }
 .draw-modal-card h2 .btn { margin-left: auto; }
 .draw-mode { font-size: 1rem; font-weight: 600; color: var(--muted); }
 .draw-modal-foot { display: flex; justify-content: flex-end; margin-top: 16px; }
-.draw-slots { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+.draw-slots { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
 .draw-slot { position: relative; aspect-ratio: 4 / 3; border-radius: 16px; border: 3px solid var(--line); background: #fff; overflow: hidden; display: grid; place-items: center; padding: 0; color: var(--muted); }
 .draw-slot img { width: 100%; height: 100%; object-fit: contain; display: block; background: #fff; }
 .draw-slot > small { position: absolute; left: 0; right: 0; bottom: 0; padding: 6px; text-align: center; font-size: 0.9rem; font-weight: 700; background: rgba(255, 255, 255, 0.88); color: var(--ink); }
 .draw-slot.empty { border-style: dashed; border-color: #c4c7ce; background: #e5e7eb; }
-.draw-slot.empty .plus { font-size: 6rem; font-weight: 300; line-height: 1; color: #9ca3af; }
+.draw-slot.empty .plus { font-size: 5rem; font-weight: 300; line-height: 1; color: #9ca3af; }
 .draw-slot.empty small { background: transparent; color: #6b7280; }
 .draw-slot.empty:disabled { opacity: 0.55; }
 .draw-slot.filled:active, .draw-slot.empty:not(:disabled):active { border-color: var(--accent); }

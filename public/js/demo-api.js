@@ -267,7 +267,7 @@
     if (seg[0] === 'console' && method === 'POST') return { check: seg[1], out: `Example mode: this would run the  check on the Pi.`, code: 0, ms: 2 };
     // Drawings (example mode keeps them in memory)
     if (seg[0] === 'drawings') {
-      const slotsFor = (m) => [1, 2, 3, 4, 5].map((s) => ({ slot: s, url: drawings[`${m}-${s}`] || null }));
+      const slotsFor = (m) => [1, 2, 3, 4, 5, 6, 7, 8].map((s) => ({ slot: s, url: drawings[`${m}-${s}`] || null }));
       if (method === 'GET') return slotsFor(num(query.get('member')));
       const key = `${num(seg[1])}-${num(seg[2])}`;
       if (method === 'PUT') drawings[key] = body.image; else if (method === 'DELETE') delete drawings[key];
