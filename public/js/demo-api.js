@@ -51,6 +51,7 @@
   const completions = []; // {id, chore_id, member_id, date, status, completed_at}
   completions.push({ id: nextId++, chore_id: 1, member_id: 1, date: ymd(today), status: 'approved', completed_at: nowIso() });
   completions.push({ id: nextId++, chore_id: 4, member_id: 2, date: ymd(today), status: 'pending', completed_at: nowIso() });
+  const drawings = {};
   let places = [{ id: 901, name: 'Home', address: '123 Maple St', emoji: '🏠', sort_order: 0 }, { id: 902, name: 'School', address: 'Jefferson Academy', emoji: '🏫', sort_order: 1 }, { id: 903, name: 'Grandma\x27s', address: '45 Oak Ave', emoji: '👵', sort_order: 2 }, { id: 904, name: 'Soccer field', address: 'Community Park', emoji: '⚽', sort_order: 3 }];
   let routes = [{ id: 905, member_id: 1, from_place: 901, to_place: 902, created_at: nowIso() }, { id: 906, member_id: 6, from_place: 901, to_place: 902, created_at: nowIso() }, { id: 907, member_id: 6, from_place: 901, to_place: 904, created_at: nowIso() }];
   const at = (n, hm) => `${ymd(day(-n))} ${hm}:00`; // n days ago, as the server would store it
@@ -264,6 +265,14 @@
     if (seg[0] === 'traffic' && seg[1] === 'routes' && method === 'DELETE') { routes = routes.filter((r) => r.id !== num(seg[2])); return { ok: true }; }
     if (p === '/traffic/report') { const f = num(query.get('from')), t = num(query.get('to')); const base = 8 + ((f * 7 + t * 13) % 20); const delay = [0, 2, 6, 11][(f + t + new Date().getHours()) % 4]; const ratio = delay / base; const level = ratio < 0.1 ? 'clear' : ratio < 0.3 ? 'light' : ratio < 0.6 ? 'moderate' : 'heavy'; return { minutes: base + delay, typical_minutes: base, delay_minutes: delay, miles: Math.round(base * 0.7 * 10) / 10, alternate: delay >= 6, route_note: delay >= 6 ? `Take the alternate route via US-36: ${Math.round(delay / 2)} min faster than the usual way (I-25)` : 'Usual route via I-25', level, label: { clear: 'Clear roads', light: 'Light traffic', moderate: 'Moderate traffic', heavy: 'Heavy traffic' }[level], checked_at: nowIso() }; }
     if (seg[0] === 'console' && method === 'POST') return { check: seg[1], out: `Example mode: this would run the  check on the Pi.`, code: 0, ms: 2 };
+    // Drawings (example mode keeps them in memory)
+    if (seg[0] === 'drawings') {
+      const slotsFor = (m) => [1, 2, 3, 4, 5].map((s) => ({ slot: s, url: drawings[`${m}-${s}`] || null }));
+      if (method === 'GET') return slotsFor(num(query.get('member')));
+      const key = `${num(seg[1])}-${num(seg[2])}`;
+      if (method === 'PUT') drawings[key] = body.image; else if (method === 'DELETE') delete drawings[key];
+      return slotsFor(num(seg[1]));
+    }
     if (p === '/weather') return weather();
     if (p === '/weather/geocode') return [{ label: 'Demo City, UT, US', lat: 40.76, lon: -111.89 }];
     if (p === '/photos') return [];

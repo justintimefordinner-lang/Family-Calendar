@@ -8,5 +8,6 @@ module.exports = {
   DB_PATH: path.join(DATA_DIR, 'family.db'),
   PHOTO_DIR: path.join(DATA_DIR, 'photos'),
   THEME_DIR: path.join(DATA_DIR, 'theme'),
+  DRAW_DIR: path.join(DATA_DIR, 'drawings'),   // kids' saved pictures: <memberId>-<slot>.png
   PUBLIC_DIR: path.join(__dirname, '..', 'public'),
 };

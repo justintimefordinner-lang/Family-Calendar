@@ -10,7 +10,7 @@ const weather = require('../weather');
 const google = require('../google');
 const notify = require('../notify');
 const localEvents = require('../localEvents');
-const { PHOTO_DIR, THEME_DIR } = require('../config');
+const { PHOTO_DIR, THEME_DIR, DRAW_DIR } = require('../config');
 const { HttpError, wrap, localDate, isDateStr, toInt } = require('../util');
 
 const router = express.Router();
@@ -98,6 +98,40 @@ router.post('/finance/:id/cash-in', (req, res) => {
     db.prepare(`INSERT INTO transactions(member_id, type, account, amount_cents, note) VALUES(?, 'deposit', 'cash', ?, ?)`).run(id, dollars * 100, `Cashed in ${coins} coins`);
   })();
   res.json({ cash_cents: interest.balance(id, 'cash'), coins: chores.coinBalance(id) });
+});
+
+// ---- Drawings: five save slots per kid, PNG files in data/drawings --------------------
+const DRAW_SLOTS = 5;
+fs.mkdirSync(DRAW_DIR, { recursive: true });
+const drawFile = (memberId, slot) => path.join(DRAW_DIR, `${memberId}-${slot}.png`);
+function drawingSlots(memberId) {
+  return Array.from({ length: DRAW_SLOTS }, (_, i) => {
+    const slot = i + 1; const f = drawFile(memberId, slot);
+    if (!fs.existsSync(f)) return { slot, url: null };
+    const stat = fs.statSync(f);
+    return { slot, url: `/drawings/${memberId}-${slot}.png?t=${Math.floor(stat.mtimeMs)}`, saved_at: stat.mtime.toISOString() };
+  });
+}
+function drawingTarget(req) {
+  const memberId = toInt(req.params.member); const slot = toInt(req.params.slot);
+  if (!db.prepare('SELECT 1 FROM members WHERE id = ? AND active = 1').get(memberId)) throw new HttpError(404, 'Member not found');
+  if (slot < 1 || slot > DRAW_SLOTS) throw new HttpError(400, `Slot must be 1-${DRAW_SLOTS}`);
+  return { memberId, slot };
+}
+router.get('/drawings', (req, res) => res.json(drawingSlots(toInt(req.query.member))));
+router.put('/drawings/:member/:slot', (req, res) => {
+  const { memberId, slot } = drawingTarget(req);
+  const m = /^data:image\/png;base64,([A-Za-z0-9+/=]+)$/.exec(String((req.body && req.body.image) || ''));
+  if (!m) throw new HttpError(400, 'Expected a PNG picture');
+  const buf = Buffer.from(m[1], 'base64');
+  if (buf.length < 8 || buf.length > 8 * 1024 * 1024 || buf.readUInt32BE(0) !== 0x89504e47) throw new HttpError(400, 'That picture is not a valid PNG (or is too big)');
+  fs.writeFileSync(drawFile(memberId, slot), buf);
+  res.json(drawingSlots(memberId));
+});
+router.delete('/drawings/:member/:slot', (req, res) => {
+  const { memberId, slot } = drawingTarget(req);
+  fs.rmSync(drawFile(memberId, slot), { force: true });
+  res.json(drawingSlots(memberId));
 });
 
 // ---- Calendar events -------------------------------------------------------

@@ -75,7 +75,7 @@
       <div class="draw-top">
         <button class="btn" data-draw-close>✕ Close</button>
         <div class="draw-title">🎨 Draw</div>
-        <div class="draw-top-actions"><button class="btn" data-draw-undo>↩ Undo</button><button class="btn" data-draw-clear>📄 New page</button></div>
+        <div class="draw-top-actions"><button class="btn" data-draw-undo>↩ Undo</button><button class="btn" data-draw-clear>📄 New page</button><button class="btn" data-draw-load>📂 Open</button><button class="btn primary-btn" data-draw-save>💾 Save</button></div>
       </div>
       <div class="draw-main">
         <div class="draw-tools">
@@ -318,7 +318,102 @@
       return;
     }
     if (t.closest('[data-draw-clear]')) { stick(); pushUndo(); ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, cv.width, cv.height); autosave(); return; } // Undo brings it back
-    if (t.closest('[data-draw-close]')) close();
+    if (t.closest('[data-draw-save]')) { openSlots('save'); return; }
+    if (t.closest('[data-draw-load]')) { openSlots('open'); return; }
+    if (t.closest('[data-draw-close]')) { close(); return; }
+    onSlotsClick(t);
+  }
+
+  // ---- Saved pictures: five slots per kid, kept on the Pi ----------------------------------------------
+  const SLOTS = 5;
+  const gal = { mode: 'save', kid: null, kids: [], slots: [], ask: null }; // ask: { slot, what: 'replace' | 'delete' }
+  async function api(url, opts = {}) {
+    const res = await fetch(url, { method: opts.method || 'GET', headers: opts.body ? { 'Content-Type': 'application/json' } : {}, body: opts.body ? JSON.stringify(opts.body) : undefined });
+    const j = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(j.error || 'Something went wrong');
+    return j;
+  }
+  const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  function toast(msg) {
+    const el = document.createElement('div'); el.className = 'draw-toast'; el.textContent = msg; root.appendChild(el);
+    setTimeout(() => el.remove(), 2200);
+  }
+  function closeSlots() { const m = $('.draw-modal', root); if (m) m.remove(); gal.ask = null; }
+  async function openSlots(mode) {
+    stick(); gal.mode = mode; gal.ask = null;
+    try {
+      const members = await api('/api/members');
+      gal.kids = members.filter((m) => m.role === 'kid');
+      if (gal.kid && !gal.kids.some((k) => k.id === gal.kid)) gal.kid = null;
+      if (gal.kids.length === 1) gal.kid = gal.kids[0].id;
+      if (gal.kid) gal.slots = await api(`/api/drawings?member=${gal.kid}`);
+    } catch (err) { toast(err.message); return; }
+    renderSlots();
+  }
+  function renderSlots() {
+    closeSlotsKeepAsk();
+    const modal = document.createElement('div'); modal.className = 'draw-modal';
+    const kid = gal.kids.find((k) => k.id === gal.kid);
+    let body;
+    if (!kid) {
+      body = `<h2>${gal.mode === 'save' ? '💾 Save' : '📂 Open'} — whose pictures?</h2>
+        <div class="draw-kids">${gal.kids.map((k) => `<button class="draw-kid" data-gal-kid="${k.id}" style="--c:${esc(k.color)}"><span class="avatar">${esc(k.emoji)}</span>${esc(k.name)}</button>`).join('') || '<p>Add kids in the parent app first.</p>'}</div>`;
+    } else {
+      const frames = Array.from({ length: SLOTS }, (_, i) => {
+        const s = gal.slots.find((x) => x.slot === i + 1) || { slot: i + 1, url: null };
+        const asking = gal.ask && gal.ask.slot === s.slot;
+        if (!s.url) return `<button class="draw-slot empty" data-gal-slot="${s.slot}" ${gal.mode === 'open' ? 'disabled' : ''}><span class="plus">+</span><small>${gal.mode === 'save' ? 'Save here' : 'Empty'}</small></button>`;
+        return `<div class="draw-slot filled" data-gal-slot="${s.slot}"><img src="${esc(s.url)}" alt="Picture ${s.slot}">
+          <button class="draw-slot-del" data-gal-del="${s.slot}" title="Throw this picture away">🗑</button>
+          ${asking ? `<div class="draw-ask"><b>${gal.ask.what === 'delete' ? 'Throw this picture away?' : 'Save over this picture?'}</b><div><button class="btn primary-btn" data-gal-yes>${gal.ask.what === 'delete' ? 'Yes, throw away' : 'Yes, save here'}</button><button class="btn" data-gal-no>Keep it</button></div></div>` : `<small>${gal.mode === 'save' ? 'Tap to save over' : 'Tap to open'}</small>`}</div>`;
+      }).join('');
+      body = `<h2><span class="avatar" style="--c:${esc(kid.color)}">${esc(kid.emoji)}</span> ${esc(kid.name)}'s pictures <span class="draw-mode">${gal.mode === 'save' ? '💾 tap a frame to save' : '📂 tap a picture to open'}</span>
+          ${gal.kids.length > 1 ? `<button class="btn" data-gal-switch>Not ${esc(kid.name)}?</button>` : ''}</h2>
+        <div class="draw-slots">${frames}</div>`;
+    }
+    modal.innerHTML = `<div class="draw-modal-card">${body}<div class="draw-modal-foot"><button class="btn" data-gal-close>Close</button></div></div>`;
+    root.appendChild(modal);
+  }
+  function closeSlotsKeepAsk() { const m = $('.draw-modal', root); if (m) m.remove(); }
+  async function saveTo(slot) {
+    try {
+      gal.slots = await api(`/api/drawings/${gal.kid}/${slot}`, { method: 'PUT', body: { image: cv.toDataURL('image/png') } });
+      gal.ask = null; renderSlots(); toast('Saved! 🎉');
+      setTimeout(closeSlots, 900);
+    } catch (err) { toast(err.message); }
+  }
+  function loadFrom(slot) {
+    const s = gal.slots.find((x) => x.slot === slot); if (!s || !s.url) return;
+    const img = new Image();
+    img.onload = () => {
+      pushUndo(); // Undo brings the old page back
+      ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, cv.width, cv.height);
+      const k = Math.min(cv.width / img.width, cv.height / img.height); const w = img.width * k; const h = img.height * k;
+      ctx.drawImage(img, (cv.width - w) / 2, (cv.height - h) / 2, w, h);
+      autosave(); closeSlots();
+    };
+    img.onerror = () => toast('Could not open that picture');
+    img.src = s.url;
+  }
+  async function onSlotsClick(t) {
+    if (!$('.draw-modal', root)) return;
+    if (t.closest('[data-gal-close]') || t.classList.contains('draw-modal')) { closeSlots(); return; }
+    const kidBtn = t.closest('[data-gal-kid]');
+    if (kidBtn) { gal.kid = Number(kidBtn.dataset.galKid); try { gal.slots = await api(`/api/drawings?member=${gal.kid}`); } catch (err) { toast(err.message); return; } renderSlots(); return; }
+    if (t.closest('[data-gal-switch]')) { gal.kid = null; gal.ask = null; renderSlots(); return; }
+    if (t.closest('[data-gal-no]')) { gal.ask = null; renderSlots(); return; }
+    if (t.closest('[data-gal-yes]') && gal.ask) {
+      if (gal.ask.what === 'replace') { await saveTo(gal.ask.slot); return; }
+      try { gal.slots = await api(`/api/drawings/${gal.kid}/${gal.ask.slot}`, { method: 'DELETE' }); } catch (err) { toast(err.message); }
+      gal.ask = null; renderSlots(); return;
+    }
+    const del = t.closest('[data-gal-del]');
+    if (del) { gal.ask = { slot: Number(del.dataset.galDel), what: 'delete' }; renderSlots(); return; }
+    const slotEl = t.closest('[data-gal-slot]');
+    if (!slotEl || t.closest('.draw-ask')) return;
+    const slot = Number(slotEl.dataset.galSlot); const filled = slotEl.classList.contains('filled');
+    if (gal.mode === 'open') { if (filled) loadFrom(slot); return; }
+    if (filled) { gal.ask = { slot, what: 'replace' }; renderSlots(); } else await saveTo(slot);
   }
 
   function open() {
@@ -328,7 +423,7 @@
   }
   function close() {
     if (!root) return;
-    stick(); pointers.clear();
+    stick(); pointers.clear(); closeSlots(); gal.kid = null; // the next artist picks their own name
     clearTimeout(saveT); try { localStorage.setItem('fc_drawing', cv.toDataURL('image/png')); } catch { /* skip */ }
     root.hidden = true;
   }

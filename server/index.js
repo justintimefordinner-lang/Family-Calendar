@@ -1,6 +1,6 @@
 const path = require('path');
 const express = require('express');
-const { PORT, PHOTO_DIR, THEME_DIR, PUBLIC_DIR, DATA_DIR } = require('./config');
+const { PORT, PHOTO_DIR, THEME_DIR, DRAW_DIR, PUBLIC_DIR, DATA_DIR } = require('./config');
 const settings = require('./settings');
 
 // Use the family's timezone for all date math (all-day events, "today", interest day).
@@ -13,11 +13,13 @@ const interest = require('./interest');
 const app = express();
 app.disable('x-powered-by');
 app.set('trust proxy', 'loopback');
+app.use('/api/drawings', express.json({ limit: '12mb' })); // saved pictures arrive as base64 PNGs
 app.use(express.json({ limit: '1mb' }));
 
 app.use('/api', require('./routes'));
 app.use('/photos', express.static(PHOTO_DIR, { maxAge: '1d', index: false }));
 app.use('/theme-art', express.static(THEME_DIR, { maxAge: '1d', index: false }));
+app.use('/drawings', express.static(DRAW_DIR, { maxAge: '1d', index: false })); // URLs carry ?t=mtime, so caching is safe
 app.use(express.static(PUBLIC_DIR, { extensions: ['html'] }));
 
 // eslint-disable-next-line no-unused-vars
