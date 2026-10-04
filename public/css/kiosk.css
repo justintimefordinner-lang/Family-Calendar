@@ -582,3 +582,22 @@ body.mobile .draw-slot.empty .plus { font-size: 3.5rem; }
 body.mobile .draw-top { flex-wrap: wrap; } body.mobile .draw-top-actions { flex-wrap: wrap; gap: 6px; }
 .draw-cursor { position: absolute; z-index: 2; border-radius: 50%; border: 2px solid rgba(17, 24, 39, 0.75); box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.9), inset 0 0 0 1px rgba(255, 255, 255, 0.9); pointer-events: none; }
 .draw-cursor.eraser { background: rgba(255, 255, 255, 0.55); border-style: dashed; }
+
+/* Look into the future (invested money, month by month) */
+.fut-btn { display: block; width: 100%; margin-top: 10px; font-weight: 700; }
+.fut-window { display: flex; align-items: stretch; gap: 14px; margin: 14px 0; }
+.fut-side, .fut-main { border-radius: 16px; padding: 14px 16px; text-align: center; }
+.fut-side { background: #f3f4f6; flex: 0 0 30%; display: flex; flex-direction: column; justify-content: center; }
+.fut-main { flex: 1; background: linear-gradient(135deg, #ede9fe, #dbeafe); border: 3px solid #8b5cf6; }
+.fut-window .lbl { font-size: 0.9rem; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; }
+.fut-side .balance { font-size: 1.6rem; font-weight: 800; }
+.fut-side small { color: var(--muted); }
+.fut-main .balance { font-size: 3rem; font-weight: 800; line-height: 1.15; color: #4c1d95; }
+.fut-main .grow { font-size: 1rem; color: var(--good); font-weight: 600; }
+.fut-arrow { align-self: center; font-size: 2rem; color: #8b5cf6; }
+.fut-compare { background: #ecfdf5; border-radius: 12px; padding: 10px 14px; margin: 12px 0 0; font-size: 1rem; }
+.fut-list { margin-top: 12px; max-height: 190px; overflow-y: auto; border-top: 1px solid var(--line); }
+.fut-row { display: grid; grid-template-columns: 1fr auto 110px; gap: 12px; padding: 7px 4px; border-bottom: 1px solid var(--line); font-size: 1rem; }
+.fut-row .add { color: var(--good); font-weight: 600; }
+.fut-row b { text-align: right; }
+body.mobile .fut-window { flex-direction: column; } body.mobile .fut-arrow { display: none; } body.mobile .fut-main .balance { font-size: 2.2rem; }

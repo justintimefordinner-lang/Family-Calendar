@@ -436,6 +436,7 @@
           <div class="coins"><div class="lbl">🪙 ${esc(state.settings.coin_name || 'Mom Coins')}</div><div class="balance">${wholeCoins(fin ? fin.coins : 0)}</div></div>
         </div>
         <div class="hint center">${rate > 0 ? `Invested with Dad earns ${rate}% a month` : 'Invested with Dad'}${fin && fin.pending_cents ? ` · <b>+${money(fin.pending_cents)}</b> waiting for approval` : ''}</div>
+        <button class="btn fut-btn" data-future="${m.id}">🔮 Look into the future</button>
       </div>`;
     }
     $('#side').innerHTML = html;
@@ -969,8 +970,47 @@
       </div>
       ${m && m.role === 'kid' && (f.cash_cents > 0 || (cashRate() > 0 && (f.coins || 0) >= cashRate())) ? `<div class="kid-pick" style="margin-top:12px">${f.cash_cents > 0 ? `<button class="btn primary-btn" data-invest="${memberId}" data-cash="${f.cash_cents}">📈 Invest with Dad</button>` : ''}${cashRate() > 0 && (f.coins || 0) >= cashRate() ? `<button class="btn primary-btn" data-cashin="${memberId}" data-coins="${f.coins || 0}">🪙 → 💵 Cash in coins</button>` : ''}</div>` : ''}
       <div class="hint center">${f.interest_monthly > 0 ? `Invested with Dad earns ${f.interest_monthly}% a month, paid on day ${f.interest_day} for the days the money was there` : 'Invested with Dad'}</div>
+      ${m && m.role === 'kid' ? `<button class="btn fut-btn" data-future="${memberId}">🔮 Look into the future</button>` : ''}
       <div style="margin-top:16px">${rows || '<p class="muted center">No activity yet</p>'}</div>
       ${coinRows ? `<h3 style="margin-top:18px">🪙 ${esc(f.coin_name || 'Mom Coins')}</h3>${coinRows}` : ''}`);
+  }
+
+  // "Look into the future": step month by month through what money invested with Dad grows into,
+  // with an optional pretend extra deposit to see how much faster it grows. Nothing is saved or moved.
+  const fut = { memberId: null, months: 0, extra: 0 };
+  function futureSeries(startCents, ratePct, months) {
+    const rows = []; let bal = startCents;
+    for (let i = 1; i <= months; i += 1) { const add = Math.round(bal * (ratePct / 100)); bal += add; rows.push({ i, add, bal }); }
+    return rows;
+  }
+  function openFuture(memberId) { Object.assign(fut, { memberId, months: 0, extra: 0 }); renderFuture(); }
+  function renderFuture() {
+    const m = memberById(fut.memberId); const fin = state.finance.find((f) => f.member_id === fut.memberId) || {};
+    const rate = Number(state.settings.interest_monthly) || 0;
+    const now = fin.invested_cents || 0; const cash = fin.cash_cents || 0;
+    const start = now + fut.extra;
+    const rows = futureSeries(start, rate, fut.months);
+    const plain = futureSeries(now, rate, fut.months); // the same months without the extra money
+    const last = rows[rows.length - 1]; const bal = last ? last.bal : start;
+    const plainBal = plain.length ? plain[plain.length - 1].bal : now;
+    const when = (i) => { const d = parseYmd(state.today); return new Date(d.getFullYear(), d.getMonth() + i, 1).toLocaleDateString(LOCALE, { month: 'long', year: 'numeric' }); };
+    const chip = (c, label) => `<button class="btn ${fut.extra === c ? 'on' : ''}" data-future-extra="${c}">${label}</button>`;
+    const extras = [100, 500, 1000, 2000, 5000];
+    const list = rows.slice().reverse().map((r) => `<div class="fut-row"><span>${esc(when(r.i))}</span><span class="add">+${money(r.add)}</span><b>${money(r.bal)}</b></div>`).join('');
+    openModal(`<h2>🔮 Look into the future</h2>
+      ${rate > 0 ? `<p class="kv">${esc(m ? m.name : '')}, money invested with Dad grows by <b>${rate}%</b> every month. Press <b>Next Month</b> and watch what happens if you leave it alone.</p>` : '<p class="kv">Dad has not set an interest rate yet, so the money would stay the same. Ask a parent to set one!</p>'}
+      <div class="fut-window">
+        <div class="fut-side"><div class="lbl">${fut.extra ? 'Today + extra' : 'Today'}</div><div class="balance">${money(start)}</div>${fut.extra ? `<small>${money(now)} + ${money(fut.extra)}</small>` : ''}</div>
+        <div class="fut-arrow">➜</div>
+        <div class="fut-main"><div class="lbl">${fut.months ? `In ${fut.months} month${fut.months > 1 ? 's' : ''} · ${esc(when(fut.months))}` : 'Press Next Month'}</div>
+          <div class="balance">${money(bal)}</div>
+          ${last ? `<div class="grow">+${money(last.add)} added this month · <b>+${money(bal - start)}</b> earned in all</div>` : '<div class="grow">&nbsp;</div>'}</div>
+      </div>
+      <p class="kv"><b>What if I add extra money?</b> <span class="muted">(just pretend, nothing moves)</span></p>
+      <div class="qty-row">${chip(0, 'No extra')}${extras.map((c) => chip(c, `+${money(c)}`)).join('')}${cash > 0 && !extras.includes(cash) ? chip(cash, `All my cash (${money(cash)})`) : ''}</div>
+      ${fut.extra && fut.months ? `<p class="fut-compare">Without the extra you would have <b>${money(plainBal)}</b>. With it you have <b>${money(bal)}</b>: your ${money(fut.extra)} turned into <b>${money(bal - plainBal)}</b>, which is <b>${money(bal - plainBal - fut.extra)}</b> more than you put in!</p>` : ''}
+      ${list ? `<div class="fut-list">${list}</div>` : ''}
+      <div class="kid-pick"><button class="btn primary-btn" data-future-next ${rate > 0 && fut.months < 120 ? '' : 'disabled'}>Next Month ➜</button><button class="btn" data-future-reset>↺ Start over</button></div>`);
   }
 
   // Kids can move cash into "Invested with Dad" themselves: pick an amount, then promise to leave it for 30 days.
@@ -1275,6 +1315,12 @@
     if (cashAmt) { confirmCashIn(Number(cashAmt.dataset.kid), Number(cashAmt.dataset.cashinAmount)); return; }
     const cashGo = t.closest('[data-cashin-go]');
     if (cashGo) { await doCashIn(Number(cashGo.dataset.kid), Number(cashGo.dataset.cashinGo)); return; }
+    const futBtn = t.closest('[data-future]');
+    if (futBtn) { openFuture(Number(futBtn.dataset.future)); return; }
+    if (t.closest('[data-future-next]')) { fut.months = Math.min(120, fut.months + 1); renderFuture(); return; }
+    if (t.closest('[data-future-reset]')) { fut.months = 0; fut.extra = 0; renderFuture(); return; }
+    const futExtra = t.closest('[data-future-extra]');
+    if (futExtra) { fut.extra = Number(futExtra.dataset.futureExtra) || 0; renderFuture(); return; }
     const inv = t.closest('[data-invest]');
     if (inv) { openInvest(Number(inv.dataset.invest), Number(inv.dataset.cash)); return; }
     const invAmt = t.closest('[data-invest-amount]');
