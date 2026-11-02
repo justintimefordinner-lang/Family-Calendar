@@ -27,8 +27,13 @@ connection are all entered on the device during first-run setup and stored in a 
 
 ## How Google Calendar fits in
 
-The app is **read-only** against Google. Everyone keeps using the normal Google Calendar app on
-their phones to add, change, and remove events. The recommended layout:
+The app mostly *reads* Google. Everyone keeps using the normal Google Calendar app on
+their phones to add, change, and remove events. The exception is **Import .ics file** on the parent
+app's *Birthdays & Events* screen: pick a schedule file (a team schedule, a school calendar), choose
+who it's for and which calendar, and its events are added to Google. Importing the same file again
+updates those events rather than duplicating them. Accounts connected before this feature existed
+can only read; tap *Connect a Google account* again with that account to allow adding events.
+The recommended layout:
 
 1. In one parent's Google account create a calendar per kid (e.g. "Ava", "Ben") plus a "Family" calendar.
 2. Share each calendar with whoever should be able to edit it (your spouse, an older kid's account).

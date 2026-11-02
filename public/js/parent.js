@@ -593,9 +593,38 @@
     shell('Birthdays & Events', `
       <div class="card"><h2>🎂 Birthdays <span class="meta">${bdays.length}</span></h2>${bdays.map(row).join('') || '<p class="muted">Add family and friends’ birthdays with +. They repeat every year and show the age.</p>'}</div>
       <div class="card"><h2>📌 Upcoming events <span class="meta">${events.length}</span></h2>${events.map(row).join('') || '<p class="muted">School plays, trips, visits… anything not on Google Calendar.</p>'}</div>
+      <div class="card"><h2>📥 Import a schedule</h2><p class="muted small">Got an .ics file (a team schedule, school calendar…)? Its events go straight onto Google Calendar.</p>
+        <label class="btn block" style="text-align:center">Import .ics file<input type="file" accept=".ics,text/calendar" data-upload-ics hidden></label></div>
       ${past.length ? `<details class="section"><summary>Past events (${past.length})</summary><div class="body">${past.map(row).join('')}</div></details>` : ''}
       <button class="fab" data-action="new-levent" aria-label="Add">+</button>`);
     S.levents = items;
+  }
+
+  // ---- .ics import (into Google Calendar) ---------------------------------------
+  // The kid's own calendar if there is one, else the family calendar, else the first that can take events.
+  function icsDefaultCalendar(targets, memberId) {
+    return targets.find((c) => memberId && c.member_id === memberId) || targets.find((c) => c.is_family) || targets[0];
+  }
+
+  function icsForm({ events, targets }, fileName) {
+    if (!targets.length) {
+      return `<h2>Import ${esc(fileName)}</h2>
+        <p>No Google calendar can take new events yet. Go to <b>Settings › Google Calendar</b>, tap <b>Connect a Google account</b> again for the account that owns your calendars, and allow it to add events.</p>
+        <div class="actions"><button class="btn primary grow" data-action="close-sheet">OK</button></div>`;
+    }
+    const today = ymd(new Date());
+    const cal = icsDefaultCalendar(targets, null);
+    const day = (e) => (e.start.date || e.start.dateTime).slice(0, 10);
+    return `<form data-form="ics-import"><h2>Import ${esc(fileName)}</h2>
+      <div class="row2">
+        <label class="field"><span>For</span><select name="member_id" data-ics-member><option value="">Everyone (family)</option>${S.members.map((m) => `<option value="${m.id}">${esc(m.emoji)} ${esc(m.name)}</option>`).join('')}</select></label>
+        <label class="field"><span>Add to calendar</span><select name="calendar_id">${targets.map((c) => `<option value="${c.id}" ${c.id === cal.id ? 'selected' : ''}>${esc(c.name)}${targets.some((o) => o.email !== c.email) ? ` (${esc(c.email)})` : ''}</option>`).join('')}</select></label>
+      </div>
+      <p class="muted small">On a shared calendar the name goes in front of each title, so the display still files it under them. Importing the same file again updates these events instead of doubling them.</p>
+      ${events.map((e, i) => `<label class="list-item" style="gap:10px"><input type="checkbox" name="ev" value="${i}" ${day(e) >= today ? 'checked' : ''}>
+        <div class="grow"><div class="title">${esc(e.title)}</div><div class="sub">${esc(e.label)}${e.recurrence.length ? ' · repeats' : ''}${e.location ? ' · ' + esc(e.location) : ''}</div></div></label>`).join('') || '<p class="muted">No events in this file.</p>'}
+      <div class="actions"><button class="btn primary grow" type="submit" ${events.length ? '' : 'disabled'}>Add to Google Calendar</button></div>
+    </form>`;
   }
 
   function leventForm(e = {}) {
@@ -744,6 +773,7 @@
     const accountsHtml = accounts.map((a) => `<div class="card" style="box-shadow:none;border:1px solid var(--line)">
         <div class="list-item" style="display:block"><div class="title">${esc(a.email)}</div>
           <div class="sub ${a.last_error ? 'err' : ''}">${a.last_error ? esc(a.last_error) : a.last_sync_at ? 'Synced ' + new Date(a.last_sync_at).toLocaleString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) : 'Not synced yet'}</div>
+          ${a.can_write ? '' : '<div class="sub">Read-only. To add events from .ics files, tap <b>Connect a Google account</b> again with this account and allow it.</div>'}
           <div class="actions" style="margin-top:8px"><button class="btn small" data-action="refresh-cals" data-id="${a.id}">Refresh calendars</button>
           <button class="btn small danger" data-action="remove-account" data-id="${a.id}">Remove</button></div></div>
         ${a.calendars.length ? a.calendars.map((c) => `<div class="cal-row"><span class="swatch" style="background:${esc(c.color || '#999')}"></span><span class="name">${esc(c.name)}</span>
@@ -1128,6 +1158,23 @@
       try { await api(`/api/google/calendars/${t.dataset.cal}`, { method: 'PATCH', body }); toast('Calendar updated'); } catch (err) { fail(err); }
       return;
     }
+    if (t.matches('[data-upload-ics]')) {
+      const file = t.files[0];
+      t.value = ''; // picking the same file again should still fire change
+      if (!file) return;
+      const fd = new FormData();
+      fd.append('file', file);
+      try {
+        S.ics = await api('/api/ics/parse', { method: 'POST', body: fd });
+        openSheet(icsForm(S.ics, file.name));
+      } catch (err) { fail(err); }
+      return;
+    }
+    if (t.matches('[data-ics-member]')) {
+      const cal = icsDefaultCalendar(S.ics.targets, t.value ? Number(t.value) : null);
+      if (cal) t.closest('form').calendar_id.value = String(cal.id);
+      return;
+    }
     if (t.matches('[data-upload-art]')) {
       if (!t.files.length) return;
       const fd = new FormData();
@@ -1219,6 +1266,16 @@
           if (form.dataset.id) await api(`/api/local-events/${form.dataset.id}`, { method: 'PATCH', body });
           else await api('/api/local-events', { method: 'POST', body });
           closeSheet(); toast('Saved'); render(); break;
+        }
+        case 'ics-import': {
+          const events = fd.getAll('ev').map((i) => S.ics.events[Number(i)]);
+          if (!events.length) { toast('Tick at least one event', true); break; }
+          toast(`Adding ${events.length} event(s)…`);
+          const r = await api('/api/ics/import', { method: 'POST', body: { calendar_id: Number(fd.get('calendar_id')), member_id: fd.get('member_id') ? Number(fd.get('member_id')) : null, events } });
+          closeSheet();
+          if (r.errors.length) toast(`Added ${r.added} to ${r.calendar}; ${r.errors.length} failed: ${r.errors[0]}`, true);
+          else toast(`Added ${r.added} to ${r.calendar}`);
+          break;
         }
         case 'reward': {
           const body = { title: fd.get('title'), coins: parseInt(fd.get('coins'), 10), emoji: fd.get('emoji'), notes: fd.get('notes') };

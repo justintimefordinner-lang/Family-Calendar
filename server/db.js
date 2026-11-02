@@ -184,6 +184,8 @@ const shopCols = db.prepare('PRAGMA table_info(shopping_items)').all().map((c) =
 if (!shopCols.includes('qty')) db.exec('ALTER TABLE shopping_items ADD COLUMN qty INTEGER');
 const txCols = db.prepare('PRAGMA table_info(transactions)').all().map((c) => c.name);
 if (!txCols.includes('account')) db.exec(`ALTER TABLE transactions ADD COLUMN account TEXT NOT NULL DEFAULT 'invested'`);
+const calCols = db.prepare('PRAGMA table_info(calendars)').all().map((c) => c.name);
+if (!calCols.includes('access_role')) db.exec('ALTER TABLE calendars ADD COLUMN access_role TEXT'); // Google's owner/writer/reader; .ics import only offers owner/writer
 
 // Traffic: shared places a parent saves (geocoded once), and each kid's favourite routes between them.
 db.exec(`

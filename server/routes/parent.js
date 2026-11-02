@@ -9,6 +9,7 @@ const settings = require('../settings');
 const auth = require('../auth');
 const chores = require('../chores');
 const google = require('../google');
+const ics = require('../ics');
 const weather = require('../weather');
 const interest = require('../interest');
 const notify = require('../notify');
@@ -504,6 +505,25 @@ router.patch('/google/calendars/:id', (req, res) => {
 
 router.post('/google/sync', wrap(async (req, res) => {
   res.json(await google.syncAll());
+}));
+
+// ---- .ics import into Google Calendar ------------------------------------------
+// Two steps so the parent can check the list first: parse the file, then send the chosen events back.
+const icsUpload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 2 * 1024 * 1024, files: 1 } });
+
+router.post('/ics/parse', icsUpload.single('file'), (req, res) => {
+  if (!req.file) throw new HttpError(400, 'Choose an .ics file');
+  const events = ics.parse(req.file.buffer.toString('utf8'));
+  if (!events) throw new HttpError(400, 'That file is not a calendar (.ics) file');
+  res.json({ events, targets: google.writableCalendars().map(({ id, name, member_id, is_family, email, color }) => ({ id, name, member_id, is_family, email, color })) });
+});
+
+router.post('/ics/import', wrap(async (req, res) => {
+  const events = Array.isArray(req.body.events) ? req.body.events.slice(0, 500) : [];
+  if (!events.length) throw new HttpError(400, 'Pick at least one event');
+  const calendarId = toInt(req.body.calendar_id);
+  if (!calendarId) throw new HttpError(400, 'Pick a calendar');
+  res.json(await google.importEvents(calendarId, toInt(req.body.member_id), events));
 }));
 
 // ---- Photos ----------------------------------------------------------------

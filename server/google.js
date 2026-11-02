@@ -1,5 +1,5 @@
 // Google Calendar integration: OAuth for one or more Google accounts, calendar
-// list discovery, and a periodic read-only event sync into SQLite.
+// list discovery, a periodic event sync into SQLite, and adding events from .ics files.
 const fs = require('fs');
 const path = require('path');
 const { OAuth2Client } = require('google-auth-library');
@@ -10,6 +10,7 @@ const { HttpError } = require('./util');
 
 const SCOPES = [
   'https://www.googleapis.com/auth/calendar.readonly',
+  'https://www.googleapis.com/auth/calendar.events', // add events (.ics import); accounts connected before this can only read
   'https://www.googleapis.com/auth/userinfo.email',
 ];
 // "Desktop app" OAuth clients accept any loopback redirect without registering it.
@@ -112,20 +113,45 @@ async function refreshCalendarList(accountId) {
     params: { maxResults: 250 },
   });
   const upsert = db.prepare(`
-    INSERT INTO calendars(account_id, google_id, name, color) VALUES(?, ?, ?, ?)
-    ON CONFLICT(account_id, google_id) DO UPDATE SET name = excluded.name, color = excluded.color
+    INSERT INTO calendars(account_id, google_id, name, color, access_role) VALUES(?, ?, ?, ?, ?)
+    ON CONFLICT(account_id, google_id) DO UPDATE SET name = excluded.name, color = excluded.color, access_role = excluded.access_role
   `);
   db.transaction((items) => {
-    for (const c of items) upsert.run(accountId, c.id, c.summaryOverride || c.summary || c.id, c.backgroundColor || null);
+    for (const c of items) upsert.run(accountId, c.id, c.summaryOverride || c.summary || c.id, c.backgroundColor || null, c.accessRole || null);
   })(data.items || []);
   return listAccounts().find((a) => a.id === accountId);
 }
 
+// Did this account grant the events scope? Accounts connected before .ics import existed only granted read access.
+function canWrite(account) {
+  try {
+    const scope = String(JSON.parse(account.tokens).scope || '');
+    return /auth\/calendar\.events(\s|$)|auth\/calendar(\s|$)/.test(scope);
+  } catch {
+    return false;
+  }
+}
+
 function listAccounts() {
-  const accounts = db.prepare('SELECT id, email, last_error, last_sync_at, created_at FROM google_accounts ORDER BY id').all();
+  const accounts = db.prepare('SELECT id, email, tokens, last_error, last_sync_at, created_at FROM google_accounts ORDER BY id').all();
   const cals = db.prepare('SELECT * FROM calendars ORDER BY is_family DESC, name').all();
-  for (const a of accounts) a.calendars = cals.filter((c) => c.account_id === a.id);
+  for (const a of accounts) {
+    a.can_write = canWrite(a);
+    delete a.tokens;
+    a.calendars = cals.filter((c) => c.account_id === a.id);
+  }
   return accounts;
+}
+
+// Calendars an import can go to: shown on the display, on an account that granted write access,
+// and owned or editable by that account (a role of null means the list predates access_role; let Google decide).
+function writableCalendars() {
+  const accounts = db.prepare('SELECT * FROM google_accounts').all().filter(canWrite);
+  if (!accounts.length) return [];
+  const ids = accounts.map((a) => a.id);
+  return db.prepare(`SELECT c.*, a.email FROM calendars c JOIN google_accounts a ON a.id = c.account_id
+    WHERE c.enabled = 1 AND c.account_id IN (${ids.map(() => '?').join(',')}) ORDER BY c.is_family DESC, c.name`).all(...ids)
+    .filter((c) => c.access_role == null || c.access_role === 'owner' || c.access_role === 'writer');
 }
 
 function removeAccount(id) {
@@ -177,6 +203,55 @@ async function syncCalendar(client, cal) {
   return items.length;
 }
 
+// ---- .ics import -------------------------------------------------------------
+const escapeRe = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+// Google's events.import keys on iCalUID, so importing the same file twice updates the events instead of duplicating them.
+async function importEvents(calendarId, memberId, events) {
+  const cal = db.prepare('SELECT * FROM calendars WHERE id = ?').get(calendarId);
+  if (!cal || !writableCalendars().some((c) => c.id === cal.id)) throw new HttpError(400, 'That calendar cannot take new events. Reconnect its Google account in Settings.');
+  const account = db.prepare('SELECT * FROM google_accounts WHERE id = ?').get(cal.account_id);
+  const client = clientFor(account);
+  // A kid's event going to a shared calendar gets their name in front, so the display still files it under them.
+  const member = memberId != null && cal.member_id !== memberId
+    ? db.prepare('SELECT name, aliases FROM members WHERE id = ?').get(memberId) : null;
+  const nameRe = member && new RegExp(`(?<![\\p{L}\\p{N}])(?:${[member.name, ...String(member.aliases || '').split(',')]
+    .map((w) => w.trim()).filter((w) => w.length >= 2).map(escapeRe).join('|')})(?![\\p{L}\\p{N}])`, 'iu');
+  const when = (w) => (w && w.date ? { date: String(w.date) } : w && w.dateTime
+    ? { dateTime: String(w.dateTime), ...(w.timeZone ? { timeZone: String(w.timeZone) } : {}) } : null);
+
+  let added = 0;
+  const errors = [];
+  for (const e of events) {
+    const title = String(e.title || '(No title)').slice(0, 300);
+    const start = when(e.start);
+    const end = when(e.end);
+    if (!e.uid || !start || !end) { errors.push(`${title}: missing date`); continue; }
+    try {
+      await client.request({
+        url: `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(cal.google_id)}/events/import`,
+        method: 'POST',
+        data: {
+          iCalUID: String(e.uid),
+          summary: member && !nameRe.test(title) ? `${member.name} ${title}` : title,
+          location: String(e.location || '').slice(0, 1000) || undefined,
+          description: String(e.description || '').slice(0, 8000) || undefined,
+          start,
+          end,
+          ...(Array.isArray(e.recurrence) && e.recurrence.length ? { recurrence: e.recurrence.map(String) } : {}),
+        },
+      });
+      added += 1;
+    } catch (err) {
+      const status = err.response && err.response.status;
+      if (status === 401 || status === 403) throw new HttpError(400, `Google refused (${account.email}). Reconnect that account in Settings to allow adding events.`);
+      errors.push(`${title}: ${(err.response && err.response.data && err.response.data.error && err.response.data.error.message) || err.message}`);
+    }
+  }
+  if (added) syncAll().catch(() => {});
+  return { added, errors, calendar: cal.name };
+}
+
 let syncing = false;
 async function syncAll() {
   if (syncing || !isConfigured()) return { skipped: true };
@@ -226,5 +301,5 @@ function startSync() {
 
 module.exports = {
   REDIRECT_URI, isConfigured, authUrl, codeFromInput, connectWithCode,
-  refreshCalendarList, listAccounts, removeAccount, syncAll, startSync,
+  refreshCalendarList, listAccounts, removeAccount, syncAll, startSync, writableCalendars, importEvents,
 };
